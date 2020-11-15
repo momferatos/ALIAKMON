@@ -1,4 +1,8 @@
+#*
 *~
+*.o
+*.mod
+aliakmon.exe
 ERRORS
 WARNINGS
 old/

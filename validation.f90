@@ -234,12 +234,14 @@ contains
     n3=nn(3)
 
     !Copy arrays from Fourier space to physical space
-    !$omp parallel workshare
-    u(:,:,:,:)=fu(:,:,:,:)
-    arr_en_1=0.0
-    arr_en_2=0.0
-    arr_en_3=rhs
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       u(i,j,k,l)=fu(i,j,k,l)
+       arr_en_1(i,j,k,l)=0.0_rk
+       arr_en_2(i,j,k,l)=0.0_rk
+       arr_en_3(i,j,k,l)=rhs(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
     !Vorticity
     call curl(nn,arr_en_2(:,:,:,:),fu(:,:,:,:),nu1)
     !curl of Navier-Stokes rhs

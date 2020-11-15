@@ -22,11 +22,11 @@ all: aliakmon
 	$(MPIFC) -c -o $@ $< $(FOPT) $(PREC) $(PAROPT) $(INCLUDE) 
 
 aliakmon: $(OBJS)
-	$(MPIFC) -o $@ $^ $(FOPT) $(PAROPT) $(LIB) $(LIBS) 
+	$(MPIFC) -o $@.exe $^ $(FOPT) $(PAROPT) $(LIB) $(LIBS) 
 
 debug: $(OBJS)
 	$(MPIFC) -o $@ $^ $(GOPT) $(GPAROPT) $(LIB) $(LIBS) 
 
 clean:
-	rm -f *.o *.mod aliakmon aliakmon.diag
+	rm -f *.o *.mod aliakmon.exe 
 

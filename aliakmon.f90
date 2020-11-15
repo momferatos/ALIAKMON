@@ -736,15 +736,17 @@ contains
           fsclgrad=>fsclgrads(:,:,:,:,l)
           call fourier(nn,-1_ik,fsclgrad)
        end do
-       do l=nsclf,nscll
-          u(1:nn(1),:,:,l)=sqrt(fsclgrads(1:nn(1),:,:,l,1)**2+fsclgrads(1:nn(1),:,:,l,1)**2+&
-               &fsclgrads(1:nn(1),:,:,l,1)**2)
-       end do
+       !omp parallel do
+       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
+               &fsclgrads(i,j,k,l,1)**2)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
     end if
     write(fname,'(a,i5.5,a)') 'slice-', nfile, '.vtk'
     write(comment, '(a,f20.5)') 'vorticity magnitude at t = ', time
     !$omp parallel do
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(3)
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        u(i,j,k,nu1) = sqrt(rmsarr(i,j,k,nu1)**2 + rmsarr(i,j,k,nu2)**2 + rmsarr(i,j,k,nu3)**2)
        u(i,j,k,nu2) = scratch(i,j,k,nu1)
        u(i,j,k,nu3) = 0.0_rk

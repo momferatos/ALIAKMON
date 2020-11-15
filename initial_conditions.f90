@@ -118,7 +118,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Initial conditions for the velocity, magnetic and scalar fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i, j, k,iii
+    integer(ik)                                             :: i, j, k, l, iii
     real(rk)                                                :: maxdivv
     real(rk)                                                :: meandivv
     real(rk)                                                :: mu1,mu2,mu3
@@ -141,9 +141,11 @@ contains
 
     !Set zero initial conditions, use only with forcing
     if(INITCOND==ZERO_INITCOND) then
-       !$omp parallel workshare
-       fu(:,:,:,:)=0.0_rk
-       !$omp end parallel workshare
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fu(:,:,:,:)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end parallel do
        !Stochastic initial conditions with flat energy spectrum 
     else if(INITCOND==STOCHASTIC_INITCOND_FLAT) then 
        call random_field(nn,fu,2.0_rk)
@@ -186,13 +188,19 @@ contains
           end do
        end do
 
-       !$omp parallel workshare
-       !Add components
-       u(:,:,:,:)=u(:,:,:,:)+OT_RAND*rks1(:,:,:,:)
-       fu(:,:,:,:)=u(:,:,:,:)
-       !Set auxiliary arrays back to zero
-       rks1(:,:,:,:)=0.0_rk
-       !$omp end parallel workshare
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          !Add components
+          u(i,j,k,l)=u(i,j,k,l)+OT_RAND*rks1(i,j,k,l)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))   
+          fu(i,j,k,l)=u(i,j,k,l)
+          !Set auxiliary arrays back to zero
+          rks1(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end parallel do
        call fourier(nn,1_ik,fu)
        !rescale to unit rms
        call rescale(nn,fu)
@@ -207,20 +215,24 @@ contains
        call project(nn,rks1)
        !rescale to unit rms
        call rescale(nn,rks1)
-       !$omp parallel workshare
-       !Add components
-       !fu(:,:,:,:)=fu(:,:,:,:)+rks1(:,:,:,:)
-       !set auxiliary arrays back to zero
-       rks1(:,:,:,:)=0.0_rk
-       !$omp end parallel workshare 
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          !Add components
+          !fu(i,j,k,l)=fu(i,j,k,l)+rks1(i,j,k,l)
+          !set auxiliary arrays back to zero
+          rks1(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end parallel do 
     else if(INITCOND==TAYLOR_GREEN_VORTEX) then
        call taylor_green(nn,fu)
     end if
 
     !Copy Fourier arrays to physical-space arrays
-    !$omp parallel workshare
-    u(:,:,:,:)=fu(:,:,:,:)
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       u(i,j,k,l)=fu(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
     !Perform truncation
     call truncate(nn,fu)
@@ -232,14 +244,21 @@ contains
     call rescale(nn,fu)
 
     if(MHD) then
-       !$omp parallel workshare
-       fu(:,:,:,nb1:nb3)=sqrt(BETA)*fu(:,:,:,nb1:nb3)
-       !$omp end parallel workshare
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fu(:,:,:,nb1:nb3)=sqrt(BETA)*fu(:,:,:,nb1:nb3)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
     end if
 
     !If the passive scalar field is heated, set it to zero
-    if(PASSIVE_SCALAR.and.HEATING) fu(:,:,:,nsclf:nscll)=0.0_rk
-    
+    if(PASSIVE_SCALAR.and.HEATING) then
+       !$omp parallel do
+       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fu(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !omp end parallel do
+    end if
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
 
@@ -292,9 +311,11 @@ contains
 
 
     !Set fields to zero
-    !$omp parallel workshare
-    u(:,:,:,:)=0.0_rk
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       u(i,j,k,l)=0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
@@ -368,9 +389,11 @@ contains
 
 
     !Set fields to zero
-    !$omp parallel workshare
-    u(:,:,:,:)=0.0_rk
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       u(i,j,k,l)=0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
