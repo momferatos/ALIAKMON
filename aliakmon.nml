@@ -1,0 +1,129 @@
+!******************************************************************************
+! Namelist general: basic parameters of the simulation
+!******************************************************************************
+
+&general
+n=64,		!n: number of collocation points in each axis 
+TIMESTEPS=10,	!TIMESTEPS: number of timesteps, use TMAX if zero
+TMAX=10.0,	!TMAX: maximum time limit
+CFL=0.8,	!CFL: Courant-Friedrichs-Lewy number
+RE=0,		!RE: Taylor microscale Reynolds number, use KMAXETA if zero
+KMAXETA=2.0,	!KMAXETA: Target maximum wavenumber times Kolmogorov microscale
+&end
+
+!******************************************************************************
+!VISCOUS: Include the viscous terms?
+!BURGERS: Include the pressure term?
+!******************************************************************************
+
+&hydro
+VISCOUS=.true.,
+BURGERS=.false.,
+&end
+
+!*****************************************************************************
+!FORCED: Force the hydrodynamic equations?
+!VARIABLE_FORCING: .true.: Kaneda et al. (2004) negative viscosity large-scale
+!forcing .false.: toy stochastic forcing
+!KFORCING: Maximum forced wavenumber
+!FSCALE: Force scaling factor
+!*****************************************************************************
+
+&force
+FORCED=.false., VARIABLE_FORCING=.false.,KFORCING=2.5
+&end
+
+!*****************************************************************************
+!PASSIVE_SCALAR: Include the passive scalar equation?
+!DIFFUSIVE: Include the diffusive term?
+!PR: Prandtl number
+!HEATING: Include the heating source term?
+!FORCED_PASSIVE_SCALAR: Force the passive scalar equation?
+!FSCALESCL: Passive scalar forcing source term scaling factor
+!*****************************************************************************
+&passivescalar
+PASSIVE_SCALAR=.true., DIFFUSIVE=.false., PR=1.0, HEATING=.false.,
+FORCED_PASSIVE_SCALAR=.false.,NUMSCLS=1,
+&end
+
+!******************************************************************************
+!MHD: Include the induction equation?
+!MAGNETIC_PR: Magnetic Prandtl number
+!RESISTIVE: Include the resistive term?
+!FORCED_MHD: Force the induction equation?
+!FSCALEMHD: Scaling factor of the forcing source term in the induction equation
+!BETA: Ratio of rms velocity to rms magnetic field in the initial conditions
+!******************************************************************************
+&magnetohydro
+MHD=.false., MAGNETIC_PR=1.0,RESISTIVE=.false.,FORCED_MHD=.false.,BETA=1.0
+&end
+
+!******************************************************************************
+!AMB_DIFF: Include the ambipolar diffusion term in the induction equation?
+!AD_COEFF: Coefficient in front of the ambipolar diffusion term
+!******************************************************************************
+&ambipolar
+AMB_DIFF=.false.,
+AD_COEFF=0.01,
+&end
+
+!******************************************************************************
+!HALL: Include the Hall term in the induction equation?
+!HALL_COEFF: Hall coefficient
+!******************************************************************************
+&halleffect
+HALL=.false., HALL_COEFF=0.01
+&end
+
+!******************************************************************************
+!PARTICLES: Include particles? ATTENTION: USE ONLY IN SERIAL OR OPENMP MODE
+!PART_INITCOND: Initial condition for the particles:
+!0: Homogeneous, 1: Sphere, 2: 2D Sheet
+!NPART: Number of particles
+!NPTS: Number of particle timesteps per flow timestep
+!INERTIAL: Inertial particles?
+!PERIODIC_PARTICLES: Use periodic boundary conditions for the particles?
+!LAGRANGIAN_HISTORY: Output particle history?
+!STK: Stokes number for intertial particles
+!******************************************************************************
+&particle
+PARTICLES=.false., PART_INITCOND=1,NPART=1000,NPTS=4,INERTIAL=.false.,
+PERIODIC_PARTICLES=.true.,LAGRANGIAN_HISTORY=.false.,STK=0.5
+&end
+
+!******************************************************************************
+!INTEGRATION_METHOD: Method for time integration:
+!0:1st order Euler, 1: 2nd order Runge-Kutta, 2: 4th order Runge-Kutta
+!Truncation: Method for truncation in Fourier space:
+!0: Two-thirds rule, 1: Spherical, 2: Polyhedral
+!DEALIASING: Dealiasing method:
+!0: None, 1: Patterson-Orszag
+!CRANK_NICHOLSON: Use Crank-Nicholson method for the diffusive terms?
+!******************************************************************************
+&numerics
+INTEGRATION_METHOD=2,TRUNCATION=2,DEALIASING=1,CRANK_NICHOLSON=.false.
+&end
+
+!******************************************************************************
+!INITCOND: Choose initial conditions:
+!0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
+!spectrum, 3: Orszag-Tang vortex variation, 4: Arnold-Beltrami-Childress flow
+!variation
+!KINITCOND: Exponential cutoff wavenumber for the initial conditions
+!SEEDRANDOM: Seed the random number generator?
+!******************************************************************************
+&initialconditions
+INITCOND=4, KINITCOND=2.5, SEEDRANDOM=.false.
+&end
+
+!******************************************************************************
+!NOUTPUTFILES: Number of output files
+!INPUT_FIELD: Read initial conditions from file?
+!INPUT_FIELD_FILENAME: Name of input field file
+!NFILESTART: Number of first output file
+!******************************************************************************
+&inputoutput
+NOUTPUTFILES=10,INPUT_FIELD=.false.,INPUT_FIELD_FILENAME='output.888888.h5',NFILESTART=0
+&end
+
+
