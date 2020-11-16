@@ -303,27 +303,21 @@ program aliakmon
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
   else
      call set_initial_conditions(nn,u,fu,KINITCOND)
-
      nhdf5file=0_ik
      call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
-
+     
      call output_slices(nvortfile, time)
      nvortfile=nvortfile+1_ik
+     
   end if
-
-  ! Synchronize
-#ifdef _MPI_
-  call mpi_barrier(MPI_COMM_WORLD,mpierr)
-#endif
+  
   allocate(tmp3(1:nn(4)))
   ! Kinetic energy
   call msvalue(nn,fu,tmp3)
-  KE=tmp3(nu1)
-  ! Synchronize
-#ifdef _MPI_
-  call mpi_barrier(MPI_COMM_WORLD,mpierr)
-#endif
+   KE=tmp3(nu1)
+
+
   ! Magnetic energy
   ME=0.0_rk
   if(MHD) then
@@ -333,10 +327,7 @@ program aliakmon
   end if
   teinitial=0.5_rk*(ME+KE)
   rkten=teinitial
-  ! Synchronize
-#ifdef _MPI_
-  call mpi_barrier(MPI_COMM_WORLD,mpierr)
-#endif
+
   ! Mean kinetic helicity
   mkhinitial=mean_kinetic_helicity(nn,fu)
   rkmkh=mkhinitial
@@ -345,8 +336,6 @@ program aliakmon
      mchinitial=mean_cross_helicity(nn,fu)
      mmhinitial=mean_magnetic_helicity(nn,fu)
   end if
-
-
 
   ! set up .dat files for output
   if(mpirank==MPIROOT) then
@@ -363,7 +352,7 @@ program aliakmon
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
-
+     
      ! Print progress to stdout
      call print_progress(nn,u,fu,k,time,&
           &tstart,t1)
@@ -736,7 +725,7 @@ contains
           fsclgrad=>fsclgrads(:,:,:,:,l)
           call fourier(nn,-1_ik,fsclgrad)
        end do
-       !omp parallel do
+       !$omp parallel do
        do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
                &fsclgrads(i,j,k,l,1)**2)

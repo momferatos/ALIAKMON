@@ -7,79 +7,6 @@ module numerics
   !
 contains
 
-  function msfactor(nn,u,fu) result(msfac)
-    use mpivars
-    use data, only: nu1
-    implicit none
-    real(rk)                                                    :: msfac
-    integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)      :: fu
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)      :: u
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !calculate fourier transform scaling factor!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                                 :: i,j,k
-    real(rk)                                                    :: rms, frms
-    real(rk)                                                    :: fac
-    complex(ck)                                                 :: tmp
-    real(rk), dimension(1:nn(4))                                      :: msv, fmsv
-    !Calculate scaling factor
-    fac=1.0_rk/real(nn(1)*nn(2)*gn3,rk)
-
-    u(:,:,:,:)=0.0_rk
-    u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))=1.0_rk
-    !Copy Fourier array to physical-space array
-    !$omp parallel workshare
-    fu(:,:,:,:)=u(:,:,:,:)
-    !$omp end parallel workshare
-
-    !Forward Fourier transform
-    call fourier(nn,1_ik,fu)
-!!$   
-!!$    msv=msvalue(nn,u)
-!!$    fmsv=msvalue(nn,fu)
-!!$
-!!$    msfac=msv(1)/fmsv(1)
-!!$
-!!$    !$omp parallel workshare
-!!$    u(:,:,:,:)=0.0_rk
-!!$    fu(:,:,:,:)=0.0_rk
-!!$    !$omp end parallel workshare
-!!$
-!!$    return
-
-    !Calculate root-mean-square
-    frms=0.0_rk
-    rms=0.0_rk
-    !$omp parallel do  reduction(+:frms) reduction(+:rms)
-    do i=1,dim1(nn(1))-1,2
-       do j=1,nn(2)
-          do k=1,nn(3)
-             rms=rms+fac*u(i,j,k,nu1)**2
-             rms=rms+fac*u(i+1,j,k,nu1)**2
-             tmp=fac*cmplx(fu(i,j,k,nu1),fu(i+1,j,k,nu1))
-             frms=frms+fac*abs(tmp)**2
-          end do
-       end do
-    end do
-    !$omp end parallel do
-
-    !Reduce
-#ifdef _MPI_
-    sbuf(1)=frms
-    sbuf(2)=rms
-    call mpi_allreduce(sbuf,rbuf,2,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    frms=rbuf(1)
-    rms=rbuf(2)
-#endif
-
-    !Factor ?????
-    msfac=frms/rms
-
-    return
-
-  end function msfactor
-
   subroutine msvalue(nn,fu,msv)
     use mpivars
     use data, only: rmsarr,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3
@@ -87,9 +14,9 @@ contains
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rk), dimension(1:nn(4)), intent(out)                 :: msv
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)                   :: fu
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !calculate mean-square value for vector array
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !
+    ! calculate mean-square value for vector array
+    !
     integer(ik)                                                 :: i,j,k,l
     real(rk), dimension(:), allocatable                         :: rms
     real(rk)                                                    :: fac,tmp
@@ -98,9 +25,12 @@ contains
 
     if(.not.allocated(rms)) allocate(rms(1:nn(4)))
 
-    !$omp parallel workshare
-    rmsarr(:,:,:,:)=fu(:,:,:,:)
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       rmsarr(i,j,k,l)=fu(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+    
     call fourier(nn,-1_ik,rmsarr)
     fac= 1.0_rk / real(nn(1)*nn(2)*gn3, rk)
     do l=1,nn(4)
@@ -109,9 +39,11 @@ contains
        !$omp end parallel workshare
     end do
 
-    !$omp parallel workshare
-    rmsarr(:,:,:,:)=0.0_rk
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       rmsarr(i,j,k,l)=0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
 
 
@@ -151,15 +83,17 @@ contains
     complex(ck)                                                 :: tmp1,tmp2
     complex(ck)                                                 :: tmp3
 
-
     if(.not.allocated(fmean)) allocate(fmean(1:nn(4)))
     !Calculate scale factor
     fac=1.0_rk / real(nn(1)*nn(2)*gn3,rk)
 
     !Copy Fourier-space arrays to physical-space arrays
-    !$omp parallel workshare
-    rmsarr(:,:,:,:)=fu(:,:,:,:)
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       rmsarr(i,j,k,l)=fu(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+
     !Inverse Fourier transform
     call fourier(nn,-1_ik,rmsarr)
 
@@ -181,9 +115,11 @@ contains
 
 
     !Set temporary arrays back to zero
-    !$omp parallel workshare
-    rmsarr(:,:,:,:)=0.0_rk
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       rmsarr(i,j,k,l)=0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
     meanval(nu1:nu3)= fmean(nu1:nu3)
     if(PASSIVE_SCALAR) then
@@ -524,7 +460,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Non-linear terms in rotational form
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i, j, k,l
+    integer(ik)                                             :: i, j, k,l,m
     complex(ck), dimension(:),allocatable :: ff, fvisc
     real(rk) :: ksq
 
@@ -532,23 +468,36 @@ contains
     if(.not.allocated(ff)) allocate(ff(1:nn(4)))
 
     !Get velocity field in Fourier space
-    !$omp parallel workshare
-    fnl(:,:,:,nu1:nu3)=0.0_rk
-    scratch(:,:,:,nu1:nu3)=0.0_rk
-    u(:,:,:,nu1:nu3)=fu(:,:,:,nu1:nu3)
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       fnl(i,j,k,l)=0.0_rk
+       scratch(i,j,k,l)=0.0_rk
+       u(i,j,k,l)=fu(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
 
     !Calculate the vorticity field in Fourier space 
     call curl(nn,scratch,fu,nu1)
 
     !Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
+
+       !set phase-shifted non-linear terms to zero
+       !$omp parallel
+       !$omp do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fnls(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end do
+
        !Copy to auxiliary arrays
-       !$omp parallel workshare
-       fnls(:,:,:,:)=0.0_rk
-       psu(:,:,:,nu1:nu3)=fu(:,:,:,nu1:nu3)
-       du(:,:,:,nu1:nu3)=scratch(:,:,:,nu1:nu3)
-       !$omp end parallel workshare
+       !$omp do
+       do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          psu(i,j,k,l)=fu(i,j,k,l)
+          du(i,j,k,l)=scratch(i,j,k,l)
+       end do; end do ; end do ; end do
+       !$omp end do
+       !$omp end parallel 
 
        !Perform phase shifts
        call shift(nn,1_ik,psu)
@@ -597,10 +546,19 @@ contains
     end if
 
     if(PASSIVE_SCALAR) then
-       !$omp parallel workshare
-       fnl(:,:,:,nsclf:nscll)=0.0_rk
-       fsclgrads(:,:,:,nsclf:nscll,:)=0.0_rk
-       !$omp end parallel workshare
+       !$omp parallel
+       !$omp do
+       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fnl(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end do
+
+       !$omp do
+       do m=nu1,nu3 ; do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fsclgrads(i,j,k,l,m)=0.0_rk
+       end do; end do ; end do ; end do ; end do
+       !$omp end do
+       !$omp end parallel 
        call gradient(nn,fsclgrads,fu,nsclf,nscll)
        do l=nu1,nu3
           fsclgrad=>fsclgrads(:,:,:,:,l)
@@ -614,10 +572,19 @@ contains
        !$omp end parallel do
 
        if(DEALIASING==PATTERSON_ORSZAG) then
-          !$omp parallel workshare
-          fnls(:,:,:,nsclf:nscll)=0.0_rk
-          fsclgrads(:,:,:,nsclf:nscll,:)=0.0_rk
-          !$omp end parallel workshare
+          !$omp parallel
+          !$omp do
+          do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+             fnls(i,j,k,l)=0.0_rk
+          end do; end do ; end do ; end do
+          !$omp end do
+
+          !$omp do
+          do m=nu1,nu3 ; do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+             fsclgrads(i,j,k,l,m)=0.0_rk
+          end do; end do ; end do ; end do ; end do
+          !$omp end do
+          !$omp end parallel 
           call gradient(nn,fsclgrads,fu,nsclf,nscll)
           do l=nu1,nu3
              fsclgrad=>fsclgrads(:,:,:,:,l)
@@ -670,21 +637,27 @@ contains
     end do; end do ; end do ; end do 
     !$omp end parallel do
 
-    !$omp parallel workshare
-    u(:,:,:,:)=0.0_rk
-    scratch(:,:,:,:)=0.0_rk
-    !$omp end parallel workshare
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       u(i,j,k,l)=0.0_rk
+       scratch(i,j,k,l)=0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
     if(DEALIASING==PATTERSON_ORSZAG) then
-       !$omp parallel workshare
-       du(:,:,:,:)=0.0_rk
-       psu(:,:,:,:)=0.0_rk
-       fnls(:,:,:,:)=0.0_rk
-       !$omp end parallel workshare
+       !$omp parallel do
+       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          du(i,j,k,l)=0.0_rk
+          psu(i,j,k,l)=0.0_rk
+          fnls(i,j,k,l)=0.0_rk
+       end do; end do ; end do ; end do
+       !$omp end parallel do
     end if
     if(PASSIVE_SCALAR) then
-       !$omp parallel workshare
-       fsclgrads(:,:,:,:,:)=0.0_rk
-       !$omp end parallel workshare
+       !$omp parallel do
+       do m=nu1,nu3 ; do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fsclgrads(i,j,k,l,m)=0.0_rk
+       end do; end do ; end do ; end do ; end do
+       !$omp end parallel do
     end if
 
 !!$    if(PASSIVE_SCALAR) then

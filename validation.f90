@@ -226,7 +226,7 @@ contains
     real(rk)                                               :: mcherr,mcherr1,mcherr2
     real(rk)                                               :: mmherr,mmherr1,mmherr2
     real(rk)                                               :: mkherr,mkherr1, mkherr2
-    integer(ik)                                            :: i,j,k
+    integer(ik)                                            :: i,j,k,l
     integer(ik)                                            :: n1,n2,n3
 
     n1=nn(1)
