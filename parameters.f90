@@ -6,25 +6,7 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!$Copyright (c) 2009-2017 Georgios Momferratos
-!$
-!$This program is free software; you can redistribute it and/or modify
-!$it under the terms of the GNU General Public License as published by
-!$the Free Software Foundation; either version 2 of the License, or
-!$(at your option) any later version.
-!$ 
-!$This program is distributed in the hope that it will be useful,
-!$but WITHOUT ANY WARRANTY; without even the implied warranty of
-!$MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!$GNU General Public License for more details.
-!$
-!$You should have received a copy of the GNU General Public License
-!$along with this program; if not, write to the Free Software
-!$Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-!$
-!$
-!$
-
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module types
   implicit none
   !
@@ -82,6 +64,7 @@ module parameters
   integer, parameter                :: maxima_dat=777,magnetic_dat=999
   integer, parameter                :: distest_dat=986
   integer(ik)            :: OMPCL
+  real(rk), parameter     :: small=1.0e-16
   ! PI
   real(rk), parameter    :: PI=3.14159265358979323846264338327950&
        &2884197169399375105820974944592307816406286208998628034825&
@@ -268,6 +251,10 @@ module parameters
   character(128)         :: INPUT_FIELD_FILENAME
   ! File number to start file output
   integer(ik)            :: NFILESTART=0
+  ! Frame rate of HDF5 file output
+  real(rk)               :: hdf5frate
+  ! Frame rate of VTK slice output
+  real(rk)               :: slicefrate
   ! Maximum vorticity, maximum current density, maximum Lorentz force
   real(rk)               :: MAXVORT, MAXJ, MAXLF, MAXVEL, MAXB
   ! Maximum passive scalar gradient
@@ -358,7 +345,7 @@ module mpivars
   ! Constants for MPI data types
   integer :: MPIRK,MPISP,MPICKS, MPIIK,MPIRKS
   ! Buffers used in reductions and Broadcasts
-  real(dp), dimension(64) :: sbuf,rbuf
+  real(dp), dimension(1024) :: sbuf,rbuf
   ! Maximum integer
   integer, parameter :: MPIMAXINT=2**16
 contains

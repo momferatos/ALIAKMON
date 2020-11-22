@@ -1,3 +1,12 @@
+!!$     ___ __                                       
+!!$ (  / _ \\ \        /                               
+!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
+!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
+!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
+!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
+!!$                            |_|
+!!$  
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module hdf5_aliakmon
   use types
 #ifdef _MPI_
@@ -5,6 +14,7 @@ module hdf5_aliakmon
 #endif
   use mpivars,only:mpirank,mpisize,mpiroot,lkstart
   use parameters
+  use data
   use hdf5
   implicit none
 
@@ -285,6 +295,7 @@ contains
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
     allocate(h5_vector_data(1:nn(1),1:nn(2),1:nn(3),1:3))
 
+    
     !$omp parallel do
     do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        h5_vector_data(i,j,k,l)=u(i,j,k,l)

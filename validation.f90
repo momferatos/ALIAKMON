@@ -1,3 +1,12 @@
+!!$     ___ __                                       
+!!$ (  / _ \\ \        /                               
+!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
+!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
+!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
+!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
+!!$                            |_|
+!!$  
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module validation
   use types
   use parameters
@@ -240,12 +249,12 @@ contains
        arr_en_1(i,j,k,l)=0.0_rk
        arr_en_2(i,j,k,l)=0.0_rk
        arr_en_3(i,j,k,l)=rhs(i,j,k,l)
-    end do; end do ; end do ; end do
+    end do; end do ; end do ; end do 
     !$omp end parallel do
     !Vorticity
-    call curl(nn,arr_en_2(:,:,:,:),fu(:,:,:,:),nu1)
+    call curl(nn,arr_en_2,fu,nu1)
     !curl of Navier-Stokes rhs
-    call curl(nn,arr_en_1(:,:,:,:),arr_en_3(:,:,:,:),nu1)
+    call curl(nn,arr_en_1,arr_en_3,nu1)
 
     !Perform Fourier transforms
     call fourier(nn,-1_ik,u)
@@ -261,12 +270,12 @@ contains
     do k=1,n3
        do j=1,n2
           do i=1,n1
-             !
+             ! velocity . rhs of momentum equation
              hderr=hderr+dot_product(u(i,j,k,nu1:nu3),arr_en_3(i,j,k,nu1:nu3))
              !Mean kinetic helicity
-             !vorticity * rhs
+             !vorticity . rhs of momentum equation
              mkherr1=mkherr1+dot_product(arr_en_2(i,j,k,nu1:nu3),arr_en_3(i,j,k,nu1:nu3))
-             !velocity * curl(rhs)
+             !velocity * rhs of momentum equation
              mkherr2=mkherr2+dot_product(u(i,j,k,nu1:nu3),arr_en_1(i,j,k,nu1:nu3))
           end do
        end do
@@ -276,6 +285,7 @@ contains
     mkherr1=mkherr1/(n1*n2*gn3)
     mkherr2=mkherr2/(n1*n2*gn3)
 
+    mhderr=0.0_rk
     !Magnetohydrodynamics
     if(MHD) then
        !Calculate conservation errors
@@ -287,12 +297,12 @@ contains
           do j=1,n2
              do i=1,n1
                 !Magnetic helicity
-                !magnetic field * rhs of induction equation
+                !magnetic field . rhs of induction equation
                 mhderr=mhderr+dot_product(u(i,j,k,nb1:nb3),arr_en_3(i,j,k,nb1:nb3))
                 !Mean cross-helicity
-                !magnetic field * rhs of momentum equation
+                !magnetic field . rhs of momentum equation
                 mcherr1=mcherr1+dot_product(u(i,j,k,nb1:nb3),arr_en_3(i,j,k,nu1:nu3))
-                !velocity * magnetc field
+                !velocity . magnetc field
                 mcherr2=mcherr2+dot_product(u(i,j,k,nu1:nu3),u(i,j,k,nb1:nb3))
              end do
           end do
@@ -303,9 +313,11 @@ contains
        mcherr2=mcherr2/(n1*n2*gn3)
 
        !Mean magnetic helicity
-       call vector_potential(nn,arr_en_1(:,:,:,:),fu,nb1)
-       call fourier(nn,-1_ik,arr_en_1)
-       call cross_product(nn,arr_en_1,arr_en_1,fu,nb1)
+       ! B = nabla x A (arr_en_1 = A)
+       call vector_potential(nn,arr_en_1,fu,nb1)
+       call fourier(nn,-1_ik,arr_en_1,nb1)
+       ! arr_en_2 = A x B
+       call cross_product(nn,arr_en_2,arr_en_1,fu,nb1)
        mmherr1=0.0_rk
        mmherr2=0.0_rk
        !$omp parallel do reduction(+:mmherr1,mmherr2)
@@ -314,8 +326,8 @@ contains
              do i=1,n1
                 !vector potential * rhs of induction equationm
                 mmherr1=mmherr1+dot_product(arr_en_1(i,j,k,nb1:nb3),arr_en_3(i,j,k,nb1:nb3))
-                !magnetic field * vector potential x magnetic field
-                mmherr2=mmherr2+dot_product(u(i,j,k,nb1:nb3),arr_en_1(i,j,k,nu1:nu3))
+                !magnetic field * (vector potential x magnetic field)
+                mmherr2=mmherr2+dot_product(u(i,j,k,nb1:nb3),arr_en_2(i,j,k,nb1:nb3))
              end do
           end do
        end do

@@ -1,3 +1,12 @@
+!!$     ___ __                                       
+!!$ (  / _ \\ \        /                               
+!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
+!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
+!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
+!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
+!!$                            |_|
+!!$  
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module input_output
   use types
   use parameters
@@ -22,16 +31,15 @@ contains
     namelist /force/           FORCED, VARIABLE_FORCING,KFORCING
     namelist /passivescalar/     PASSIVE_SCALAR, DIFFUSIVE, PR, HEATING,&
          &FORCED_PASSIVE_SCALAR,NUMSCLS
-    namelist /magnetohydro/      MHD, MAGNETIC_PR,RESISTIVE,FORCED_MHD,BETA
-    namelist /ambipolar/         AMB_DIFF, AD_COEFF
-    namelist /halleffect/        HALL, HALL_COEFF
+    namelist /magnetohydro/      MHD, MAGNETIC_PR,RESISTIVE,FORCED_MHD,BETA,&
+         &AMB_DIFF, AD_COEFF,HALL, HALL_COEFF
     namelist /particle/          PARTICLES, PART_INITCOND,NPART,NPTS,INERTIAL,&
          &PERIODIC_PARTICLES,LAGRANGIAN_HISTORY,STK
     namelist /numerics/          INTEGRATION_METHOD,TRUNCATION,DEALIASING,&
          &CRANK_NICHOLSON
     namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM
     namelist /inputoutput/       NOUTPUTFILES,INPUT_FIELD,INPUT_FIELD_FILENAME,&
-         &NFILESTART
+         &NFILESTART,hdf5frate,slicefrate
 
 
     !open namelist input file
@@ -42,8 +50,6 @@ contains
     read(aliakmon_nml,nml=force)
     read(aliakmon_nml,nml=passivescalar)
     read(aliakmon_nml,nml=magnetohydro)
-    read(aliakmon_nml,nml=ambipolar)
-    read(aliakmon_nml,nml=halleffect)
     read(aliakmon_nml,nml=particle)
     read(aliakmon_nml,nml=numerics)
     read(aliakmon_nml,nml=initialconditions)
@@ -65,9 +71,9 @@ contains
     stop
   end subroutine read_input_file
 
-  subroutine print_progress(nn,u,fu,ntimestep,t,&
+  subroutine print_progress(ntimestep,t,&
        &tstart,t1)
-    use data, only: nespec,nu1,nu2,nu3,nb1,nb2,nb3
+    use data, only: nespec,nu1,nu2,nu3,nb1,nb2,nb3,u,fu,nn
     use parameters, only: dt, emean,kmax, sclvarprev
     use numerics, only: incompressibility,mean_dissipation,&
          &msvalue,mean_cross_helicity,&
@@ -79,8 +85,6 @@ contains
          &integral_length_scale,mean_value
     use mpivars
     implicit none
-    integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)                 :: u, fu
     integer(ik), intent(IN)                                   :: ntimestep
     real(rk), intent(IN)                                      :: t,tstart
     real(rk), intent(INOUT)                                   :: t1
@@ -119,7 +123,7 @@ contains
     real(rk)                                                  :: maxgrad,maxscl
     real(rk)                                                  :: minscl
     integer(ik) :: l
-    !    integer(ik), dimension(1:4) :: nn
+    
 
     dfs=0.05
 
@@ -178,8 +182,8 @@ contains
     end if
 
     !Caclulate integral length scale
-    !call integral_length_scale(nn,fu,ils,lambda,&
-    !     &nespec)
+    call integral_length_scale(nn,fu,ils,lambda,&
+         &nespec)
 
     !Eddy turnover time
     if(rmsu==0.0_rk) rmsu=1.0_rk
@@ -270,7 +274,13 @@ contains
        end if
     end if
 
-    et=(t2-t1)
+    if(t2-t1>small) then
+       et=(t2-t1)
+    else
+       et=0.0
+    end if
+    
+     
 
     edays=int(et/(60._rk*60._rk*24._rk),ik)
     et=et-edays*(60._rk*60._rk*24._rk)
@@ -280,11 +290,11 @@ contains
     esecs=et-emins*60._rk
 
     if(mpirank==MPIROOT) then
-       ldays=int(etl/(60._rk*60._rk*24._rk),ik)
+       ldays=int(floor(etl/(60._rk*60._rk*24._rk)),ik)
        etl=etl-ldays*(60._rk*60._rk*24._rk)
-       lhours=int(etl/(60._rk*60._rk),ik)
+       lhours=int(floor(etl/(60._rk*60._rk)),ik)
        etl=etl-lhours*(60._rk*60._rk)
-       lmins=int(etl/60._rk,ik)
+       lmins=int(floor(etl/60._rk),ik)
        lsecs=etl-lmins*60._rk
     end if
 
@@ -362,8 +372,8 @@ contains
             &********************************'
 
        !Write data files
-       write(hydro_dat,'(11e37.8)') t,KE,mkin_hel,emean,ils,lambda,eta,&
-            &rmsu*ils/visc(nu1),REl,mkhdis,fscale(nu1)
+       write(hydro_dat,'(11(e36.8,a1))') t,'|',KE,'|',mkin_hel,'|',emean,'|',ils,'|',lambda,'|',eta,'|',&
+            &rmsu*ils/visc(nu1),'|',REl,'|',mkhdis,'|',fscale(nu1)
 
        !FIX THIS: to multiple scalars
        if(PASSIVE_SCALAR) then

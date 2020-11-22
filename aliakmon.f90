@@ -1,4 +1,4 @@
-!!$     ___ __                                       
+!!!$     ___ __                                       
 !!$ (  / _ \\ \       /                               
 !!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
 !!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
@@ -6,34 +6,21 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!$Copyright (c) 2009-2017 Georgios Momferratos
-!$
-!$This program is free software; you can redistribute it and/or modify
-!$it under the terms of the GNU General Public License as published by
-!$the Free Software Foundation; either version 2 of the License, or
-!$(at your option) any later version.
-!$ 
-!$This program is distributed in the hope that it will be useful,
-!$but WITHOUT ANY WARRANTY; without even the implied warranty of
-!$MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!$GNU General Public License for more details.
-!$
-!$You should have received a copy of the GNU General Public License
-!$along with this program; if not, write to the Free Software
-!$Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-!$
-!$
-!$ 
+!$Copyright (c) 2009-2020 Georgios Momferratos
 program aliakmon
   use types
   use parameters
   use data,only: u,fu,rmsarr,&
        &nespec,alloc_init,&
        &np,x,vp,accel,rho,&
-       &rmsarr,rhs,nu1,nb1,nsclf,nscll,rks1,nn,scratch,fsclgrad,fsclgrads,k_max
+       &rmsarr,rhs,nu1,nb1,&
+       &nsclf,nscll,rks1,nn,&
+       &scratch,fsclgrad,fsclgrads,k_max,&
+       &copy,zero
   use initial_conditions, only: set_initial_conditions
   use numerics
   use input_output
+  use validation, only: energy_test
 #ifdef _MPI_
   use fft_mpi
 #endif
@@ -62,7 +49,7 @@ program aliakmon
   real(rk)                    :: dtu,dtb,dtad,dx
   real(rk)                    :: tmp1
   integer(i4b)                :: RAND_SIZE
-  integer(i4b), dimension(12) :: rand_seed
+  integer(i4b), dimension(33) :: rand_seed
   integer(i4b), dimension(8)  :: date_time
   real(rk), dimension(:),allocatable      :: tmp3
   integer(ik)                 :: nhdf5file=0, nvortfile=0
@@ -86,6 +73,7 @@ program aliakmon
   ! Read input file
   if(mpirank==MPIROOT) print *, 'Reading input file...'
   call read_input_file
+  lkstart=0
 #ifdef _MPI_
   ! Allocate FFT structures
   call fft_mpi_alloc(n1,n2,gn3,lksize,lkstart)
@@ -202,29 +190,8 @@ program aliakmon
      print '(a)', '-------------------------------------------------------- '
      print '(a)', '|ALIAKMON Spectral Code for Fluid Turbulence Simulations|'
      print '(a)', '|                                                       |'  
-     print '(a)', '|       (C) 2009-2017 Georgios Momferratos              |'
+     print '(a)', '|       (C) 2009-2020 Georgios Momferatos              |'
      print '(a)', '---------------------------------------------------------'
-     print '(a)', 'This program is free software; you can redistribute it &
-          &and/or modify'
-     print '(a)', 'it under the terms of the GNU General Public License as &
-          &published by'
-     print '(a)', 'the Free Software Foundation; either version 2 of the &
-          &License, or'
-     print '(a)', '(at your option) any later version.'
-     print '(a)', '' 
-     print '(a)', 'This program is distributed in the hope that it will be &
-          &useful,'
-     print '(a)', 'but WITHOUT ANY WARRANTY; without even the implied warranty&
-          & of'
-     print '(a)', 'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  &
-          &See the'
-     print '(a)', 'GNU General Public License for more details.'
-     print '(a)', ''
-     print '(a)', 'You should have received a copy of the GNU General Public &
-          &License'
-     print '(a)', 'along with this program; if not, write to the Free Software'
-     print '(a)', 'Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA&
-          &  02110-1301  USA'
      write(*,*)  ' '
 
      write(*,'(a)') '###########################################&
@@ -275,29 +242,21 @@ program aliakmon
 !!$  stop
   ! seed random number generator
 
-  rand_seed(:)=1.0_rk
+  rand_seed(:)=1_i4b
   if(SEEDRANDOM) then
      call date_and_time(values=date_time)
      rand_seed(1:8)=date_time(:)+mpirank
   end if
 
-  call random_seed(put=rand_seed,size=rand_size)
+  call random_seed(put=rand_seed)
 
   if(INPUT_FIELD) nvortfile=NFILESTART
   ! read input field or set initial conditions
   if(INPUT_FIELD) then
      if(mpirank==MPIROOT) print *, 'Reading restart file'
-     !$omp parallel do
-     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-        fu(i,j,k,l)=0.0_rk
-     end do ; end do ; end do ; end do 
-     !$omp end parallel do
+     call zero(nn,fu)
      call read_hdf5_file(nn,gn3,u,trim(INPUT_FIELD_FILENAME))
-     !$omp parallel do
-     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-        fu(i,j,k,l)=u(i,j,k,l)
-     end do; end do ; end do ; end do 
-     !$omp end parallel do
+     call copy(nn,fu,u,nn(1))
      call fourier(nn,1_ik,fu)
      call truncate(nn,fu)
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
@@ -354,7 +313,7 @@ program aliakmon
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
      
      ! Print progress to stdout
-     call print_progress(nn,u,fu,k,time,&
+     call print_progress(k,time,&
           &tstart,t1)
 
      ! Calculate dissipation rate
@@ -388,17 +347,11 @@ program aliakmon
      end if
      totdisprev2=totdisprev
      totdisprev=totdis
-
+     
+     call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
-     !call right_hand_side(nn,rhs,fu)
-     !call energy_test(nn,u,fu,rhs)
-
-     ! Check CFL condition
-     dx=LBOX/max(nn(1),nn(2),gn3)
-     dt=CFL*dx/maxvel
-
-
+     call energy_test(nn,u,fu,rhs)     
      ! Write maxima to file
      write(maxima_dat,'(6e17.8)') time,maxu,maxb,MAXVORT, MAXJ, MAXLF
      if(PARTICLES) then
@@ -411,12 +364,12 @@ program aliakmon
      time=time+dt     
      k=k+1
 
-     if(int(floor(time / (1.0_rk / 30.0_rk)), ik) == nvortfile) then
+     if(int(floor(time * slicefrate), ik) == nvortfile) then
         call output_slices(nvortfile, time)
         nvortfile = nvortfile + 1
      end if
 
-     if(int(floor(time * 2.0_rk), ik) == nhdf5file .and. NOUTPUTFILES /= 0) then
+     if(int(floor(time * hdf5frate), ik) == nhdf5file .and. NOUTPUTFILES /= 0) then
         call output_files(nhdf5file)
         nhdf5file = nhdf5file + 1
      end if
@@ -516,21 +469,13 @@ contains
     integer(ik), intent(IN) :: num
     !Output fields in files
 
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       u(i,j,k,l)=fu(i,j,k,l)
-    end do ; end do ; end do ; end do
-    !$omp end parallel do
-    
+    call copy(nn,u,fu,nn(1))
+        
     call fourier(nn,-1_ik,u)
     call write_hdf5_file(nn,gn3,u,time,num)
 
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       u(i,j,k,l)=0.0_rk
-    end do ; end do ; end do ; end do 
-    !$omp end parallel do
-    
+    call zero(nn,u)
+        
     return
 
   end subroutine output_files
@@ -556,9 +501,9 @@ contains
             &'Integral length scale|','Taylor microscale|',&
             &'Kolmogorov microscale|','Reynolds number|',&
             &'Taylor microscale Reynolds number|',&
-            &'Mean kinetic helicity dissipation|','Forcing scale|'
-       write(hydro_dat,'(11a37)') 't|','ke|', 'mkh|','e|',&
-            &'ils|','lambda|', 'eta|','Re|', 'Rel|', 'mkhdiss|','fscale|'
+            &'Mean kinetic helicity dissipation|','Forcing scale'
+       write(hydro_dat,'(11a)') 't|','ke|', 'mkh|','e|',&
+            &'ils|','lambda|', 'eta|','Re|', 'Rel|', 'mkhdiss|','fscale'
     end if
     if(INPUT_FIELD.and.PASSIVE_SCALAR) then
        open(passive_dat,file='passive.dat',form='formatted',action='write',&
@@ -750,21 +695,11 @@ contains
     call mpi_barrier(MPI_COMM_WORLD,mpierr)
 #endif
 
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       u(i,j,k,l)=0.0_rk
-       rmsarr(i,j,k,l)=0.0_rk
-       scratch(i,j,k,l)=0.0_rk
-       fsclgrads(i,j,k,l,:)=0.0_rk
-    end do; end do ; end do ; end do
-    !$omp end parallel do
-
-    !$omp parallel do
-    do m=1,3 ; do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       fsclgrads(i,j,k,l,m)=0.0_rk
-    end do; end do ; end do ; end do ; end do
-    !$omp end parallel do
-
+    call zero(nn,u)
+    call zero(nn,rmsarr)
+    call zero(nn,scratch)
+    if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
+    
     deallocate(keys)
 
     return

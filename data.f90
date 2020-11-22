@@ -1,3 +1,12 @@
+!!$     ___ __                                       
+!!$ (  / _ \\ \       /                               
+!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
+!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
+!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
+!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
+!!$                            |_|
+!!$  
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module data
   use types
   use parameters
@@ -50,8 +59,77 @@ module data
   real(rks), dimension(:,:,:), allocatable    :: rho
   real(rks), dimension(:,:), allocatable      :: rho2d
   integer(ik), dimension(1:4)                   :: nn
+
+  interface zero
+     module procedure zero3d
+     module procedure zero4d
+  end interface zero
+  
 contains
 
+  
+  subroutine zero3d(nn,array)
+    use types
+    implicit none
+    integer(ik), dimension(4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)) :: array
+    !
+    ! fills array with zeros
+    !
+    integer(ik) :: i,j,k,l
+    
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       array(i,j,k,l)=0.0_rks
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+    
+    return
+  end subroutine zero3d
+
+  subroutine zero4d(nn,array)
+    use types
+    implicit none
+    integer(ik), dimension(4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),1:3), intent(out) :: array
+    !
+    ! fills array with zeros
+    !
+    integer(ik) :: i,j,k,l,m
+    
+    !$omp parallel do
+    do m=1,3 ; do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1)) 
+       array(i,j,k,l,m)=0.0_rks
+    end do; end do ; end do ; end do ; end do
+    !$omp end parallel do
+    
+    return
+  end subroutine zero4d
+
+  subroutine copy(nn,dest,source,ilim)
+    use types
+    implicit none
+    integer(ik), dimension(4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(out) :: dest
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(in) :: source
+    integer(ik), optional :: ilim
+    !
+    ! copies array source to array dest
+    !
+    integer(ik) :: i,j,k,l,iilim
+
+    iilim=dim1(nn(1))
+    if(present(ilim)) iilim=ilim
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,iilim
+       dest(i,j,k,l)=source(i,j,k,l)
+    end do ; end do ; end do ; end do
+    !$omp end parallel do
+
+    return
+    
+  end subroutine copy
+  
   subroutine alloc_init
     use mpivars
     implicit none
@@ -116,30 +194,32 @@ contains
     ! allocate secondary arrays
     ! used as scratch
     allocate(scratch(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    scratch(:,:,:,:) = 0.0_rk
+    call zero(nn,scratch)
 
     ! used for comupting mean-square values in subroutine msvalue
     allocate(rmsarr(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    rmsarr(:,:,:,:) = 0.0_rk
+    call zero(nn,rmsarr)
 
     ! used for invariants validation only 
     allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    arr_en_1(:,:,:,:) = 0.0_rk
+    call zero(nn,arr_en_1)
+    
     allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    arr_en_2(:,:,:,:) = 0.0_rk
+    call zero(nn,arr_en_2)
+    
     allocate(arr_en_3(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    arr_en_3(:,:,:,:) = 0.0_rk
+    call zero(nn,arr_en_3)
 
     if(PASSIVE_SCALAR) then
        ! gradient of the passive scalars in fourier space
        allocate(fsclgrads(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),nu1:nu3))
-       fsclgrads(:,:,:,:,:) = 0.0_rk
+       call zero(nn,fsclgrads)
     end if
 
     if(DEALIASING==PATTERSON_ORSZAG) then
        ! phase-shifted non-linear terms
        allocate(fnls(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-       fnls(:,:,:,:) = 0.0_rk
+       call zero(nn,fnls)
     end if
 
     !allocate particle arrays
@@ -161,22 +241,22 @@ contains
     !allocate primary arrays
     ! fields in physical space
     allocate(u(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    u(:,:,:,:) = 0.0_rk
+    call zero(nn,u)
     ! fields in fourier space
     allocate(fu(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    fu(:,:,:,:) = 0.0_rk
+    call zero(nn,fu)
     ! right-hand side of the equations of motion
     allocate(rhs(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    rhs(:,:,:,:) = 0.0_rk
+    call zero(nn,rhs)
     ! scratch used for time integration
     allocate(rks1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    rks1(:,:,:,:) = 0.0_rk
+    call zero(nn,rks1)
 
     !only for ambipolar diffusion or hall effect
     if(MHD.and.AMB_DIFF.or.HALL) then
        ! ambipolar diffusion or Hall effect terms
        allocate(ad(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
-       ad(:,:,:,:) = 0.0_rk
+       call zero(nn,ad)
     end if
 
     !phases array for phase-shifting
@@ -193,17 +273,17 @@ contains
     if(DEALIASING==PATTERSON_ORSZAG) then
        ! phase-shifted fields in physical space
        allocate(psu(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
-       psu(:,:,:,:) = 0.0_rk
+       call zero(nn,psu)
        ! scratch of other phase-shifted terms
        allocate(du(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
-       du(:,:,:,:) = 0.0_rk
+       call zero(nn,du)
     end if
 
     !only for Runge-Kutta integration
     if(INTEGRATION_METHOD==MRUNGE_KUTTA4) then
        ! scratch used for 4th order Runge-Kutta
        allocate(rks2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-       rks2(:,:,:,:) = 0.0_rk
+       call zero(nn,rks2)
     end if
 
     nespec=max(n1,n2,n3)  

@@ -1,6 +1,16 @@
+!!$     ___ __                                       
+!!$ (  / _ \\ \        /                               
+!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
+!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
+!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
+!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
+!!$                            |_|
+!!$  
+!$Copyright (c) 2009-2020 Georgios Momferatos
 module initial_conditions
   use types
   use parameters
+  use data, only: zero, copy
   use numerics, only: fourier, truncate, rescale, project
   implicit none
   !
@@ -129,10 +139,7 @@ contains
     real(rk)                                                :: xx,yy,zz
     integer(ik), dimension(3,2)                             :: cube
     real(rk), dimension(1:8)                                :: probs
-    real(rk)                                                :: OT_RAND
     real(rk)                                                :: dx,dy,dz,dzmpi
-
-    OT_RAND=1.0e-2
 
     !Set initial conditions for particles
 !!$    if(PARTICLES) then
@@ -140,100 +147,27 @@ contains
 !!$    end if
 
     !Set zero initial conditions, use only with forcing
-    if(INITCOND==ZERO_INITCOND) then
-       !$omp parallel do
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-          fu(:,:,:,:)=0.0_rk
-       end do; end do ; end do ; end do
-       !$omp end parallel do
-       !Stochastic initial conditions with flat energy spectrum 
-    else if(INITCOND==STOCHASTIC_INITCOND_FLAT) then 
+    select case(initcond)
+    case(zero_initcond)
+       !zero initial conditions
+       call zero(nn,fu)
+    case(stochastic_initcond_flat)
+       !Stochastic initial conditions with flat energy spectrum
        call random_field(nn,fu,2.0_rk)
-       !Stochastic initial conditions with given energy spectrum (???)   
-    else  if(INITCOND==STOCHASTIC_INITCOND_WITH_SPECTRUM) then
+    case(stochastic_initcond_with_spectrum)
+       !Stochastic initial conditions with given energy spectrum (???)
        call erandom_field(nn,fu)
+    case(orszag_tang_vortex)
        !Stochastic initial conditions based on the Orszag-Tang vortex
-    else if(INITCOND==ORSZAG_TANG_VORTEX) then
-       !Stochastic component
-       call random_field(nn,rks1,2.0_rk)
-       !rescale to unit rms
-       call rescale(nn,rks1)
-       call fourier(nn,-1_ik,rks1)
-
-       !Orszag-Tang vortex large-scale component
-       dx=LBOX/real(nn(1)-1,rk)
-       dy=LBOX/real(nn(2)-1,rk)
-       dz=LBOX/real(gn3-1,rk)
-#ifdef _MPI_
-       dzmpi=LBOX/real(MPISIZE,rk)
-#else
-       dzmpi=0.0_rk
-#endif
-       dz=LBOX/real(gn3-1,rk)
-       do i=1,nn(1)
-          do j=1,nn(2)
-             do k=1,nn(3)
-                xx=(i-1)*dx
-                yy=(j-1)*dy
-                zz=(lkstart+k-1)*dz
-                u(i,j,k,nu1)=-2.0_rk*sin(yy)
-                u(i,j,k,nu2)=2.0_rk*sin(xx)
-                u(i,j,k,nu3)=0.0_rk
-                if(MHD) then
-                   u(i,j,k,nb1)=-2.0_rk*sin(2.0_rk*yy)+sin(zz)
-                   u(i,j,k,nb2)=2.0_rk*sin(xx)+sin(zz)
-                   u(i,j,k,nb3)=sin(xx)+sin(yy) 
-                end if
-             end do
-          end do
-       end do
-
-       !$omp parallel do
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          !Add components
-          u(i,j,k,l)=u(i,j,k,l)+OT_RAND*rks1(i,j,k,l)
-       end do; end do ; end do ; end do
-       !$omp end parallel do
-       !$omp parallel do
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))   
-          fu(i,j,k,l)=u(i,j,k,l)
-          !Set auxiliary arrays back to zero
-          rks1(i,j,k,l)=0.0_rk
-       end do; end do ; end do ; end do
-       !$omp end parallel do
-       call fourier(nn,1_ik,fu)
-       !rescale to unit rms
-       call rescale(nn,fu)
-       call project(nn,fu)
+       call orszag_tang(nn,fu)
+    case(abc)
        !Stochastic initial conditions based on the Arnold-Beltrami-Childress flow
-    else if(INITCOND==ABC) then
        !Set-up large-scale component based on the ABC flow
        call abc_flow(nn,1_ik,3_ik,fu)
-       !Set-up stochastic small-scale component
-       !call random_field(nn,rks1,2.0_rk)
-       !Enforce incompressibility / zero magnetic field divergence
-       call project(nn,rks1)
-       !rescale to unit rms
-       call rescale(nn,rks1)
-       !$omp parallel do
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-          !Add components
-          !fu(i,j,k,l)=fu(i,j,k,l)+rks1(i,j,k,l)
-          !set auxiliary arrays back to zero
-          rks1(i,j,k,l)=0.0_rk
-       end do; end do ; end do ; end do
-       !$omp end parallel do 
-    else if(INITCOND==TAYLOR_GREEN_VORTEX) then
+    case(taylor_green_vortex)
        call taylor_green(nn,fu)
-    end if
-
-    !Copy Fourier arrays to physical-space arrays
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       u(i,j,k,l)=fu(i,j,k,l)
-    end do; end do ; end do ; end do
-    !$omp end parallel do
-
+    end select
+        
     !Perform truncation
     call truncate(nn,fu)
 
@@ -243,11 +177,13 @@ contains
     !Rescale to unit rms
     call rescale(nn,fu)
 
+
+    !set magnetic field relative strength
     if(MHD) then
        !$omp parallel do
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-          fu(:,:,:,nb1:nb3)=sqrt(BETA)*fu(:,:,:,nb1:nb3)
-       end do; end do ; end do ; end do
+       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fu(i,j,k,nb1:nb3)=sqrt(BETA)*fu(i,j,k,nb1:nb3)
+       end do ; end do ; end do
        !$omp end parallel do
     end if
 
@@ -259,6 +195,10 @@ contains
        end do; end do ; end do ; end do
        !omp end parallel do
     end if
+
+    !Copy Fourier arrays to physical-space arrays
+    call copy(nn,u,fu)
+    
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
 
@@ -270,7 +210,7 @@ contains
   subroutine abc_flow(nn,k1,k2,u)
     use parameters, only: rand
     use types
-    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll
+    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,rks1
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -308,14 +248,9 @@ contains
        ii(:,nb2)=(/1,2,3/)
        ii(:,nb3)=(/1,2,3/)
     end if
-
-
+    
     !Set fields to zero
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       u(i,j,k,l)=0.0_rk
-    end do; end do ; end do ; end do
-    !$omp end parallel do
+    call zero(nn,u)
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
@@ -329,15 +264,18 @@ contains
     dz=LBOX/real(gn3,rk)
     !Calculate stochastic coefficients
     do kk=k1,k2
-       if(mpirank==MPIROOT) then
-          aa(1)=2.0*(rand()-0.5)
-          aa(2)=2.0*(rand()-0.5)
-          aa(3)=2.0*(rand()-0.5)
-       end if
-       !Broadcast   
-#ifdef _MPI_
-       call mpi_bcast(aa,3,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
-#endif
+!!$       if(mpirank==MPIROOT) then
+!!$          aa(1)=2.0*(rand()-0.5)
+!!$          aa(2)=2.0*(rand()-0.5)
+!!$          aa(3)=2.0*(rand()-0.5)
+!!$       end if
+!!$       !Broadcast   
+!!$#ifdef _MPI_
+!!$       call mpi_bcast(aa,3,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
+!!$#endif
+       aa(1)=0.1
+       aa(2)=0.3
+       aa(3)=0.4
        !Set-up stochastic coefficients
        a=aa(1)
        b=aa(2)
@@ -364,6 +302,21 @@ contains
 
     call fourier(nn,1_ik,u)
 
+    !Set-up stochastic small-scale component
+    call random_field(nn,rks1,2.0_rk)
+    !Enforce incompressibility / zero magnetic field divergence
+    call project(nn,rks1)
+    !rescale to unit rms
+    call rescale(nn,rks1)
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       !Add components
+       u(i,j,k,l)=u(i,j,k,l)+rks1(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+
+    call zero(nn,rks1)
+    
     return
 
   end subroutine abc_flow
@@ -389,11 +342,7 @@ contains
 
 
     !Set fields to zero
-    !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       u(i,j,k,l)=0.0_rk
-    end do; end do ; end do ; end do
-    !$omp end parallel do
+    call zero(nn,u)
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
@@ -433,4 +382,70 @@ contains
 
   end subroutine taylor_green
 
+  subroutine orszag_tang(nn,u)
+    use parameters, only: rand
+    use types
+    use data, only: nu1,nu2,nu3,rks1
+    use mpivars
+    implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)),intent(OUT)              :: u
+    !
+    ! Orszag-Tang vortex initial condition
+    !
+    integer(ik) :: i,j,k,l
+    real(rk) :: dx,dy,dz,dzmpi,xx,yy,zz
+    real(rk)                                                :: OT_RAND
+
+    OT_RAND=1.0e-1_rk
+    
+    !Stochastic component
+    call random_field(nn,rks1,2.0_rk)
+    !rescale to unit rms
+    call rescale(nn,rks1)
+    call fourier(nn,-1_ik,rks1)
+
+    !Orszag-Tang vortex large-scale component
+    dx=LBOX/real(nn(1)-1,rk)
+    dy=LBOX/real(nn(2)-1,rk)
+    dz=LBOX/real(gn3-1,rk)
+#ifdef _MPI_
+    dzmpi=LBOX/real(MPISIZE,rk)
+#else
+    dzmpi=0.0_rk
+#endif
+    dz=LBOX/real(gn3-1,rk)
+    do i=1,nn(1)
+       do j=1,nn(2)
+          do k=1,nn(3)
+             xx=(i-1)*dx
+             yy=(j-1)*dy
+             zz=(lkstart+k-1)*dz
+             u(i,j,k,nu1)=-2.0_rk*sin(yy)
+             u(i,j,k,nu2)=2.0_rk*sin(xx)
+             u(i,j,k,nu3)=0.0_rk
+             if(MHD) then
+                u(i,j,k,nb1)=-2.0_rk*sin(2.0_rk*yy)+sin(zz)
+                u(i,j,k,nb2)=2.0_rk*sin(xx)+sin(zz)
+                u(i,j,k,nb3)=sin(xx)+sin(yy) 
+             end if
+          end do
+       end do
+    end do
+
+    !$omp parallel do
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       !Add components
+       u(i,j,k,l)=u(i,j,k,l)+OT_RAND*rks1(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+
+    call zero(nn,rks1)
+    call fourier(nn,1_ik,u)
+
+    return
+
+  end subroutine orszag_tang
+     
 end module initial_conditions
+
