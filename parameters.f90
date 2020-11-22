@@ -300,19 +300,6 @@ contains
     return
 
   end function round
-
-
-  function rand()
-    real(rk) :: rand
-    ! 
-    ! Returns uniform random deviate
-    ! 
-    real(rk) :: tmp
-
-    call random_number(tmp)
-    rand=tmp
-    return
-  end function rand
   
 end module parameters
 

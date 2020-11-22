@@ -15,17 +15,15 @@ module vtk
 contains
 
   subroutine output_scalar_vtk_2d_file_ascii(nn,u,filename,dataname,&
-       &comment, keys)
+       &comment)
     implicit none
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     integer(ik), intent(IN), dimension(1:4)                         :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)   :: u
     character(*)                                    :: filename, dataname,&
          &comment
-    character(len=64), dimension(:) :: keys
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    integer(ik) :: i, j, k, n1, n2, n3
-    real(rk) :: umin=0.0_rk, umax=1.0_rk
+    integer(ik) :: i, j, n1, n2, n3
     character(128) :: fmt
     integer :: vtk_file=17
     real(rk) :: LBOX = 2.0 * PI
@@ -94,13 +92,11 @@ contains
     real(rk) :: tt
     character(len=*), dimension(1:) :: keys
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    integer(ik) :: i, j, k, n1, n2, n3, nf
-    real(rk) :: umin=0.0_rk, umax=1.0_rk
+    integer(ik) :: i, j, n1, n2, n3, nf
     character(128) :: fmt
     integer :: vtk_file=17
     real(rk) :: LBOX = 2.0 * PI
     character(len=1024) :: comment
-    character(len=128) :: dataname
     n1=nn(1)
     n2=nn(2)
     n3=nn(3)

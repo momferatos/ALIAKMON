@@ -136,7 +136,7 @@ contains
     !
     ! allocates and initializes all arrays
     ! 
-    integer(ik) :: nmax,iii,i,j,k,m,n,l,tmpnmodes,tmpntrunc
+    integer(ik) :: nmax,i,j,k,n
     real(rk)    :: kk
     logical     :: trunc_crit
 
@@ -372,7 +372,7 @@ contains
     !
     ! two-thirds rule truncation
     !
-    integer(ik)             :: iii,n,m
+    integer(ik)             :: iii,m
 
     iii=(i-1)/2+1
 
@@ -443,7 +443,7 @@ contains
     !
     ! spherical truncation with radius kmax
     !
-    integer(ik)             :: iii,n,m
+    integer(ik)             :: iii
     iii=(i-1)/2+1
 
     if(sqrt(real(trk1(iii)**2+trk2(j)**2+trk3(k)**2,rk))>=kmax) then
@@ -496,8 +496,7 @@ contains
     !
     ! sets up wavevectors in standard FFTW order
     !
-    integer(ik)                             :: i, j, k,iii,m,n,l,kmax1
-    real(rk)                                :: dk
+    integer(ik)                             :: i, j
     integer(ik)                             :: n1,n2,n3
 
 
@@ -582,7 +581,7 @@ contains
     !
     ! prepares phases for Patterson & Orszag (1972) dealiasing
     !
-    integer(ik)                                  :: i,j,k,n,iii
+    integer(ik)                                  :: i,j,k,n
 
     n=maxval(nn(1:3))
 
@@ -593,8 +592,8 @@ contains
              phases(i,j,k)=exp(ii*(PI/real(n,rk))*(wv(1_ik,i,j,k)+&
                   &wv(2_ik,i,j,k)+wv(3_ik,i,j,k)))
              ! inverse phase
-             if(abs(phases(i,j,k))/=0.0_rk) then
-                iphases(i,j,k)=1.0_rk/phases(i,j,k)
+             if(abs(phases(i,j,k)) > small) then
+                iphases(i,j,k)=1.0_rks/phases(i,j,k)
              else
                 iphases(i,j,k)=0.0_rk
              end if

@@ -1,4 +1,4 @@
-!!!$     ___ __                                       
+!!$     ___ __                                       
 !!$ (  / _ \\ \       /                               
 !!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
 !!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
@@ -6,53 +6,40 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!$Copyright (c) 2009-2020 Georgios Momferratos
+!$Copyright (c) 2009-2020 Georges Momferatos
 program aliakmon
   use types
   use parameters
-  use data,only: u,fu,rmsarr,&
-       &nespec,alloc_init,&
-       &np,x,vp,accel,rho,&
-       &rmsarr,rhs,nu1,nb1,&
-       &nsclf,nscll,rks1,nn,&
-       &scratch,fsclgrad,fsclgrads,k_max,&
-       &copy,zero
-  use initial_conditions, only: set_initial_conditions
+  use data
+  use initial_conditions 
   use numerics
   use input_output
-  use validation, only: energy_test
+  use validation
+  use mpivars
+  use hdf5_aliakmon
 #ifdef _MPI_
   use fft_mpi
 #endif
-  use mpivars
 #ifdef _OPENMP_
   use omp_lib
   use fft_omp
 #endif
-  use hdf5_aliakmon,only:write_hdf5_file,read_hdf5_file
   implicit none
   ! 
   ! Main program
   ! 
-  integer(ik)                 :: i, j, k, l, m, nfile,nfile3D=0, nthreads=0
-  integer(ik)                 :: cputime, nseed,days,hours,mins,secs
-  integer(ik)                 :: nfilespec=0,nfilestrfun
-  integer(ik), dimension(1:2)   :: seed
-  real(rk)                    :: err, err2,tmp2, eta, tau, time,tstart
-  real(rk)                    :: t1, t2,t3,epsilon,maxu, minu, meanu
-  real(rk)                    :: REtmp,et,etatar,lambdatar,emeantar,EMEANFAC
-  real(rk)                    :: xx,x1,x2
-  complex(ck)                 :: tmp
-  integer                     :: ecode
-  integer(ik)                 :: numthreads, actthreads
-  character(256)              :: infile, outfile
-  real(rk)                    :: dtu,dtb,dtad,dx
-  real(rk)                    :: tmp1
+  integer(ik)                 :: i, j, k,nfile3D=0
+  integer(ik)                 :: days,hours,mins,secs
+  integer(ik)                 :: nfilespec,nfilestrfun
+  real(rk)                    :: eta, tau, time,tstart
+  real(rk)                    :: t1,t2,maxu
+  real(rk)                    :: REtmp,et,lambdatar,emeantar
+  character(256)              :: outfile
   integer(i4b)                :: RAND_SIZE
   integer(i4b), dimension(33) :: rand_seed
   integer(i4b), dimension(8)  :: date_time
   real(rk), dimension(:),allocatable      :: tmp3
-  integer(ik)                 :: nhdf5file=0, nvortfile=0
+  integer(ik)                 :: nhdf5file, nvortfile
 
   STORE_PHASES=.true.
   tstart=0.0_rk
@@ -61,7 +48,10 @@ program aliakmon
   MSFAC=1.0_rk
   TRFAC=sqrt(2.0_rk)/3.0_rk
   RMSUTAR=sqrt(1.0_rk/3.0_rk)
-
+  nfilestrfun=0
+  nhdf5file=0
+  nvortfile=0
+  
 #ifdef _MPI_
   ! Initilize MPI enviroment
   nt=1
@@ -261,7 +251,7 @@ program aliakmon
      call truncate(nn,fu)
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
   else
-     call set_initial_conditions(nn,u,fu,KINITCOND)
+     call set_initial_conditions(nn,u,fu)
      nhdf5file=0_ik
      call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik

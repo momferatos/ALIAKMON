@@ -135,7 +135,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(rk)                  :: scale
     integer(ik) :: nnfs,nnfe,nfi
-    integer(ik) :: i,j,k,l
+    integer(ik) :: i,j,k
     
     if(dir == -1) then
        scale = 1.0_rk / real(nn(1)*nn(2)*gn3, rk)

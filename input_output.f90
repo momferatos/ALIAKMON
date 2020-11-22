@@ -20,11 +20,8 @@ contains
   subroutine read_input_file
     implicit none
     integer(ik)                  :: n
-    real(rk)                     :: dtdx,x,eta
     integer,parameter            :: aliakmon_nml=786
-    integer                      :: argcount,tmp
-    character(len=32)            :: arg
-
+    
     !Read the input namelist file
     namelist /general/           n,TIMESTEPS, TMAX, CFL, RE, KMAXETA
     namelist /hydro/             VISCOUS,BURGERS
@@ -73,7 +70,7 @@ contains
 
   subroutine print_progress(ntimestep,t,&
        &tstart,t1)
-    use data, only: nespec,nu1,nu2,nu3,nb1,nb2,nb3,u,fu,nn
+    use data, only: nespec,nu1,nu3,nb1,nb3,fu,nn
     use parameters, only: dt, emean,kmax, sclvarprev
     use numerics, only: incompressibility,mean_dissipation,&
          &msvalue,mean_cross_helicity,&
@@ -92,22 +89,14 @@ contains
     !Print progress of the simulation on stdout
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(rk)                                                  :: maxdivv
-    real(rk)                                                  :: meandivv
     real(rk)                                                  :: maxdivb
-    real(rk)                                                  :: meandivb
-    real(rk)                                                  :: meanu
-    real(rk)                                                  :: epsilon
-    real(rk)                                                  :: maxu1,maxu2
-    real(rk)                                                  :: maxu3,minu
-    real(rk)                                                  :: tmp
     real(rk), dimension(:),allocatable                        :: sclvar, lambdascl, PEl, nrgs, dissips
-    real(rk)                                                  :: rmsb,meanscl
-    real(rk)                                                  :: rmsuold,t2
+    real(rk)                                                  :: rmsb
+    real(rk)                                                  :: t2
     real(rk)                                                  :: percent
     real(rk)                                                  :: etl
     real(rk)                                                  :: et,eta,etaoc
     real(rk)                                                  :: tol
-    integer(ik)                                               :: i, j, k
     real(rk)                                                  :: tntimestep
     integer(ik)                                               :: edays, ehours
     integer(rk)                                               :: emins, esecs
@@ -117,11 +106,9 @@ contains
     real(rk), save                                            :: kenprev=1.0_rk
     real(rk), save                                            :: menprev
     real(rk)                                                  :: dfs
-    real(rk)                                                  :: tmpemean,ten
+    real(rk)                                                  :: ten
     integer                                                   :: aux_dat=20
     integer                                                   :: auxscl_dat=222
-    real(rk)                                                  :: maxgrad,maxscl
-    real(rk)                                                  :: minscl
     integer(ik) :: l
     
 
@@ -430,7 +417,6 @@ contains
 !!!!!!!
     !Timing
 !!!!!!!
-    real(rk)              :: tmp
     !MPI timing
 #ifdef _MPI_
 

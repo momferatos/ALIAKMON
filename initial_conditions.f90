@@ -26,7 +26,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !random field with particular energy spectrum
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i,j,k,l,iii
+    integer(ik)                                             :: i,j,k,l
     real(rk)                                                :: kk,r1,r2
     complex(ck)                                             :: tmp
 
@@ -116,31 +116,18 @@ contains
   end subroutine random_field
 
 
-  subroutine set_initial_conditions(nn, u,fu,kmax)
+  subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
     use mpivars
-    use data, only: rks1,isactive,nu1,nu2,nu3,nsclf,nscll,nscl,nb1,nb2,nb3
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: fu
-    real(rk), intent(INOUT)                                 :: kmax
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Initial conditions for the velocity, magnetic and scalar fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i, j, k, l, iii
-    real(rk)                                                :: maxdivv
-    real(rk)                                                :: meandivv
-    real(rk)                                                :: mu1,mu2,mu3
-    real(rk)                                                :: minscl,maxscl,ksq
-    complex(ck)                                             :: tmp1,p
-    complex(ck)                                             :: fpgrad1,fpgrad2
-    complex(ck)                                             :: fpgrad3
-    real(rk)                                                :: xx,yy,zz
-    integer(ik), dimension(3,2)                             :: cube
-    real(rk), dimension(1:8)                                :: probs
-    real(rk)                                                :: dx,dy,dz,dzmpi
-
+    integer(ik)                                             :: i, j, k, l
+    
     !Set initial conditions for particles
 !!$    if(PARTICLES) then
 !!$       call lset_initial_conditions(np,x,vp)
@@ -208,7 +195,6 @@ contains
 
 
   subroutine abc_flow(nn,k1,k2,u)
-    use parameters, only: rand
     use types
     use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,rks1
     use mpivars
@@ -227,7 +213,7 @@ contains
     real(rk)                                               :: x,y,z,dzmpi
     real(rk), dimension(1:3)                                 :: xx
     integer(ik), dimension(k1:k2, 1:nn(4))                   :: ii
-    real(rk), dimension(1:3)                                 :: aa,coord,r
+    real(rk), dimension(1:3)                                 :: aa,r
     integer(ik)                                            :: nu,l
 
 
@@ -322,7 +308,6 @@ contains
   end subroutine abc_flow
 
   subroutine taylor_green(nn,u)
-    use parameters, only: rand
     use types
     use data, only: nu1,nu2,nu3
     use mpivars
@@ -338,7 +323,6 @@ contains
     real(rk)                                               :: a,b,c
     real(rk)                                               :: dx,dy,dz
     real(rk)                                               :: x,y,z
-    integer(ik)                                            :: nu
 
 
     !Set fields to zero
@@ -383,7 +367,6 @@ contains
   end subroutine taylor_green
 
   subroutine orszag_tang(nn,u)
-    use parameters, only: rand
     use types
     use data, only: nu1,nu2,nu3,rks1
     use mpivars

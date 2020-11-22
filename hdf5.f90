@@ -264,7 +264,8 @@ contains
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
 
-
+    print *, time
+    
     dimsf(1)=nn(1)
     dimsf(2)=nn(2)
     dimsf(3)=gn3
@@ -429,7 +430,7 @@ contains
     character(len=64), dimension(16) :: datanames
     integer(ik)                     :: ndatanames
     real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
-    integer(ik) :: i,j,k,l
+    integer(ik) :: i,j,k
     
     dimsf(1)=nn(1)
     dimsf(2)=nn(2)
@@ -692,7 +693,7 @@ contains
     integer(HSIZE_T), dimension(1:4) :: offset 
     integer :: rank ! Dataset rank 
 
-    integer :: error, error_n  ! Error flags
+    integer :: error  ! Error flags
 
     real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
 

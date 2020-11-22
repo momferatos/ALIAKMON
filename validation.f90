@@ -25,16 +25,16 @@ contains
 
   subroutine dissipation_test
     use types
-    use data, only: fu,rhs,rks1,scratch,nn
+    use data, only: fu,nn
     use mpivars
     implicit none
     !
     !check dissipation rates, useful for validation
     !
     real(rk), save :: e1,e2,e3,mkh1,mkh2,mkh3,mmh1,mmh2,mmh3,mch1,mch2
-    real(rk), save :: mch3,vkhdis1,vdis1,odis1,addis1,einj,einj2
+    real(rk), save :: mch3,vdis1,odis1,addis1,einj
     real(rk)       :: de,dedt,ken,men,ten,mkh,mch
-    real(rk)       :: err,vdis2,odis2,addis2,tdis
+    real(rk)       :: err,tdis
     real(rk)       :: dmkh,dmkhdt,mkherr,dmmh,dmmhdt,mmherr
     real(rk)       :: dmch,dmchdt,mcherr
     real(rk), dimension(1:nn(4)) :: nrgs, dissips
@@ -222,7 +222,7 @@ contains
     use types
     use mpivars
     use parameters,only:MHD
-    use data, only:arr_en_1,nu1,nu2,nu3,nb1,nb2,nb3,arr_en_2, arr_en_3
+    use data, only:arr_en_1,nu1,nu3,nb1,nb3,arr_en_2, arr_en_3
     implicit none
     integer(ik), dimension(1:4),intent(in) :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u

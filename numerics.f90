@@ -19,7 +19,7 @@ contains
 
   subroutine msvalue(nn,fu,msv)
     use mpivars
-    use data, only: rmsarr,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3
+    use data, only: rmsarr,nu1,nu3,nb1,nb3
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rk), dimension(1:nn(4)), intent(out)                 :: msv
@@ -28,9 +28,7 @@ contains
     ! calculate mean-square value for vector array
     !
     integer(ik)                                                 :: i,j,k,l
-    real(rk), dimension(:), allocatable                         :: rms
     real(rk)                                                    :: fac,tmp
-    complex(ck)                                                 :: ctmp
 
     
     !if(.not.allocated(rms)) allocate(rms(1:nn(4)))
@@ -77,7 +75,7 @@ contains
 
   function mean_value(nn,fu) result(meanval)
     use mpivars
-    use data, only: rmsarr,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3
+    use data, only: rmsarr,nu1,nu3,nsclf,nscll,nb1,nb3
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rk), dimension(1:nn(4))                            :: meanval
@@ -88,8 +86,6 @@ contains
     integer(ik)                                                 :: i,j,k,l
     real(rk), dimension(:), allocatable                         :: fmean
     real(rk)                                                    :: fac,tmp
-    complex(ck)                                                 :: tmp1,tmp2
-    complex(ck)                                                 :: tmp3
 
     if(.not.allocated(fmean)) allocate(fmean(1:nn(4)))
     !Calculate scale factor
@@ -142,7 +138,7 @@ contains
 
 
   subroutine project(nn,fu)
-    use data, only:wv,nu1,nu2,nu3,nb1,nb2,nb3,isactive
+    use data, only:wv,nu1,nb1,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
@@ -235,7 +231,7 @@ contains
 
 
   subroutine runge_kutta2(nn,fu,dt)
-    use data, only: wv,modes,rhs,rks1,isactive
+    use data, only: wv,rhs,rks1,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
@@ -243,7 +239,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Second-order Runge-Kutta time integration
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                                 :: i,j,k,l,iii,m
+    integer(ik)                                                 :: i,j,k,l
 
     !Get right-hand-side terms
     call right_hand_side(nn,rhs,fu)
@@ -280,7 +276,7 @@ contains
 
 
   subroutine runge_kutta4(nn,fu,dt)
-    use data, only: wv,modes,rhs,rks1,rks2,isactive
+    use data, only: wv,rhs,rks1,rks2,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
@@ -288,20 +284,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Fourth-order Runge-Kutta time integration
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                                 :: i,j,k,l,m,iii
-    real(rk)                                                    :: imfact
-    real(rk)                                                    :: imfact2
-    real(rk)                                                    :: imfact3
+    integer(ik)                                                 :: i,j,k,l
     real(rk), dimension(1:4), parameter                           :: rkc=&
          &(/1._rk/6._rk,1._rk/3._rk,1._rk/3._rk,1._rk/6._rk/)
-    real(rk)                                                    :: te1,te2,te3
-    real(rk)                                                    :: te4,tmp1,tmp2
-    real(rk)                                                    :: rkten_aux1
-    real(rk)                                                    :: rkten_aux2
-    real(rk)                                                    :: rkmkh_aux1
-    real(rk)                                                    :: rkmkh_aux2
-
-
 
     !Get right-hand-side terms
     call right_hand_side(nn,rhs,fu)
@@ -372,7 +357,6 @@ contains
 
 
   subroutine right_hand_side(nn,fnl,fu)
-    use parameters, only: emean, nmodes,ntrunc
     use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,ad,&
          &fsclgrads,fsclgrad,wv,arr_en_1
     use mpivars
@@ -678,7 +662,6 @@ contains
     !The forcing term
 !!!!!!!!!!!!!!!!!
     logical                  :: condition
-    real(rk)                 :: r,ph
     integer(ik)              :: iii,l
 
     if(.not.FORCED) then
@@ -759,7 +742,6 @@ contains
   subroutine lorentz_force(nn,lf,ad,fu,u)
     use types
     use mpivars
-    use parameters, only:PI
     use data,only:scratch,psu,du,nb1,nb2,nb3,nu1,nu2,nu3
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -917,8 +899,7 @@ contains
   end subroutine lorentz_force
 
   subroutine mean_dissipation(nn,fu,emeans)
-    use parameters, only: nmodes,ntrunc,D
-    use data, only: scratch,fsclgrad,fsclgrads,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3
+    use data, only: scratch,fsclgrad,fsclgrads,nu1,nb1
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
@@ -973,8 +954,7 @@ contains
 
 
   function mean_kinetic_helicity_dissipation(nn,fu) result(mkhdis)
-    use parameters, only: nmodes,ntrunc,D
-    use data, only: scratch,rmsarr,rks1,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3,nfields
+    use data, only: scratch,rmsarr,rks1
     implicit none
     real(rk)                                                :: mkhdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -982,13 +962,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Calculate mean kinetic helicity dissipation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i,j,k,iii
+    integer(ik)                                             :: i,j,k
     integer(i8b)                                            :: l
-    real(rk)                                                :: ksq,tmpemean
-    complex(ck)                                             :: du1dx1,du1dx2
-    complex(ck)                                             :: du1dx3,du2dx1
-    complex(ck)                                             :: du2dx2,du2dx3
-    complex(ck)                                             :: du3dx1,du3dx2
     real(rk), dimension(:), allocatable                     :: tmp                     
     if(.not.allocated(tmp)) allocate(tmp(1:nn(4)))
 
@@ -1029,20 +1004,21 @@ contains
 
 
 
-  subroutine maxima(nn,fu)
-    use mpivars
-    implicit none
-    integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !Calculate maxima of the scalar field
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-    return
-
-  end subroutine maxima
+!!$  subroutine maxima(nn,fu)
+!!$    use mpivars
+!!$    implicit none
+!!$    integer(ik), dimension(1:4), intent(in)                   :: nn
+!!$    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!$    !Calculate maxima of the scalar field
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!$    integer(ik) :: i,j,k
+!!$    
+!!$    
+!!$
+!!$    return
+!!$
+!!$  end subroutine maxima
 
   subroutine cross_product(nn,c,a,b,nf)
     use types
@@ -1055,7 +1031,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Calculate cross (outer) product of two vector fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik) :: i,j,k,l
+    integer(ik) :: i,j,k
     
     !$omp parallel do
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
@@ -1070,7 +1046,7 @@ contains
   end subroutine cross_product
 
   subroutine curl(nn,fw,fu,nf)
-    use parameters, only: nmodes,ntrunc,dim1
+    use parameters, only: dim1
     use data, only: wv,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1080,7 +1056,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Calculate curl of a vector field
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i,j,k,l
+    integer(ik)                                             :: i,j,k
     complex(ck)                                             :: tmpx, tmpy, tmpz, tmp
 
     !$omp parallel do private(tmpx, tmpy, tmpz, tmp)
@@ -1114,7 +1090,7 @@ contains
   end subroutine curl
 
   subroutine gradient(nn,fg,fu,nfs,nfe)
-    use parameters, only: nmodes,ntrunc,nsclf,nscll
+    use parameters, only: nsclf,nscll
     use data, only: wv,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1170,7 +1146,6 @@ contains
     !Calculate the vector potential of a vector field
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                              :: i,j,k
-    complex(ck)                                              :: tmp1,tmp2,tmp3
     real(rk)                                                 :: ksq
 
     !Get curl of the magnetic field
@@ -1197,7 +1172,7 @@ contains
 
   function mean_magnetic_helicity(nn,fu) result(mmh)
     use types
-    use data, only: rks1,nb1,nb2,nb3,nsclf,nscll,nu2,nu3
+    use data, only: rks1,nb1
     implicit none
     real(rk)                                                :: mmh
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1344,7 +1319,7 @@ contains
 
   function mean_cross_helicity_dissipation(nn,fu) result(mchdis)
     use types
-    use data, only: rmsarr,rks1,nu1,nu2,nu3,nb1,nb2,nb3
+    use data, only: rmsarr,rks1,nu1,nu3,nb1,nb3
     implicit none
     real(rk)                                  :: mchdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1450,7 +1425,7 @@ contains
 
   function mean_kinetic_helicity(nn,fu) result(mkin_hel)
     use types
-    use data, only: u,rmsarr,rks1,nu1,nu2,nu3
+    use data, only: u,rmsarr,rks1,nu1
     implicit none
     real(rk)                                   :: mkin_hel
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1532,7 +1507,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Calculate total energy dissipation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i, j, k,l
+    integer(ik)                                             :: i, j, k
     real(rk)                                                :: vtmp
     complex(ck)                                             :: tmpx, tmpy, tmpz, tmp
     !Do nothing if we're solving the Burgers equation 
@@ -1635,7 +1610,6 @@ contains
 
 
   subroutine integral_length_scale(nn,fu,L,lambda,nespec)
-    use parameters, only: emean, VISC
     use data, only: wv,nu1,nu2,nu3,nb1,nb2,nb3
     use mpivars
     implicit none
@@ -1651,10 +1625,9 @@ contains
     real(dp), dimension(nespec+1)                           :: tmpespec
     real(dp), dimension(nespec+1)                           :: tmpespec2
     integer(ik)                                             :: i,j,k,iii,pos
-    real(rk)                                                :: nrg,nrg2,kk
-    real(rk)                                                :: scale,dk,eta
-    real(rk)                                                :: etaoc,tot,toten
-    integer                                                 :: espec_file=17
+    real(rk)                                                :: nrg,kk
+    real(rk)                                                :: scale,dk
+    real(rk)                                                :: tot,toten
     real(rk), dimension(nespec+1,2)                         :: espec
     real(rk)                                                :: tmp,diss,area
 
@@ -1797,10 +1770,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     complex(ck)                                                :: tmp1,tmp2,tmp3
     real(rk), dimension(nespec+1)                              :: tmpespec
-    real(rk), dimension(nespec+1)                              :: tmpespec2
     integer(ik)                                                :: i,j,k,iii,pos
     real(rk)                                                   :: nrg,kk,scale
-    real(rk)                                                   :: dk,eta,etaoc
+    real(rk)                                                   :: dk
     real(rk)                                                   :: tot,area
     integer                                                    :: espec_file=17
     real(rk), dimension(nespec+1,2)                            :: espec
@@ -1890,7 +1862,7 @@ contains
     complex(ck)                                                :: tmp1
     integer(ik)                                                :: i,j,k,iii,pos
     real(rk)                                                   :: nrg,kk,scale
-    real(rk)                                                   :: dk,etaoc,tot
+    real(rk)                                                   :: dk,tot
     real(rk)                                                   :: area
     integer                                                    :: espec_file=17
     real(rk), dimension(npsspec+1,2)                           :: psspec
@@ -1965,13 +1937,13 @@ contains
 
 
   function incompressibility(nn,fu,nf) result(meandivv)
-    use data, only: wv,scratch,nu1,nu2,nu3,nfields
+    use data, only: wv,scratch,nu1
     use mpivars
     implicit none
     real(rk)                                  :: meandivv
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)              :: fu
-    integer(ik), intent(IN)                                :: nf
+    integer(ik), intent(in) :: nf
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Check the incompressibility condition
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1983,9 +1955,9 @@ contains
     tmp = 0.0_rk
     !$omp parallel do private(ctmp,ctmp2,ctmp3,ctmp4)
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1,2
-       ctmp2=cmplx(fu(i,j,k,nu1),fu(i+1,j,k,nu1),ck)
-       ctmp3=cmplx(fu(i,j,k,nu2),fu(i+1,j,k,nu2),ck)
-       ctmp4=cmplx(fu(i,j,k,nu3),fu(i+1,j,k,nu3),ck)
+       ctmp2=cmplx(fu(i,j,k,nf),fu(i+1,j,k,nf),ck)
+       ctmp3=cmplx(fu(i,j,k,nf+1),fu(i+1,j,k,nf+1),ck)
+       ctmp4=cmplx(fu(i,j,k,nf+2),fu(i+1,j,k,nf+2),ck)
        ctmp=ii*(wv(1_ik,i,j,k)*ctmp2+wv(2_ik,i,j,k)*ctmp3+&
             &wv(3_ik,i,j,k)*ctmp4)
        scratch(i,j,k,nu1)=real(ctmp,rk)
@@ -2013,8 +1985,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!
     !Truncate a scalar field
 !!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                            :: i,j,k,l
-    integer(ik)                                            :: incr,nfi,nnfs,nnfe
+    integer(ik)                                            :: i,j,k
+    integer(ik)                                            :: nfi,nnfs,nnfe
 
     nnfs=1
     nnfe=nn(4)
@@ -2032,7 +2004,7 @@ contains
 
 
   subroutine rescale(nn,fu)
-    use data, only: scratch,nu1,nu2,nu3,nsclf,nscll,nb1,nb2,nb3
+    use data, only: nu1,nu3,nsclf,nscll,nb1,nb3
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -2042,8 +2014,6 @@ contains
     !Rescale all flow variables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                                :: i,j,k,l
-    real(rk)                                                   :: vscale,sclvar
-    real(rk)      :: fac,bscale
     real(rk), dimension(:), allocatable ::tmp
 
     if(.not.allocated(tmp)) allocate(tmp(1:nn(4)))
@@ -2129,7 +2099,6 @@ contains
   end subroutine shift
 
   subroutine fourier(nn,dir,u,nfs,nfe,trunc)
-    use data, only: nfields
 #ifdef _OPENMP_
     use fft_omp, only: fft_omp_fourier
 #endif
@@ -2177,7 +2146,7 @@ contains
   subroutine cfl_condition(nn,dt1)
     use types
     use parameters
-    use data, only: u,fu,rmsarr,ad,scratch,nu1,nu2,nu3,nb1,nb3
+    use data, only: u,fu,rmsarr,scratch,nu1,nu2,nu3,nb1,nb3
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -2186,12 +2155,10 @@ contains
     !Check CFL condition
 !!!!!!!!!!!!!!!!!!!!
     integer(ik)            :: i,j,k,l
-    real(rk)               :: vel1, vel2, vel3,dx,maxb2,dt2,mvel
-    real(rk)               :: CFL_FAC,tmpsum
+    real(rk)               :: vel1,vel2,dx,maxb2,dt2,mvel
+    real(rk)               :: tmpsum
     real(rk), dimension(3) :: v_hydro,v_mhd,v_ad,v_hall
     real(rk), save         :: dt11
-!!$
-!!$    !CFL_FAC=sqrt(8.0_rk)/(2.0_rk*PI)
 
     if(MHD) then
        !Magnetic field
@@ -2239,12 +2206,14 @@ contains
     !$omp end parallel do
 
     vel2=0.0_rk
+    v_ad(:)=0.0_rk
+    v_hall(:)=0.0_rk
     if(MHD) then
        !$omp parallel do private(v_hydro,v_mhd,v_ad,v_hall) reduction(max:vel2)
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           v_hydro=u(i,j,k,nu1:nu3)
-          v_ad=AD_COEFF*rmsarr(i,j,k,nu1:nu3)
-          v_hall=HALL_COEFF*rmsarr(i,j,k,nb1:nb3)
+          if(AMB_DIFF) v_ad=AD_COEFF*rmsarr(i,j,k,nu1:nu3)
+          if(HALL) v_hall=HALL_COEFF*rmsarr(i,j,k,nb1:nb3)
           v_mhd=u(i,j,k,nb1:nb3)
           vel2=max(vel2,maxval(abs(v_hydro+v_mhd+v_ad+v_hall)))
        end do; end do ; end do 
