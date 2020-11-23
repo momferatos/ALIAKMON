@@ -134,7 +134,6 @@ contains
           call fftwf_execute_dft_c2r(iplan, carray, array)
        end if
 #endif
-
        if(dir == -1) then
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)

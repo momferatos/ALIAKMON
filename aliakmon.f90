@@ -82,27 +82,9 @@ program aliakmon
      stop
   end if
 
+
   ! Allocate and initialize all arrays
   call alloc_init
-
-!!$  fsclgrads=0.0_rk
-!!$  fsclgrads2=0.0_rk
-!!$  call random_number(fsclgrads(1:nn(1),:,:,:,:))
-!!$  fsclgrads2(1:nn(1),:,:,:,:)=fsclgrads(1:nn(1),:,:,:,:)
-!!$  do l=1,3
-!!$     fsclgrad=>fsclgrads(:,:,:,:,l)
-!!$     call fourier(nn,1_ik,fsclgrad,trunc=.false.)
-!!$  end do
-!!$
-!!$  do l=1,3
-!!$     fsclgrad=>fsclgrads(:,:,:,:,l)
-!!$     call fourier(nn,-1_ik,fsclgrad,trunc=.false.)
-!!$  end do
-!!$
-!!$  print *, maxval(abs(fsclgrads(1:nn(1),:,:,:,:)-fsclgrads2(1:nn(1),:,:,:,:)))
-!!$
-!!$  stop
-
 
   MSFAC=1.0_rk/real(nn(1)*nn(2)*gn3,rk)
 
@@ -115,7 +97,6 @@ program aliakmon
      REtmp=(RE/6.0_rk)**2
      eta=D**(-1.0_rk/4.0_rk)*REtmp**(-3.0_rk/4.0_rk)
   end if
-
 
   visc(:)=0.0_rk
   visc(:)=15.0_rk**(1.0_rk/4.0_rk)*(eta*RMSUTAR)/(sqrt(RE))
@@ -147,13 +128,7 @@ program aliakmon
      end if
   end if
 
-  ! Broadcast viscosity
 
-!!$#ifdef _MPI_
-!!$  sbuf(1:nn(4))=visc(1:nn(4))
-!!$  call mpi_bcast(sbuf,int(nn(4)),MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
-!!$  visc(1:nn(4))=sbuf(1:nn(4))
-!!$#endif
   emean=D
   emeanscl=1.0_rk
   tau=(REtmp)**(-1.0_rk/2.0_rk)
@@ -211,25 +186,6 @@ program aliakmon
      write(*,*)  ' '
   end if
 
-
-
-!!$  
-!!$  call random_number(fu)
-!!$  u=fu
-!!$  call fourier(nn,-1_ik,fu,trunc=.false.)
-!!$  call fourier(nn,1_ik,fu)
-!!$  print *, maxval(abs(u(:,:,:,:)-fu(:,:,:,:)))
-!!$  stop
-!!$  call erandom_field(nn,fu)
-!!$  !call rescale(nn,fu)
-!!$  !call project(nn,fu)
-!!$  !call truncate(nn,fu)
-!!$  
-!!$  u=fu
-!!$  call fourier(nn,-1_ik,u)
-!!$  print *, maxval(u)
-!!$  call output_files(0_ik)
-!!$  stop
   ! seed random number generator
 
   rand_seed(:)=1_i4b
