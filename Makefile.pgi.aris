@@ -1,0 +1,32 @@
+MPIFC=mpifort
+
+FFTWROOT=$(HOME)
+HDF5ROOT=$(HOME)
+
+GOPT = -cpp -g -O0 -Ktrap=denorm,divz,inexact,inv,ovf,unf 
+FOPT= -cpp -fast -m64 -tp=sandybridge
+PREC = #-D_DOUBLE_
+OMPOPT= -D_OPENMP_ -mp
+MPIOPT= -D_MPI_ 
+PAROPT= $(OMPOPT) $(MPIOPT)
+GPAROPT = $(OMPOPT) $(MPIOPT)
+INCLUDE= -I $(FFTWROOT)/include -I $(HDF5ROOT)/include
+LIB= -L $(FFTWROOT)/lib -L $(HDF5ROOT)/lib
+LDFLAGS = -lfftw3_mpi -lfftw3_omp -lfftw3f_mpi -lfftw3f_omp -lfftw3f -lfftw3 -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 
+
+OBJS = parameters.o data.o hdf5.o fft_mpi.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o
+
+all: aliakmon
+
+%.o: %.f90
+	$(MPIFC) -c -o $@ $< $(FOPT) $(PREC) $(PAROPT) $(INCLUDE) 
+
+aliakmon: $(OBJS)
+	$(MPIFC) -o $@.exe $^ $(FOPT) $(PAROPT) $(LIB) $(LDFLAGS) 
+
+debug: $(OBJS)
+	$(MPIFC) -o $@ $^ $(GOPT) $(GPAROPT) $(LIB) $(LDFLAGS) 
+
+clean:
+	rm -f *.o *.mod aliakmon.exe 
+
