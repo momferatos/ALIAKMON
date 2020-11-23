@@ -4,7 +4,7 @@ FFTWROOT=/home/giorgos
 HDF5ROOT=/home/giorgos
 
 GOPT = -cpp -g3 # -ffpe-trap=invalid,zero,overflow #-O0 -Ktrap=denorm,divz,inexact,inv,ovf,unf #-O0 -g -fp-model=strict -fp-model=except -check bounds -stand=f08 -convert big_endian
-FOPT= -cpp -Ofast #-ftz -O3 -xCORE-AVX-I -ip -ipo -diag-file=aliakmon.diag -stand=f08 -convert big_endian
+FOPT= -cpp -Ofast -Wunused-variable -Wunused-dummy-argument #-ftz -O3 -xCORE-AVX-I -ip -ipo -diag-file=aliakmon.diag -stand=f08 -convert big_endian
 PREC = #-D_DOUBLE_
 OMPOPT= -D_OPENMP_ -fopenmp
 MPIOPT= -D_MPI_ 

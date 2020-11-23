@@ -6,7 +6,7 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!$Copyright (c) 2009-2020 Georges Momferatos
+!!$   Copyright (c) 2009-2020 George Momferatos
 program aliakmon
   use types
   use parameters
@@ -28,18 +28,18 @@ program aliakmon
   ! 
   ! Main program
   ! 
-  integer(ik)                 :: i, j, k,nfile3D=0
-  integer(ik)                 :: days,hours,mins,secs
-  integer(ik)                 :: nfilespec,nfilestrfun
-  real(rk)                    :: eta, tau, time,tstart
-  real(rk)                    :: t1,t2,maxu
-  real(rk)                    :: REtmp,et,lambdatar,emeantar
-  character(256)              :: outfile
-  integer(i4b)                :: RAND_SIZE
-  integer(i4b), dimension(33) :: rand_seed
-  integer(i4b), dimension(8)  :: date_time
-  real(rk), dimension(:),allocatable      :: tmp3
-  integer(ik)                 :: nhdf5file, nvortfile
+  integer(ik)                         :: i, j, k
+  integer(ik)                         :: days,hours,mins,secs
+  integer(ik)                         :: nfilespec,nfilestrfun
+  real(rk)                            :: eta, tau, time,tstart
+  real(rk)                            :: t1,t2,maxu
+  real(rk)                            :: REtmp,et,lambdatar,emeantar
+  character(256)                      :: outfile
+  integer(i4b)                        :: RAND_SIZE
+  integer(i4b), dimension(33)         :: rand_seed
+  integer(i4b), dimension(8)          :: date_time
+  real(rk), dimension(:), allocatable :: nrgs
+  integer(ik)                         :: nhdf5file, nvortfile
 
   STORE_PHASES=.true.
   tstart=0.0_rk
@@ -51,7 +51,7 @@ program aliakmon
   nfilestrfun=0
   nhdf5file=0
   nvortfile=0
-  
+
 #ifdef _MPI_
   ! Initilize MPI enviroment
   nt=1
@@ -62,7 +62,7 @@ program aliakmon
 #endif
   ! Read input file
   if(mpirank==MPIROOT) print *, 'Reading input file...'
-  call read_input_file
+  call read_namelist_file
   lkstart=0
 #ifdef _MPI_
   ! Allocate FFT structures
@@ -255,22 +255,22 @@ program aliakmon
      nhdf5file=0_ik
      call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
-     
+
      call output_slices(nvortfile, time)
      nvortfile=nvortfile+1_ik
-     
+
   end if
-  
-  allocate(tmp3(1:nn(4)))
+
+  allocate(nrgs(1:nn(4)))
   ! Kinetic energy
-  call msvalue(nn,fu,tmp3)
-   KE=tmp3(nu1)
+  call msvalue(nn,fu,nrgs)
+  KE=nrgs(nu1)
 
 
   ! Magnetic energy
   ME=0.0_rk
   if(MHD) then
-     ME=tmp3(nb1)
+     ME=nrgs(nb1)
   else
      ME=0.0_rk
   end if
@@ -301,7 +301,7 @@ program aliakmon
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
-     
+
      ! Print progress to stdout
      call print_progress(k,time,&
           &tstart,t1)
@@ -337,7 +337,7 @@ program aliakmon
      end if
      totdisprev2=totdisprev
      totdisprev=totdis
-     
+
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
@@ -412,7 +412,6 @@ contains
 
     !Write output file
     call output_files(999999_ik)
-    nfile3d=nfile3d+1
 
     !Output information about the dissipation peak
     open(987,file='dispeak.dat',form='formatted')
@@ -460,12 +459,12 @@ contains
     !Output fields in files
 
     call copy(nn,u,fu,nn(1))
-        
+
     call fourier(nn,-1_ik,u)
     call write_hdf5_file(nn,gn3,u,time,num)
 
     call zero(nn,u)
-        
+
     return
 
   end subroutine output_files
@@ -689,7 +688,7 @@ contains
     call zero(nn,rmsarr)
     call zero(nn,scratch)
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
-    
+
     deallocate(keys)
 
     return

@@ -6,7 +6,8 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!$Copyright (c) 2009-2020 Georgios Momferatos
+!!$    Copyright (c) 2009-2020 Georgios Momferatos
+!!$
 module numerics
   use types
   use parameters
@@ -2143,122 +2144,83 @@ contains
 
   end subroutine fourier
 
-  subroutine cfl_condition(nn,dt1)
+  subroutine cfl_condition(nn,dt)
     use types
-    use parameters
-    use data, only: u,fu,rmsarr,scratch,nu1,nu2,nu3,nb1,nb3
+    use data, only: u,fu,rmsarr,scratch,nu1,nu3,nb1,nb3
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
-    real(rk), intent(OUT) :: dt1
+    real(rk), intent(OUT) :: dt
 !!!!!!!!!!!!!!!!!!!!
     !Check CFL condition
 !!!!!!!!!!!!!!!!!!!!
-    integer(ik)            :: i,j,k,l
-    real(rk)               :: vel1,vel2,dx,maxb2,dt2,mvel
-    real(rk)               :: tmpsum
-    real(rk), dimension(3) :: v_hydro,v_mhd,v_ad,v_hall
-    real(rk), save         :: dt11
+    integer(ik)            :: i,j,k
+    real(rk)               :: dx,maxb2,dt_ad,mvel,vmag
+    real(rk), dimension(1:3) :: v_total
+
+
+    ! set auxiliary arrays to zero
+    call zero(nn,rmsarr)
+    call zero(nn,scratch)
+
+    ! get velocity field in physical space
+    call copy(nn,u,fu)
+    call fourier(nn,-1_rk,u,nfs=nu1,nfe=nu3)
 
     if(MHD) then
-       !Magnetic field
-       call copy(nn,u,fu)
-
-       call fourier(nn,-1_rk,u,nb1)
-
+       ! get magnetic field in physical space
+       call fourier(nn,-1_rk,u,nfs=nb1,nfe=nb3)
        if(AMB_DIFF) then
-          !Ambipolar diffusion
+          ! ambipolar diffusion
+          ! rmsarr = j = nabla x b
           call curl(nn,rmsarr,fu,nb1)
           call fourier(nn,-1_ik,rmsarr,nb1)
+          ! scratch = j x b
           call cross_product(nn,scratch,rmsarr,u,nb1)
-       else
-          !$omp parallel do
-          do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-             scratch(i,j,k,l)=0.0_rk
-          end do; end do ; end do ; end do
-          !$omp end parallel do
        end if
        if(HALL) then
           !Hall term
+          ! rmsarr = = j = nabla x b
           call curl(nn,rmsarr,fu,nb1)
           call fourier(nn,-1_ik,rmsarr,nb1)
-       else
-          !$omp parallel do
-          do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-             scratch(i,j,k,l)=0.0_rk
-          end do; end do ; end do ; end do
-          !$omp end parallel do
        end if
     end if
 
-    !Velocity field
-    call copy(nn,u,fu)
-
-    call fourier(nn,-1_rk,u,nfs=nu1,nfe=nu3)
-
-    !Get CFL velocity
-    vel1=0.0_rk
-    !Velocity field
-    !$omp parallel do reduction(max:vel1)
-    do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       vel1=max(vel1,real(abs(u(i,j,k,l)),rk))
-    end do; end do ; end do ; end do 
+    mvel=0.0_rk
+    vmag=0.0_rk
+    v_total(1:3)=0.0_rk
+    !$omp parallel do private(v_total,vmag) reduction(max:mvel)
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       v_total(1:3)=u(i,j,k,nu1:nu3)
+       if(MHD) then
+          v_total(1:3)=v_total(1:3)+u(i,j,k,nb1:nb3)
+          if(AMB_DIFF) v_total(1:3)=v_total(1:3)+AD_COEFF*rmsarr(i,j,k,nu1:nu3)
+          if(HALL) v_total(1:3)=v_total(1:3)+HALL_COEFF*rmsarr(i,j,k,nb1:nb3)
+       end if
+       vmag=sqrt(v_total(1)**2+v_total(2)**2+v_total(3)**2)
+       mvel=max(mvel,vmag)
+    end do; end do ; end do 
     !$omp end parallel do
 
-    vel2=0.0_rk
-    v_ad(:)=0.0_rk
-    v_hall(:)=0.0_rk
-    if(MHD) then
-       !$omp parallel do private(v_hydro,v_mhd,v_ad,v_hall) reduction(max:vel2)
-       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          v_hydro=u(i,j,k,nu1:nu3)
-          if(AMB_DIFF) v_ad=AD_COEFF*rmsarr(i,j,k,nu1:nu3)
-          if(HALL) v_hall=HALL_COEFF*rmsarr(i,j,k,nb1:nb3)
-          v_mhd=u(i,j,k,nb1:nb3)
-          vel2=max(vel2,maxval(abs(v_hydro+v_mhd+v_ad+v_hall)))
-       end do; end do ; end do 
-       !$omp end parallel do
-    end if
-
-    maxb2=0.0_rk
-    if(AMB_DIFF) then
-       !$omp parallel do reduction(max:maxb2)
-       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          tmpsum=0.0_rk
-          do l=nb1,nb3
-             tmpsum=tmpsum+fu(i,j,k,l)**2
-          end do
-          maxb2=max(maxb2,tmpsum)
-       end do; end do ; end do
-       !$omp end parallel do
-    end if
-
+    maxb2=1.0
 
     !Reduce
 #ifdef _MPI_
-    sbuf(1)=vel1
-    sbuf(2)=vel2
-    sbuf(3)=maxb2
-    call mpi_allreduce(sbuf,rbuf,3,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-    vel1=rbuf(1)
-    vel2=rbuf(2)
-    maxb2=rbuf(3)
+    sbuf(1)=mvel
+    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+    mvel=rbuf(1)
 #endif
 
-    if(MHD) then 
-       mvel=vel2
-    else
-       mvel=vel1
-    end if
-
+        
     !Set-up CFL condition
-    dx=LBOX/max(n1,n2,gn3)
-    dt1=CFL*dx/mvel
-    if(MHD.and.AMB_DIFF) then
-       dt2=CFL*dx**2/(AD_COEFF*maxb2)
-       dt1=min(dt1,dt2)
+    dx=LBOX/max(nn(1),nn(2),gn3)
+    dt=CFL*dx/mvel
+    if(MHD) then
+       if(AMB_DIFF) then
+          dt_ad=CFL*dx**2/(AD_COEFF*maxb2)
+          dt=min(dt,dt_ad)
+       end if
     end if
-    dt11=dt1
 
     !Set auxiliary arrays back to zero
     call zero(nn,rmsarr)

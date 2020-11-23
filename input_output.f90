@@ -17,7 +17,7 @@ module input_output
 
 contains
 
-  subroutine read_input_file
+  subroutine read_namelist_file
     implicit none
     integer(ik)                  :: n
     integer,parameter            :: aliakmon_nml=786
@@ -66,20 +66,13 @@ contains
 
 100 print *, 'read_input_file:: Cant open file aliakmon.nml.'
     stop
-  end subroutine read_input_file
+  end subroutine read_namelist_file
 
   subroutine print_progress(ntimestep,t,&
        &tstart,t1)
     use data, only: nespec,nu1,nu3,nb1,nb3,fu,nn
     use parameters, only: dt, emean,kmax, sclvarprev
-    use numerics, only: incompressibility,mean_dissipation,&
-         &msvalue,mean_cross_helicity,&
-         &mean_magnetic_helicity,mean_kinetic_helicity,&
-         &mean_magnetic_helicity_dissipation,&
-         &mean_cross_helicity_dissipation,&
-         &mean_kinetic_helicity_dissipation,&
-         &ambipolar_diffusion_dissipation,&
-         &integral_length_scale,mean_value
+    use numerics
     use mpivars
     implicit none
     integer(ik), intent(IN)                                   :: ntimestep
