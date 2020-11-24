@@ -4,7 +4,9 @@ Makefile
 *.o
 *.mod
 *.tmp
-aliakmon.exe
+*.exe
+*.err
+*.out
 ERRORS
 WARNINGS
 old/
