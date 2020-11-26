@@ -92,7 +92,7 @@ contains
     integer(ik), intent(in) :: gn3
     integer(ik), intent(in)       :: dir
     integer(ik), optional :: nfs, nfe
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(inout) :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(inout), target :: fu
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: nnfs,nnfe,nfi
     integer(ik) :: i,j,k
