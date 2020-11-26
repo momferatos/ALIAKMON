@@ -2106,6 +2106,9 @@ contains
     use mpivars
 #ifdef _MPI_
     use fft_mpi,only:fft_mpi_fourier
+#ifdef _CUDA_
+    use fft_cuda
+#endif
     use mpivars
 #endif
     implicit none
@@ -2137,7 +2140,11 @@ contains
 #endif
 
 #ifdef _MPI_
+#ifdef _CUDA_
+    call fft_cuda_fourier(nn,gn3,dir,u,nnfs,nnfe)
+#else
     call fft_mpi_fourier(nn,gn3,dir,u,nnfs,nnfe)
+#endif
 #endif
 
     return

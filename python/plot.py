@@ -9,7 +9,7 @@ import glob
 
 minval = 1.0e-3
 
-ncmap = np.load('turb_cmap.npy') / 255.
+ncmap = np.load('/users/pr008/gmomfer/codes/aliakmon/python/turb_cmap.npy') / 255.
 cmap = ListedColormap(ncmap)
 
 reader = vtkStructuredGridReader()

@@ -275,7 +275,7 @@ contains
     ! Used to handle x dimension of the FFTW arrays
     ! 
     
-    dim1=(n/2+1)*2
+    dim1=int(2_ik*(floor(real(n,rk)/2.0_rk)+1),ik)
 
     return
   end function dim1

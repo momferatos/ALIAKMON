@@ -26,7 +26,7 @@ KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
 !
 
 &hydro
-VISCOUS=.true.,	! Include the viscous terms?
+VISCOUS=.false.,! Include the viscous terms?
 BURGERS=.false.,! Include the pressure term?
 &end
 

@@ -24,6 +24,9 @@ program aliakmon
   use omp_lib
   use fft_omp
 #endif
+#ifdef _CUDA_
+  use fft_cuda
+#endif
   implicit none
   ! 
   ! Main program
@@ -66,7 +69,11 @@ program aliakmon
   lkstart=0
 #ifdef _MPI_
   ! Allocate FFT structures
+#ifdef _CUDA_
+  call fft_cuda_alloc(n1,n2,gn3,lksize,lkstart)
+#else
   call fft_mpi_alloc(n1,n2,gn3,lksize,lkstart)
+#endif
   n3=lksize
 #else
 #ifdef _OPENMP_
@@ -85,6 +92,13 @@ program aliakmon
 
   ! Allocate and initialize all arrays
   call alloc_init
+!!$  
+!!$  call random_number(u(1:nn(1),:,:,:))
+!!$  fu=u
+!!$  call fourier(nn,1_ik,fu)
+!!$  call fourier(nn,-1_ik,fu,trunc=.false.)
+!!$  print *, maxval(abs(u(1:nn(1),:,:,:)-fu(1:nn(1),:,:,:)))
+!!$  stop
 
   MSFAC=1.0_rk/real(nn(1)*nn(2)*gn3,rk)
 
@@ -127,7 +141,6 @@ program aliakmon
         visc(nb1:nb3)=0.0_rk
      end if
   end if
-
 
   emean=D
   emeanscl=1.0_rk
@@ -297,7 +310,7 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
-     call energy_test(nn,u,fu,rhs)     
+     !call energy_test(nn,u,fu,rhs)     
      ! Write maxima to file
      write(maxima_dat,'(6e17.8)') time,maxu,maxb,MAXVORT, MAXJ, MAXLF
      if(PARTICLES) then
