@@ -47,9 +47,14 @@ void fft_cuda_cpp(long n1, long n2, long gn3, long *lksize, long *lkstart, float
     */
     
     std::array< int, 3 > const order = {0,1,2};
-    std::vector<heffte::box3d<>> real_boxes  = heffte::make_slabs(real_indexes,num_ranks,0,1,real_boxes,order);
+    std::array<int, 3> proc_grid = heffte::proc_setup_min_surface(real_indexes, num_ranks);
+
+    std::vector<heffte::box3d<>> real_boxes1    = heffte::split_world(real_indexes,    proc_grid);
+    std::vector<heffte::box3d<>> complex_boxes1 = heffte::split_world(complex_indexes, proc_grid);
+
+    std::vector<heffte::box3d<>> real_boxes  = heffte::make_slabs(real_indexes,num_ranks,0,1,real_boxes1,order);
     //real_boxes  = heffte::make_slabs(real_indexes,num_ranks,0,1,real_boxes,order);
-    std::vector<heffte::box3d<>> complex_boxes  = heffte::make_slabs(complex_indexes,num_ranks,0,1,complex_boxes,order);
+    std::vector<heffte::box3d<>> complex_boxes  = heffte::make_slabs(complex_indexes,num_ranks,0,1,complex_boxes1,order);
     //complex_boxes  = heffte::make_slabs(complex_indexes,num_ranks,0,1,complex_boxes,order);
     
 
