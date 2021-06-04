@@ -12,10 +12,14 @@
 ! Namelist general: basic parameters of the simulation
 !
 
-&general
-n=64,		! number of collocation points in each axis 
-TIMESTEPS=0,	! number of timesteps, use TMAX if zero
-TMAX=200.0,	! maximum time limit
+&general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+n=64		! number of collocation points in each axis
+		! should be a power of two for maximum performance
+		! a scaling study on ARIS could consider n=64,128,256,512 and
+		! perhaps 1024
+		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+TIMESTEPS=100,	! number of timesteps, use TMAX if zero
+TMAX=10.0,	! maximum time limit
 CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
 KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
@@ -26,7 +30,7 @@ KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
 !
 
 &hydro
-VISCOUS=.false.,! Include the viscous terms?
+VISCOUS=.true.,! Include the viscous terms?
 BURGERS=.false.,! Include the pressure term?
 &end
 
@@ -91,7 +95,7 @@ STK=0.5				! Stokes number for intertial particles
 &numerics
 INTEGRATION_METHOD=2, ! Method for time integration: 1: 2nd order Runge-Kutta, 2: 4th order Runge-Kutta
 TRUNCATION=2, 	      ! Method for truncation in Fourier space: 0: Two-thirds rule, 1: Spherical, 2: Polyhedral
-DEALIASING=1, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
+DEALIASING=0, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
 &end
 
 !
@@ -110,7 +114,7 @@ SEEDRANDOM=.false.,	! Seed the random number generator?
 !
 
 &inputoutput
-NOUTPUTFILES=10,				! Number of output files
+NOUTPUTFILES=0,				! Number of output files
 INPUT_FIELD=.false.,				! Read initial conditions from file?
 INPUT_FIELD_FILENAME='output.888888.h5',	! Name of input field file
 NFILESTART=0,					! Number of first output file
