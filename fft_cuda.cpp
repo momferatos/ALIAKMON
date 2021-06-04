@@ -25,8 +25,8 @@ void fft_cuda_c(long n1, long n2, long gn3, long *lksize, long *lkstart, float *
      num_ranks = heffte::mpi::comm_size(comm);
     
     // using problem with size 10x20x30 problem
-      heffte::box3d<> real_indexes({0, 0, 0}, {n1 - 1, n2 - 1, gn3 - 1});
-      heffte::box3d<> complex_indexes({0, 0, 0}, {(int)(floor(n1 / 2.) + 1) - 1, n2 - 1, gn3 - 1});
+     heffte::box3d<> real_indexes({0, 0, 0}, {(n1 - 1), (n2 - 1), (gn3 - 1)});
+     heffte::box3d<> complex_indexes({0, 0, 0}, {(floor(n1 / 2.) + 1 - 1), (n2 - 1), (gn3 - 1)});
     
     // the dimension where the data will shrink
     int r2c_direction = 0;

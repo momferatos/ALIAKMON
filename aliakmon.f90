@@ -18,7 +18,7 @@ program aliakmon
   use mpivars
   use hdf5_aliakmon
 #ifdef _MPI_
-  use fft_mpi
+  use fft_fftw
 #endif
 #ifdef _OPENMP_
   use omp_lib
@@ -72,7 +72,7 @@ program aliakmon
 #ifdef _CUDA_
   call fft_cuda_alloc(n1,n2,gn3,lksize,lkstart)
 #else
-  call fft_mpi_alloc(n1,n2,gn3,lksize,lkstart)
+  call fft_fftw_alloc(n1,n2,gn3,lksize,lkstart)
 #endif
   n3=lksize
 #else
@@ -89,10 +89,11 @@ program aliakmon
      stop
   end if
 
-
+  
   ! Allocate and initialize all arrays
   call alloc_init
-!!$  
+
+
 !!$  call random_number(u(1:nn(1),:,:,:))
 !!$  fu=u
 !!$  call fourier(nn,1_ik,fu)
@@ -359,7 +360,11 @@ program aliakmon
 
 
 #ifdef _MPI_
-  call fft_mpi_dealloc
+#ifndef _CUDA_
+  call fft_fftw_dealloc
+#else
+  call fft_cuda_dealloc
+#endif
   call finalize_mpi
 #endif
 
@@ -426,7 +431,7 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-
+    
     call copy(nn,u,fu,nn(1))
 
     call fourier(nn,-1_ik,u)

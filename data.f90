@@ -268,7 +268,6 @@ contains
        allocate(iphases(dim1(n1),n2,n3))
        iphases(:,:,:) = 0.0_rk
     end if
-
     !only for Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
        ! phase-shifted fields in physical space
@@ -303,6 +302,7 @@ contains
     trk2(:) = 0.0_rk
     ! if we're using MPI, z direction is spread across processes,
     ! each process has a slice of z-width lksize
+
 #ifdef _MPI_
     ! z
     allocate(k3(1:lksize))
@@ -314,6 +314,7 @@ contains
     ! z, used for truncation
     allocate(trk3(1:n3))
 #endif
+
     k3(:) = 0.0_rk
     trk3(:) = 0.0_rk
     ! if we're using MPI, we also need the global z-wavevector array

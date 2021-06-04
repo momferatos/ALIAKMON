@@ -65,7 +65,7 @@ contains
     icount(4) = dimsf(4)
     offset(1) = 0
     offset(2) = 0
-    offset(3) = lkstart
+    offset(3) = lkstart-1
     offset(4) = 0
 
     
@@ -166,7 +166,7 @@ contains
     
     offset(1) = 0
     offset(2) = 0
-    offset(3) = lkstart
+    offset(3) = lkstart-1
     
 
     !
@@ -810,7 +810,7 @@ contains
       icount(3) = nn(3)
       offset(1) = 0
       offset(2) = 0
-      offset(3) = lkstart
+      offset(3) = lkstart-1
 
       call h5screate_simple_f(rank, icount, memspace, error) 
       ! 
@@ -900,7 +900,7 @@ contains
       icount(4) = 3
       offset(1) = 0
       offset(2) = 0
-      offset(3) = lkstart
+      offset(3) = lkstart-1
       offset(4) = 0
 
       call h5screate_simple_f(rank, icount, memspace, error) 

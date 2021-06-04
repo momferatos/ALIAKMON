@@ -804,8 +804,8 @@ contains
        lf(i,j,k,nu2)=scratch(i,j,k,nb3)*u(i,j,k,nb1)-scratch(i,j,k,nb1)*u(i,j,k,nb3)
        lf(i,j,k,nu3)=scratch(i,j,k,nb1)*u(i,j,k,nb2)-scratch(i,j,k,nb2)*u(i,j,k,nb1)
 
-       maxj=max(maxj,sqrt(scratch(i,j,k,nb1)**2+scratch(i,j,k,nb2)**2+scratch(i,j,k,nb3)**2))
-       maxlf=max(maxlf,sqrt(lf(i,j,k,nu1)**2+lf(i,j,k,nu2)**2+lf(i,j,k,nu3)**2))
+       maxj=max(maxj,real(sqrt(scratch(i,j,k,nb1)**2+scratch(i,j,k,nb2)**2+scratch(i,j,k,nb3)**2),rk))
+       maxlf=max(maxlf,real(sqrt(lf(i,j,k,nu1)**2+lf(i,j,k,nu2)**2+lf(i,j,k,nu3)**2),rk))
 
        if(DEALIASING==PATTERSON_ORSZAG) then
           !Phase-shifted arrays
@@ -2105,7 +2105,7 @@ contains
 #endif
     use mpivars
 #ifdef _MPI_
-    use fft_mpi,only:fft_mpi_fourier
+    use fft_fftw
 #ifdef _CUDA_
     use fft_cuda
 #endif
@@ -2143,7 +2143,7 @@ contains
 #ifdef _CUDA_
     call fft_cuda_fourier(nn,gn3,dir,u,nnfs,nnfe)
 #else
-    call fft_mpi_fourier(nn,gn3,dir,u,nnfs,nnfe)
+    call fft_fftw_fourier(nn,gn3,dir,u,nnfs,nnfe)
 #endif
 #endif
 

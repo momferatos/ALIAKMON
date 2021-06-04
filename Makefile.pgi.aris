@@ -1,7 +1,5 @@
 MPIFC=mpifort
 
-FFTWROOT=$(HOME)
-HDF5ROOT=$(HOME)
 
 GOPT = -cpp -g -O0 -Ktrap=denorm,divz,inexact,inv,ovf,unf 
 FOPT= -cpp -fast -m64 -tp=sandybridge
