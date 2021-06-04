@@ -106,3 +106,6 @@ cp aliakmon.nml test_case
 cd test_case
 edit aliakon.nml (see comments inside this file)
 mpirun -x UCX_MEMTYPE_CACHE=n -np 4 ../aliakmon.exe
+
+8) As a check, open the vtk files with paraview
+
