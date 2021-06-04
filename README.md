@@ -23,7 +23,8 @@ export LD_LIBRARY_PATH=/home/giorgos/libs/hdf5/lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/home/giorgos/libs/heffte/lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/home/giorgos/libs/fftw/lib/:$LD_LIBRARY_PATH
 
-ATTENTION: Use OpenMPI 3.1, the code does NOT work with OpenMPI 4
+export UCX_MEMTYPE_CACHE=n
+
 
 3) Libraries go here:
 
@@ -90,13 +91,13 @@ make install
 5) build ALIAKMON-GPU with HeFFTe CUDA backend
 
 cd aliakmon
-make
+make -f Makefile.pgi.aris
 
 6) build ALIAKMON with heFFTe FFTW backend
 
 cd aliakmon
-comment out $(CUDAFLAGS) in Makefile
-make
+comment out $(CUDAFFLAGS) in Makefile.heffte
+make -f Makefile.heffte
 
 7) run ALIAKMON-GPU or ALIAKMON
 
