@@ -182,36 +182,37 @@ contains
 !!$    call c_f_pointer(c_loc(input),r_array,shape=[n1,n2,lksize])
 !!$    call c_f_pointer(c_loc(output),c_array,shape=[dim1(n1)/2,n2,lksize])
 
-    !$acc data present(input, output, work)
+              !$acc data present(input(1:size_in), output(1:size_out), work(1:size_work))
     if(dir == 1) then
        do nfi=nnfs,nnfe
 
           
-         !!$omp parallel do 
+          !$omp parallel do 
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              r_array(i,j,k)=fu(i,j,k,nfi)
           end do; end do ; end do 
-          !!$omp end parallel do
+          !$omp end parallel do
           
           
-          
-          !$acc update device(input) 
-          !$acc host_data use_device(input, output, work)
+         
+          !$acc update device(input(1:size_in)) 
+          !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
           call fft%forward(input,output,work,scale_cufft_none)
           !$acc end host_data
-          !$acc update host(output)
+          !$acc update host(output(1:size_out))
+         
           
           
           
-
-    
+          !$omp parallel do private(iii, ctmp)
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1,2
              iii = (i-1) / 2 + 1
              ctmp = c_array(iii,j,k)
              fu(i,j,k,nfi) = real(ctmp)
              fu(i+1,j,k,nfi) = aimag(ctmp)
           end do; end do ; end do
-    
+          !$omp end parallel do
+          
           
        end do
        
@@ -221,27 +222,27 @@ contains
        do nfi=nnfs,nnfe
 
           
-    
+          !$omp parallel do private(iii)
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1,2
              iii = (i - 1) / 2  + 1
              c_array(iii,j,k) = cmplx(fu(i,j,k,nfi), fu(i+1,j,k,nfi))
           end do; end do ; end do
-    
+          !$omp end parallel do
 
-          
-          !$acc update device(output) 
-          !$acc host_data use_device(input, output, work)
+
+          !$acc update device(output(1:size_out)) 
+          !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
           call fft%backward(output,input,work, scale_cufft_full)
           !$acc end host_data
-          !$acc update host(input)
-          
+          !$acc update host(input(1:size_in))
+         
           
          
-    
+          !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              fu(i,j,k,nfi) = r_array(i,j,k)
           end do; end do ; end do
-    
+          !$omp end parallel do
 
           
           
@@ -249,7 +250,6 @@ contains
        
     end if
     !$acc end data
-    
 
 
     return

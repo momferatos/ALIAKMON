@@ -3,14 +3,15 @@ MPICC = mpicc
 MPICXX = mpic++
  
 GFLAGS = -cpp -g -O0 #-Ktrap=denorm,divz,inexact,inv,ovf,unf
-CXXFLAGS = -fast -m64 -tp=sandybridge 
+OPTFLAGS=-fast -fastsse -tp=haswell
+CXXFLAGS = $(OPTFLAGS)
 
-FFLAGS= -fast -cpp -m64 -tp=sandybridge
-PREC = #-D _DOUBLE_
-OMPFLAGS= -D _OPENMP_ -mp
+FFLAGS= -cpp
+PREC = # -D _DOUBLE_
+OMPFLAGS= -D _OPENMP_ -mp=multicore
 MPIFLAGS= -D _MPI_
-CUDAFFLAGS = -D _CUDA_ -acc -cuda -gpu cc75 -gpu=cuda11.3
-PARFLAGS= $(MPIFLAGS) $(CUDAFFLAGS) 
+CUDAFFLAGS = -D _CUDA_ -acc=gpu -gpu=cc75,cuda11.3 -cuda
+PARFLAGS= $(OPTFLAGS) $(OMPFLAGS) $(MPIFLAGS) $(CUDAFFLAGS) 
 
 LIBS = /home/giorgos/libs
 FFTWROOT=$(LIBS)/fftw

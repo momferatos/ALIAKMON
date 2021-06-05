@@ -67,12 +67,14 @@ contains
   subroutine fft_omp_dealloc
     implicit none
 
-    call fftw_free(p)
+    
 
 #ifdef _DOUBLE_
+    call fftw_free(p)
     call fftw_destroy_plan(plan)
     call fftw_destroy_plan(iplan)
 #else
+    call fftwf_free(p)
     call fftwf_destroy_plan(plan)
     call fftwf_destroy_plan(iplan)
 #endif

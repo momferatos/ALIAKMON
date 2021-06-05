@@ -184,7 +184,7 @@ contains
     if(dir == 1) then
        do nfi=nnfs,nnfe
 
-         !!$omp parallel do 
+          !$omp parallel do 
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              r_array(i,j,k)=fu(i,j,k,nfi)
           end do; end do ; end do 
@@ -198,7 +198,7 @@ contains
           !$acc end data
 
           
-          !!omp parallel do
+          !omp parallel do private(iii, ctmp)
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1,2
              iii = (i-1) / 2 + 1
              ctmp = c_array(iii,j,k)
@@ -214,12 +214,12 @@ contains
        do nfi=nnfs,nnfe
 
 
-          !!omp parallel do 
+          !$omp parallel do private(iii) 
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1,2
              iii = (i - 1) / 2  + 1
              c_array(iii,j,k) = cmplx(fu(i,j,k,nfi), fu(i+1,j,k,nfi))
           end do; end do ; end do
-          !!omp end parallel do
+          !omp end parallel do
                     
           !$acc data  copyin(output) copyout(output) create(work)
           !$acc host_data use_device(input, output, work)
@@ -228,11 +228,11 @@ contains
           !$acc end data 
           
           
-          !!omp parallel do 
+          !$omp parallel do 
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              fu(i,j,k,nfi) = r_array(i,j,k)
           end do; end do ; end do
-          !!omp end parallel do
+          !$omp end parallel do
 
           
        end do
