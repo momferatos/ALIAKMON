@@ -99,14 +99,19 @@ cd aliakmon
 comment out $(CUDAFFLAGS) in Makefile.heffte
 make -f Makefile.heffte
 
-7) run ALIAKMON-GPU or ALIAKMON
+7) Build ALIAKMON with Intel MKL FFT (this gets the most out of the CPUs on ARIS)
+
+cd aliakmon
+make -f Makefile.intel.aris
+
+8) run ALIAKMON-GPU or ALIAKMON
 
 cd aliakmon/
 mkdir test_case
 cp aliakmon.nml test_case
 cd test_case
 edit aliakon.nml (see comments inside this file)
-mpirun -x UCX_MEMTYPE_CACHE=n -np 4 ../aliakmon.exe
+mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.exe
 
-8) As a check, open the vtk files with paraview
+9) As a check, open the vtk files with paraview
 
