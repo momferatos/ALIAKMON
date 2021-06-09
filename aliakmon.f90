@@ -23,12 +23,10 @@ program aliakmon
 #else
   use fft_fftw
 #endif
+#endif
 #ifdef _OPENMP_
   use omp_lib
   use fft_omp
-#endif
-#ifdef _CUDA_
-  use fft_cuda
 #endif
   implicit none
   ! 
