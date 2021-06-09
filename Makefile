@@ -14,7 +14,7 @@ OMPFLAGS= -D _OPENMP_ -mp=multicore
 MPIFLAGS= -D _MPI_
 CUDAFLAGS = -D _CUDA_ -acc=gpu -gpu=cc75,cuda11.3 -cuda
 ROCMFLAGS =
-ACCELFLAGS  = $(CUDAFLAGS)
+ACCELFLAGS  = # $(CUDAFLAGS)
 PARFLAGS= $(OPTFLAGS) $(OMPFLAGS) $(MPIFLAGS) $(ACCELFLAGS) 
 
 LIBS = /home/giorgos/libs
@@ -27,7 +27,9 @@ INCLUDE= -I $(FFTWROOT)/include -I $(HDF5ROOT)/include -I $(HEFFTEROOT)/include 
 
 LIB= -L $(FFTWROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(CUDAROOT)/lib64 
 
-LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran -lhefftecufftfortran -lcufft -lcudart -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads
+CUDALDFLAGS = # -lhefftecufftfortran -lcufft -lcudart
+
+LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran $(CUDALDFLAGS) -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads
 
 FFTWOBJS = parameters.o data.o hdf5.o fft_alloc_cpp.o fft_fftw_f90.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o
 
@@ -37,7 +39,7 @@ all: aliakmon.fftw
 
 aliakmon.cuda: $(CUDAOBJS)
 	$(MPIFC) -o $@.exe $^ $(FFLAGS) $(PARFLAGS) $(LIB) $(LDFLAGS)
-	
+
 aliakmon.fftw: $(FFTWOBJS)
 	$(MPIFC) -o $@.exe $^ $(FFLAGS) $(PARFLAGS) $(LIB) $(LDFLAGS) 
 
