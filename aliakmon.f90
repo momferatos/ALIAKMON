@@ -18,6 +18,9 @@ program aliakmon
   use mpivars
   use hdf5_aliakmon
 #ifdef _MPI_
+#ifdef _CUDA_
+  use fft_cuda
+#else
   use fft_fftw
 #endif
 #ifdef _OPENMP_
@@ -57,7 +60,11 @@ program aliakmon
 
 #ifdef _MPI_
   ! Initilize MPI enviroment
+#ifdef _OPENMP_
+  nt=omp_get_num_threads()
+#else
   nt=1
+#endif
   call initialize_mpi(nt)
 #else
   mpirank=MPIROOT

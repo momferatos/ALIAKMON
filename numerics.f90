@@ -2105,9 +2105,10 @@ contains
 #endif
     use mpivars
 #ifdef _MPI_
-    use fft_fftw
 #ifdef _CUDA_
     use fft_cuda
+#else
+    use fft_fftw
 #endif
     use mpivars
 #endif

@@ -44,35 +44,15 @@ module fft_cuda
   end interface
 
   interface
-     subroutine fft_cuda_alloc_cpp(n1,n2,gn3,slice_direction,r2c_direction,il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3) bind(c)
+     subroutine fft_alloc_cpp(n1,n2,gn3,slice_direction,r2c_direction,il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3) bind(c)
        use iso_c_binding
        implicit none
        integer(c_long),value :: n1,n2,gn3
        integer(c_int),value :: slice_direction, r2c_direction
        integer(c_int)       :: il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3
-     end subroutine fft_cuda_alloc_cpp
+     end subroutine fft_alloc_cpp
   end interface
 
-! void fft_cuda_load_cpp(float *input_f, float *gpu_input_f, float *gpu_output_f, float *gpu_workspace_f, 
-
-  interface
-     subroutine fft_cuda_load_cpp(input, gpu_input, gpu_output, gpu_workspace, size_inbox, size_outbox, size_workspace,fft) bind(c)
-       use iso_c_binding
-       implicit none
-       type(c_ptr), value    :: input, gpu_input, gpu_output, gpu_workspace
-       integer(c_long), value :: size_inbox, size_outbox, size_workspace
-       type(c_funptr) :: fft
-     end subroutine fft_cuda_load_cpp
-  end interface
-
-  interface
-     subroutine fft_cuda_unload_cpp(output, gpu_output, size_outbox) bind(c)
-       use iso_c_binding
-       implicit none
-       type(c_ptr), value    :: output, gpu_output
-       integer(c_long), value :: size_outbox
-     end subroutine fft_cuda_unload_cpp
-  end interface
   
 contains
 
@@ -95,7 +75,7 @@ contains
     r2c_direction=0
     slice_direction=2
     
-    call fft_cuda_alloc_cpp(int(n1,c_long),int(n2,c_long),int(gn3,c_long),&
+    call fft_alloc_cpp(int(n1,c_long),int(n2,c_long),int(gn3,c_long),&
          &slice_direction,r2c_direction,il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3)
 
     lkstart = il3
