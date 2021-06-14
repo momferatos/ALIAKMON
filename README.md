@@ -105,10 +105,7 @@ cd aliakmon
 source config.fftw
 make -f Makefile.heffte
 
-7) Build ALIAKMON with Intel MKL FFT (this gets the most out of the CPUs on ARIS)
 
-cd aliakmon
-make -f Makefile.mkl
 
 8) run ALIAKMON-GPU or ALIAKMON
 
@@ -117,7 +114,7 @@ mkdir test_case
 cp aliakmon.nml test_case
 cd test_case
 edit aliakon.nml (see comments inside this file)
-mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.exe
+mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.{cuda,fftw}.exe
 
 9) As a check, open the vtk files with paraview
 
