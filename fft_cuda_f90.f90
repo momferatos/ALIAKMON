@@ -27,7 +27,7 @@ module fft_cuda
   real(c_float), dimension(:,:,:), pointer  :: r_array
   complex(c_float_complex), dimension(:,:,:), pointer :: c_array
   type(heffte_fft3d_r2c_cufft) :: fft
-  !$acc declare create(input, output, work)
+  !$acc declare present(input, output, work)
 
   !Interfaces of external subroutines in C
   interface
@@ -162,7 +162,7 @@ contains
 !!$    call c_f_pointer(c_loc(input),r_array,shape=[n1,n2,lksize])
 !!$    call c_f_pointer(c_loc(output),c_array,shape=[dim1(n1)/2,n2,lksize])
 
-              !$acc data present(input(1:size_in), output(1:size_out), work(1:size_work))
+    !$acc data present(input(1:size_in), output(1:size_out), work(1:size_work))
     if(dir == 1) then
        do nfi=nnfs,nnfe
 
