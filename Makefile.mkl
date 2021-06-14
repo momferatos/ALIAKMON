@@ -1,0 +1,29 @@
+MPIFC=mpiifort
+
+GOPT = -fpp -g
+FOPT= -fpp -diag-file=aliakmon.diag -stand=f08 -convert big_endian -O3 # -ftz -xCORE-AVX-I -ip -ipo 
+PREC = #-D_DOUBLE_
+OMPOPT= -D_OPENMP_ -qopenmp
+MPIOPT= -D_MPI_ 
+PAROPT= $(OMPOPT) $(MPIOPT)
+GPAROPT = $(OMPOPT) $(MPIOPT)
+INCLUDE= -I $(MKLROOT)/include/fftw/ -I $(HDF5ROOT)/include  
+LIB= -L $(MKLROOT)/lib/intel64_lin -L $(HDF5ROOT)/lib
+
+LDFLAGS = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_cdft_core.a ${MKLROOT}/lib/intel64/libmkl_intel_ilp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_blacs_intelmpi_ilp64.a $(HOME)/fftw_mkl/libfftw3xf_intel.a $(HOME)/fftw_mkl/libfftw3x_cdft_lp64.a -Wl,--end-group -Wl,-Bdynamic -liomp5 -lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lsz -lz
+OBJS = parameters.o data.o hdf5.o fft_mpi.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o
+
+all: aliakmon
+
+%.o: %.f90
+	$(MPIFC) -c -o $@ $< $(FOPT) $(PREC) $(PAROPT) $(INCLUDE) 
+
+aliakmon: $(OBJS)
+	$(MPIFC) -o $@.exe $^ $(FOPT) $(PAROPT) $(LIB) $(LDFLAGS) 
+
+debug: $(OBJS)
+	$(MPIFC) -o $@ $^ $(GOPT) $(GPAROPT) $(LIB) $(LDFLAGS) 
+
+clean:
+	rm -f *.o *.mod aliakmon.exe 
+

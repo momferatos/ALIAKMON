@@ -7,44 +7,49 @@
 !!$                            |_|
 !!$  
 !!$   Copyright (c) 2009-2020 George Momferatos
-1) NVHPC environment variables:
 
-NVARCH=`uname -s`_`uname -m`; export NVARCH
-NVCOMPILERS=/opt/nvidia/hpc_sdk; export NVCOMPILERS
+1) Set environment variables:
+
+# change these two lines accordingly
+NVCOMPILERS=/home/giorgos/opt/nvidia/hpc_sdk; export NVCOMPILERS
+# FFTW3, HDF5, and heFFTE 2.1 are supposed to go here:
+export LIBSROOT=/home/giorgos/libs
+
+MPISUBPATH=/openmpi4/openmpi-4.0.5
+
 MANPATH=$MANPATH:$NVCOMPILERS/$NVARCH/21.5/compilers/man; export MANPATH
 PATH=$NVCOMPILERS/$NVARCH/21.5/compilers/bin:$PATH; export PATH
-#export PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/openmpi4/openmpi-4.0.5/bin/:$PATH
-export PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/mpi/bin/:$PATH
+
+export PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/$MPISUBPATH/bin/:$PATH
 
 export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/21.5/compilers/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/mpi/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/$MPISUBPATH/lib/:$LD_LIBRARY_PATH
 
-export LD_LIBRARY_PATH=/home/giorgos/libs/hdf5/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/home/giorgos/libs/heffte/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/home/giorgos/libs/fftw/lib/:$LD_LIBRARY_PATH
+
+export LD_LIBRARY_PATH=$LIBSROOT/hdf5/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LIBSROOT/heffte/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LIBSROOT/fftw/lib/:$LD_LIBRARY_PATH
 
 export UCX_MEMTYPE_CACHE=n
 
-
-3) Libraries go here:
-
-export LIBS=/home/giorgos/libs/
+# Architecture
+export ARCH=haswell
 
 2) Build FFTW 3.3.9:
 
-CFLAGS="-fast -fastsse -tp sandybridge -Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --prefix=$LIBS --enable-single --enable-parallel --enable-openmp --enable-fortran --enable-threads
+CFLAGS="-fast -fastsse -tp=$ARCH o-Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --prefix=$LIBS --enable-single --enable-parallel --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
 make
 make check
 make install
 
 3) Build HDF5 1.12.0
 
-CPP=cpp CFLAGS="-fPIC -m64 -tp=sandybridge" CXXFLAGS="-fPIC -m64 -tp=sandybridge" FCFLAGS="-fPIC -m64 -tp=sandybridge" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --prefix=$LIBS --enable-unsupported
+CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --prefix=$LIBS --enable-unsupported --prefix=$LIBSROOT/hdf5
 make
 make test
 make install
 
-4) Build HeFFTe (https://bitbucket.org/icl/heffte/)
+4) Build HeFFTe 2.1 (https://bitbucket.org/icl/heffte/)
 
 mdkir build
 cd build
@@ -62,7 +67,7 @@ cmake \
     -D MPI_C_COMPILER=`which mpicc` \
     -D CMAKE_BUILD_TYPE=Release \
     -D BUILD_SHARED_LIBS=ON     \
-    -D CMAKE_INSTALL_PREFIX=/home/giorgos/libs/heffte/ \
+    -D CMAKE_INSTALL_PREFIX=$LIBSROOT/heffte/ \
     -D Heffte_ENABLE_FFTW=ON \
     -D FFTW_ROOT=/home/giorgos/libs/fftw/ \
     -D Heffte_ENABLE_CUDA=ON \
@@ -91,18 +96,19 @@ make install
 5) build ALIAKMON-GPU with HeFFTe CUDA backend
 
 cd aliakmon
-make -f Makefile.pgi.aris
+source config.cuda
+make -f Makefile
 
 6) build ALIAKMON with heFFTe FFTW backend
 
 cd aliakmon
-comment out $(CUDAFFLAGS) in Makefile.heffte
+source config.fftw
 make -f Makefile.heffte
 
 7) Build ALIAKMON with Intel MKL FFT (this gets the most out of the CPUs on ARIS)
 
 cd aliakmon
-make -f Makefile.intel.aris
+make -f Makefile.mkl
 
 8) run ALIAKMON-GPU or ALIAKMON
 
