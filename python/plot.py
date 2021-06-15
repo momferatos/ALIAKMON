@@ -6,10 +6,15 @@ from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import sys
 import glob
+import os
 
 minval = 1.0e-3
 
-ncmap = np.load('/users/pr008/gmomfer/codes/aliakmon/python/turb_cmap.npy') / 255.
+
+pydir = os.path.dirname(os.path.realpath(__file__))
+
+ncmap = np.load(pydir + '/turb_cmap.npy') / 255.
+
 cmap = ListedColormap(ncmap)
 
 reader = vtkStructuredGridReader()
