@@ -491,7 +491,7 @@ contains
 
     end if
 
-    !write passive scalar dissipation
+    !write energy dissipation rate
     if(OUTPUT_DISS) then
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)

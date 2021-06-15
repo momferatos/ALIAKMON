@@ -86,18 +86,19 @@ program aliakmon
 #endif
 #endif
 
-  if(command_argument_count()>1) then
+  if(command_argument_count() > 0) then
+     call alloc_init_post_proc
      call post_processing_mode
 #ifdef _MPI_
      call finalize_mpi
 #endif
      stop
   end if
-
   
   ! Allocate and initialize all arrays
   call alloc_init
 
+  
 
 !!$  call random_number(u(1:nn(1),:,:,:))
 !!$  fu=u
@@ -308,7 +309,7 @@ program aliakmon
           &totdisprev-totdisprev2>0.0_rk.and..not.FORCED) then
         ! Output files
         call reached_dissipation_peak
-        !exit timeloop
+        exit timeloop
      end if
      totdisprev2=totdisprev
      totdisprev=totdis
@@ -521,6 +522,28 @@ contains
     character(len=256)              :: filename_in
     character(len=256)              :: filename_out
 
+    if(command_argument_count()==1) then
+
+       if(mpirank == MPIROOT) then
+          print '(a)',  ''
+          print '(a)',  'usage: aliakmon [OPTIONS] filename.h5'
+          print '(a)',  ''
+          print '(a)',  'Without further options, read aliakmon.nml and &
+               &compute.'
+          print '(a)',  ''
+          print '(a)',  'post-processing options:'
+          print '(a)',  ''
+          print '(a)',  '  -v, --vorticity'
+          print '(a)',  '  -e, --dissipation'
+          print '(a)',  '  -s, --scalar_dissipation'
+          print '(a)',  '  -j, --current'
+          print '(a)',  '  -a, --all'
+       end if
+
+       return
+
+    end if
+
     !parse command line arguments
     do arg_num=1,command_argument_count()
        call get_command_argument(arg_num, arg)
@@ -542,7 +565,7 @@ contains
           case default
              if(mpirank==mpiroot) then
                 print '(2a)', 'Unrecognized command-line option: ', trim(arg)
-                print '(a)',  'usage: aliakmon [OPTIONS]'
+                print '(a)',  'usage: aliakmon [OPTIONS] filename.h5'
                 print '(a)',  ''
                 print '(a)',  'Without further options, read aliakmon.nml and &
                      &compute.'
@@ -564,33 +587,44 @@ contains
 
     !read input HDF5 file
     call read_hdf5_file(nn,gn3,u,trim(filename_in))
-!!$
-!!$    !convert from physical space to fourier space
-!!$    call physical_to_fourier(nn,u,fu,&
-!!$         &rhs4,fscl,b,fb)
-!!$
-!!$    !calculate vorticity
-!!$    if(OUTPUT_W) then
-!!$       call curl(rhs1,rhs2,rhs3,fu,.true.)
-!!$       call fourier(nn,-1_ik,rhs1)
-!!$       call fourier(nn,-1_ik,rhs2)
-!!$       call fourier(nn,-1_ik,rhs3)   
-!!$    end if
-!!$
-!!$    if(OUTPUT_DISS) then
-!!$       call dissipation(nn,du1,fu,.true.)
-!!$    end if
+
+    !copy velocity
+    call copy(nn, fu, u)
+    call fourier(nn, 1_ik, fu)
+    !calculate vorticity
+    if(OUTPUT_W) then
+       call curl(nn, u, fu, nu1)
+       call fourier(nn, -1_ik, u, nu1, nu3)
+    end if
+
+    if(OUTPUT_DISS) then
+       ! Calculate viscosity
+       if(RE==0.0_rk) then
+          eta=KMAXETA/kmax
+          REtmp=((D**(1.0_rk/4.0_rk))*eta)**(-4.0_rk/3.0_rk)
+          RE=6.0_rk*sqrt(REtmp)
+       else
+          REtmp=(RE/6.0_rk)**2
+          eta=D**(-1.0_rk/4.0_rk)*REtmp**(-3.0_rk/4.0_rk)
+       end if
+
+       visc(:)=0.0_rk
+       visc(:)=15.0_rk**(1.0_rk/4.0_rk)*(eta*RMSUTAR)/(sqrt(RE))
+
+       call dissipation(nn, scratch, 1_ik, fu)
+
+    end if
 !!$
 !!$    if(PASSIVE_SCALAR.and.OUTPUT_SCL_DISS) then
 !!$       call gradient(nn,u,fscl,.true.)
 !!$       call fourier(nn,-1_ik,u1)
 !!$       call fourier(nn,-1_ik,u2)
 !!$       call fourier(nn,-1_ik,u3)
-
+!!$
 !!$       rhs5=u1**2+u2**2+u3**2
-
+!!$
 !!$    end if
-!!$q
+!!$
 !!$    !calculate vorticity
 !!$    if(MHD.and.OUTPUT_J) then
 !!$       call curl(nn,u,fb,.true.)
@@ -598,7 +632,7 @@ contains
 !!$       call fourier(nn,-1_ik,u2)
 !!$       call fourier(nn,-1_ik,u3)   
 !!$    end if
-!!$
+
     !create output HDF5 filename
     write(filename_out,'(2a)') 'pp_',trim(filename_in)
 

@@ -2,19 +2,19 @@ MPIFC = mpifort
 MPICC = mpicc
 MPICXX = mpic++
 
-ARCH=haswell
-
-DEBUGFLAGS = -cpp -g -O0 -Ktrap=denorm,divz,inexact,inv,ovf,unf
+DEBUGFLAGS = -cpp -g -O0 # -Ktrap=denorm,divz,inexact,inv,ovf,unf
 OPTFLAGS= -fast -fastsse -tp=$(ARCH)
-BUILDFAGS = $(DEBUGFLAGS)
-CXXFLAGS = $(OPTFLAGS)
+BUILDFLAGS = $(DEBUGFLAGS)
 
-FFLAGS= -cpp
 PREC = # -D _DOUBLE_
 OMPFLAGS= -D _OPENMP_ -mp=multicore
 MPIFLAGS= -D _MPI_
-PARFLAGS= $(BUILDFLAGS) $(OMPFLAGS) $(MPIFLAGS) $(ACCELFLAGS) 
+PARFLAGS= $(OMPFLAGS) $(MPIFLAGS) $(ACCELFLAGS) 
 
+
+CXXFLAGS = $(BUILDFLAGS) $(PARFLAGS)
+
+FORTFLAGS = -cpp $(BUILDFLAGS) $(PARFLAGS)
 
 FFTWROOT=${LIBSROOT}/fftw
 HEFFTEROOT=${LIBSROOT}/heffte
@@ -30,13 +30,13 @@ LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lh
 all: aliakmon
 
 aliakmon: $(OBJS)
-	$(MPIFC) -o $@.$(BACKEND).exe $^ $(FFLAGS) $(PARFLAGS) $(LIB) $(LDFLAGS)
+	$(MPIFC) -o $@.$(BACKEND).exe $^ $(FFLAGS) $(PREC) $(LIB) $(LDFLAGS)
 
 %.o: %.f90
-	$(MPIFC) -c -o $@ $< $(FFLAGS) $(PREC) $(PARFLAGS) $(INCLUDE) 
+	$(MPIFC) -c -o $@ $< $(FORTFLAGS) $(PREC) $(INCLUDE) 
 
 %.o: %.cpp
-	$(MPICXX) -c -o $@ $< $(CXXFLAGS) $(PREC) $(PARFLAGS) $(INCLUDE) 
+	$(MPICXX) -c -o $@ $< $(CXXFLAGS) $(PREC) $(INCLUDE) 
 
 clean:
 	rm -f *.o *.mod aliakmon.exe 

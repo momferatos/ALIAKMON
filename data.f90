@@ -366,6 +366,166 @@ contains
 
   end subroutine alloc_init
 
+  subroutine alloc_init_post_proc
+    use mpivars
+    implicit none
+    !
+    ! allocates and initializes all arrays
+    ! 
+    integer(ik) :: nmax,i,j,k,n
+    real(rk)    :: kk
+    logical     :: trunc_crit
+
+    nmax=max(n1,n2,n3)
+
+    ! set number of fields
+    ! velocity is certain
+    nu1=1
+    nu2=2
+    nu3=3
+    nfields=3
+    ! arbitrary number of passive scalars
+    if(PASSIVE_SCALAR) then
+       nscl=numscls
+       nsclf=nu3+1
+       nscll=nu3+nscl
+       nfields=nu3+nscl
+    end if
+    ! magnetic field
+    if(MHD) then
+       nb1=nfields+1
+       nb2=nfields+2
+       nb3=nfields+3
+       nfields=nfields+3
+    end if
+
+    ! set vector of array dimensions
+    nn(1)=n1
+    nn(2)=n2
+    nn(3)=n3
+    nn(4)=nfields
+
+
+    ! viscosities, scalar diffusivities, magnetic diffusivities
+    allocate(visc(1:nn(4)))
+    visc(:)=0.0_rk
+
+    ! forcing scales
+    allocate(fscale(1:nn(4)))
+    fscale(:)=0.0_rk
+
+    ! passive scalar dissipation rates
+    allocate(emeanscl(1:nn(4)))
+    emeanscl(:)=0.0_rk
+
+    ! passive scalar variances
+    allocate(sclvarprev(1:nn(4)))
+    sclvarprev(:)=1.0
+
+    ! allocate truncation mask
+    ! true if the mode is active, false if it is inactive
+    allocate(isactive(1:dim1(nn(1)),1:nn(2),1:nn(3)))
+    isactive(:,:,:) = .false.
+
+    ! allocate secondary arrays
+    ! used as scratch
+    allocate(scratch(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    call zero(nn,scratch)
+
+    allocate(rks1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    call zero(nn,rks1)
+
+    allocate(rmsarr(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    call zero(nn,rmsarr)
+
+    !allocate primary arrays
+    ! fields in physical space
+    allocate(u(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    call zero(nn,u)
+    ! fields in fourier space
+    allocate(fu(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    call zero(nn,fu)
+
+    nespec=max(n1,n2,n3)  
+
+    !allocate wave-vector arrays
+    ! x
+    allocate(k1(1:dim1(n1)))
+    k1(:) = 0.0_rk
+    ! y
+    allocate(k2(1:n2))
+    k2(:) = 0.0_rk
+    ! x, used for truncation
+    allocate(trk1(1:dim1(n1)))
+    trk1(:) = 0.0_rk
+    ! y, used for truncation
+    allocate(trk2(1:n2))
+    trk2(:) = 0.0_rk
+    ! if we're using MPI, z direction is spread across processes,
+    ! each process has a slice of z-width lksize
+
+#ifdef _MPI_
+    ! z
+    allocate(k3(1:lksize))
+    ! z, used for truncation
+    allocate(trk3(1:lksize))
+#else
+    ! z
+    allocate(k3(1:n3))
+    ! z, used for truncation
+    allocate(trk3(1:n3))
+#endif
+
+    k3(:) = 0.0_rk
+    trk3(:) = 0.0_rk
+    ! if we're using MPI, we also need the global z-wavevector array
+    allocate(gk3(1:gn3))
+    gk3(:) = 0.0_rk
+    ! and its counterpart for truncation
+    allocate(trgk3(1:gn3))
+    trgk3(:) = 0.0_rk
+    !initialize wave-vector arrays
+    call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk3,trgk3)
+
+    ! initialize the mask of active modes
+    n = maxval(nn(1:3))
+    k_max = 0.0 
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1
+       ! truncation criterion
+       select case(TRUNCATION)
+          ! two-thirds rule
+       case(TWO_THIRDS)
+          trunc_crit = twothirds_tr(i, j, k, n / 3)
+          ! spherical
+       case(SPHERICAL)
+          trunc_crit = spherical_tr(i,j,k,TRFAC*n)
+          ! polyhedral
+       case(POLYHEDRAL)
+          trunc_crit = polyhedral_tr(i,j,k)
+       end select
+
+       ! truncate
+       if(trunc_crit) then
+          ! real part of the mode
+          isactive(i,j,k)=.false.
+          ! imaginary part 
+          isactive(i+1,j,k)=.false.
+       else 
+          ! wavevector modulus
+          kk = sqrt(real(abs(wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2&
+               &+wv(3_ik,i,j,k)**2)))
+          ! maximum wavevector
+          k_max=max(k_max,kk)
+          ! real part of the mode
+          isactive(i,j,k)=.true.
+          ! imaginary part 
+          isactive(i+1,j,k)=.true.  
+       end if
+    end do; end do ; end do
+
+    return
+
+  end subroutine alloc_init_post_proc
   pure function twothirds_tr(i,j,k,kmax)
     implicit none
     logical                 :: twothirds_tr

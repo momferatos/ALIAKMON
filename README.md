@@ -10,9 +10,10 @@
 
 1) Set environment variables:
 
-# change these two lines accordingly
+# change these lines accordingly
 NVCOMPILERS=/home/giorgos/opt/nvidia/hpc_sdk; export NVCOMPILERS
-# FFTW3, HDF5, and heFFTE 2.1 are supposed to go here:
+NVARCH=`uname -s`_`uname -m`; export NVARCH
+# FFTW3., HDF5, and heFFTE 2.1 are supposed to go here:
 export LIBSROOT=/home/giorgos/libs
 
 MPISUBPATH=/openmpi4/openmpi-4.0.5
