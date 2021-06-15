@@ -264,8 +264,6 @@ contains
     integer(ik)                     :: ndatanames
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
-
-    print *, time
     
     dimsf(1)=nn(1)
     dimsf(2)=nn(2)

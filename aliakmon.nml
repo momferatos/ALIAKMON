@@ -23,6 +23,7 @@ TMAX=10.0,	! maximum time limit
 CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
 KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
+STOP_AT_DISSPEAK=.false. ! Stop at the dissipation peak?
 &end
 
 !

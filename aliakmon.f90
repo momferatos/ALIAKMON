@@ -309,7 +309,7 @@ program aliakmon
           &totdisprev-totdisprev2>0.0_rk.and..not.FORCED) then
         ! Output files
         call reached_dissipation_peak
-        exit timeloop
+        if(STOP_AT_DISSPEAK) exit timeloop
      end if
      totdisprev2=totdisprev
      totdisprev=totdis
@@ -612,7 +612,7 @@ contains
        visc(:)=15.0_rk**(1.0_rk/4.0_rk)*(eta*RMSUTAR)/(sqrt(RE))
 
        call dissipation(nn, scratch, 1_ik, fu)
-
+       
     end if
 !!$
 !!$    if(PASSIVE_SCALAR.and.OUTPUT_SCL_DISS) then
