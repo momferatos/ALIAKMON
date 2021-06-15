@@ -7,7 +7,7 @@
 !!$                            |_|
 !!$  
 !$Copyright (c) 2009-2020 Georgios Momferatos
-module fft_mpi
+module fft_fftw
 #ifdef _MPI_
   use types
   use mpi
@@ -23,7 +23,7 @@ module fft_mpi
 #endif
   type(c_ptr) :: plan, iplan, p
 contains
-  subroutine fft_mpi_alloc(n1, n2, gn3, lksize, lkstart)
+  subroutine fft_fftw_alloc(n1, n2, gn3, lksize, lkstart)
     use omp_lib
     use parameters, only: dim1
     implicit none
@@ -68,7 +68,7 @@ contains
 
     lksize=local_n1;
     n3=lksize
-    lkstart=local_1_start
+    lkstart=local_1_start + 1
 
 #ifdef _DOUBLE_    
     p = fftw_alloc_real(int(dim1(n1) * n2 * n3, C_SIZE_T))
@@ -98,9 +98,9 @@ contains
 
     return
 
-  end subroutine fft_mpi_alloc
+  end subroutine fft_fftw_alloc
 
-  subroutine fft_mpi_dealloc
+  subroutine fft_fftw_dealloc
     implicit none
 
 
@@ -122,9 +122,9 @@ contains
 
     return
 
-  end subroutine fft_mpi_dealloc
+  end subroutine fft_fftw_dealloc
 
-  subroutine fft_mpi_fourier(nn, gn3, dir, fu, nfs, nfe)
+  subroutine fft_fftw_fourier(nn, gn3, dir, fu, nfs, nfe)
     use parameters, only : dim1
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -203,8 +203,8 @@ contains
 
     return
 
-  end subroutine fft_mpi_fourier
+  end subroutine fft_fftw_fourier
   
 #endif
-end module fft_mpi
+end module fft_fftw
 
