@@ -26,5 +26,5 @@ debug: $(OBJS)
 	$(MPIFC) -o $@ $^ $(GOPT) $(GPAROPT) $(LIB) $(LDFLAGS) 
 
 clean:
-	rm -f *.o *.mod aliakmon.exe 
+	rm -f *.o *.mod aliakmon.mkl.exe 
 

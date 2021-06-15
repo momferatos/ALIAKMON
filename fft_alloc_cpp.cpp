@@ -86,7 +86,14 @@ MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
     *oh1 = (int)outbox.high[0] + 1;
     *oh2 = (int)outbox.high[1] + 1;
     *oh3 = (int)outbox.high[2] + 1;
-    return;  
 
+#ifdef _CUDA_
+        if (heffte::gpu::device_count() > 1){
+        // on a multi-gpu system, distribute the devices across the mpi ranks
+        heffte::gpu::device_set(heffte::mpi::comm_rank(comm) % heffte::gpu::device_count());
+    }
+#endif
+    return;
+    
 }
 
