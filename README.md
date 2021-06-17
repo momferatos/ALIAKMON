@@ -94,19 +94,24 @@ the following tests fail for me, without impact on my code:
 
 make install
 
-5) build ALIAKMON-GPU with HeFFTe CUDA backend
+5) build ALIAKMON-GPU with HeFFTe cuFFT backend (CPU + GPU)
 
 cd aliakmon
-source config.cuda
-make -f Makefile
+source config.heffte.cufft
+make
 
-6) build ALIAKMON with heFFTe FFTW backend
+6) build ALIAKMON with heFFTe FFTW backend (100% CPU)
 
 cd aliakmon
-source config.fftw
-make -f Makefile.heffte
+source config.heffte.fftw
+make
 
+7) buld ALIAKMON with Intel MKL (no heFFTe, so decomposition in pencils is
+not available)
 
+cd aliakmon
+source config.mkl
+make -f Makefile.mkl
 
 8) run ALIAKMON-GPU or ALIAKMON
 
@@ -114,8 +119,8 @@ cd aliakmon/
 mkdir test_case
 cp aliakmon.nml test_case
 cd test_case
-edit aliakon.nml (see comments inside this file)
-mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.{cuda,fftw}.exe
+edit aliakon.nml (see comments inside the file)
+mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.{cufft,fftw,mkl}.exe
 
 9) As a check, open the vtk files with paraview
 

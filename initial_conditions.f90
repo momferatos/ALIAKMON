@@ -219,8 +219,8 @@ contains
 
     !Arrays of indices used to mix the xyz components
     !for the velocity field
-    ii(:,nu1)=(/3,1,2/)
-    ii(:,nu2)=(/3,1,2/)
+    ii(:,nu1)=(/1,2,3/)
+    ii(:,nu2)=(/2,3,1/)
     ii(:,nu3)=(/3,1,2/)
     if(PASSIVE_SCALAR) then
        do l=nsclf,nscll

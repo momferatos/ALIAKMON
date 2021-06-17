@@ -385,10 +385,11 @@ contains
 
   end subroutine set_mpi_types
 
-  subroutine initialize_mpi(numthreads)
+  subroutine initialize_mpi(nt)
     implicit none
-    integer, intent(INOUT) :: numthreads
-    integer(i4b) :: nnumthreads
+    integer(i4b), intent(in) :: nt
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(i4b) :: provided
     ! 
     ! Initialize MPI environment
     ! 
@@ -397,13 +398,16 @@ contains
     call set_mpi_types
 
     ! Initialize
-    if(numthreads==1) then
+    if(nt==1) then
        ! Single-threaded
        call mpi_init(mpierr)
     else
        ! Multi-threaded
-       call mpi_init_thread(MPI_THREAD_FUNNELED,nnumthreads,mpierr)
-       numthreads=nnumthreads
+       call mpi_init_thread(MPI_THREAD_FUNNELED,provided,mpierr)
+       if(provided < MPI_THREAD_FUNNELED) then
+          print('error: MPI failed to provide multi-thread support.')
+          stop
+       end if
     end if
     ! Get number of processes
     call mpi_comm_size(MPI_COMM_WORLD,mpisize,mpierr)
