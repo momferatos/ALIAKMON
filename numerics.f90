@@ -2100,9 +2100,6 @@ contains
   end subroutine shift
 
   subroutine fourier(nn,dir,u,nfs,nfe,trunc)
-#ifdef _OPENMP_
-    use fft_omp, only: fft_omp_fourier
-#endif
     use mpivars
 #ifdef _MPI_
 #ifdef _MKL_
@@ -2133,12 +2130,6 @@ contains
 
 
     if(dir==-1.and.tr) call truncate(nn,u,nnfs,nnfe)
-
-#ifdef _OPENMP_
-#ifndef _MPI_
-    call fft_omp_fourier(nn,dir,u,nnfs,nnfe)
-#endif
-#endif
 
 #ifdef _MPI_
 #ifdef _MKL_

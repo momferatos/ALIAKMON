@@ -3,3 +3,5 @@ export BACKEND='fftw'
 export LIBSROOT='/home/giorgos/libs'
 export ACCELFLAGS=''
 export CUDALDFLAGS=''
+# put '-D _DOUBLE_' here to build with double precision floats
+export PRECISION=''

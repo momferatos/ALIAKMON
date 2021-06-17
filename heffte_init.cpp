@@ -127,17 +127,19 @@ void heffte_init_pencils(long n1, long n2, long n3,
   proc_grid_tmp[1] = pencils_y;
   proc_grid_tmp[2] = pencils_z;
 
-  printf("%d: %d x %d\n", me, pencils_y, pencils_z);
+
   std::vector<heffte::box3d<>> real_boxes1    =
     heffte::split_world(real_indexes,    proc_grid_tmp);
   std::vector<heffte::box3d<>> complex_boxes1 =
     heffte::split_world(complex_indexes, proc_grid_tmp);
   
   std::vector<heffte::box3d<>> real_boxes  =
-    heffte::make_pencils(real_indexes,proc_grid,pencil_direction,real_boxes1,order);
+    heffte::make_pencils(real_indexes,proc_grid,pencil_direction,
+			 real_boxes1,order);
   
   std::vector<heffte::box3d<>> complex_boxes  =
-    heffte::make_pencils(complex_indexes,proc_grid,pencil_direction,complex_boxes1,order);
+    heffte::make_pencils(complex_indexes,proc_grid,pencil_direction,
+			 complex_boxes1,order);
   
   // pick the box corresponding to this rank
   heffte::box3d<> const inbox  = real_boxes[me];

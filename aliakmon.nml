@@ -13,12 +13,12 @@
 !
 
 &general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=192		! number of collocation points in each axis
+n=320		! number of collocation points in each axis
 		! should be a power of two for maximum performance
 		! a scaling study on ARIS could consider n=64,128,256,512 and
 		! perhaps 1024
 		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-TIMESTEPS=100,	! number of timesteps, use TMAX if zero
+TIMESTEPS=10,	! number of timesteps, use TMAX if zero
 TMAX=10.0,	! maximum time limit
 CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
@@ -50,7 +50,7 @@ KFORCING=2.5,			! Maximum forced wavenumber
 !
 
 &passivescalar
-PASSIVE_SCALAR=.true.,		! Include the passive scalar equation?
+PASSIVE_SCALAR=.false.,		! Include the passive scalar equation?
 DIFFUSIVE=.true.,		! Include the diffusive term?
 PR=1.0,				! Prandtl number
 HEATING=.false.,		! Include the heating source term?

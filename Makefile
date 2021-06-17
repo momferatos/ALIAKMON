@@ -4,9 +4,8 @@ MPICXX = mpic++
 
 DEBUGFLAGS = -cpp -g -O0 # -Ktrap=denorm,divz,inexact,inv,ovf,unf
 OPTFLAGS= -fast -fastsse -tp=$(ARCH)
-BUILDFLAGS = $(OPTFLAGS)
+bBUILDFLAGS = $(OPTFLAGS)
 
-PREC = # -D _DOUBLE_
 OMPFLAGS= -D _OPENMP_ -mp=multicore
 MPIFLAGS= -D _MPI_
 PARFLAGS= $(OMPFLAGS) $(MPIFLAGS) $(ACCELFLAGS) 
@@ -27,18 +26,18 @@ LIB= -L $(FFTWROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(CUDAROOT)/l
 
 LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran $(CUDALDFLAGS) -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads
 
-OBJS=parameters.o data.o hdf5.o heffte_init.o fft_heffte.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o	
+OBJS=parameters.o data.o hdf5.o heffte_init.o fft_heffte.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o	
 
 all: aliakmon
 
 aliakmon: $(OBJS)
-	$(MPIFC) -o $@.$(BACKEND).exe $^ $(FCFLAGS) $(PREC) $(LIB) $(LDFLAGS)
+	$(MPIFC) -o $@.$(BACKEND).exe $^ $(FCFLAGS) $(PRECISION) $(LIB) $(LDFLAGS)
 
 %.o: %.f90
-	$(MPIFC) -c -o $@ $< $(FCFLAGS) $(PREC) $(INCLUDE) 
+	$(MPIFC) -c -o $@ $< $(FCFLAGS) $(PRECISION) $(INCLUDE) 
 
 %.o: %.cpp
-	$(MPICXX) -c -o $@ $< $(CXXFLAGS) $(PREC) $(INCLUDE) 
+	$(MPICXX) -c -o $@ $< $(CXXFLAGS) $(PRECISION) $(INCLUDE) 
 clean:
 	rm -f *.o *.mod aliakmon.$(BACKEND).exe 
 

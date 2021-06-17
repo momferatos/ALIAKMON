@@ -23,12 +23,21 @@ module fft_heffte
   !
   ! Heffte wrapper
   !
+#ifdef _DOUBLE_
+  real(c_double), dimension(:), allocatable, target :: input
+  complex(c_double_complex), dimension(:), allocatable, target :: output
+  complex(c_double_complex), dimension(:), allocatable :: work
+  !$acc declare present(input, output, work) 
+  real(c_double), dimension(:,:,:), pointer :: r_array
+  complex(c_double_complex), dimension(:,:,:), pointer :: c_array
+#else
   real(c_float), dimension(:), allocatable, target :: input
   complex(c_float_complex), dimension(:), allocatable, target :: output
   complex(c_float_complex), dimension(:), allocatable :: work
   !$acc declare present(input, output, work) 
   real(c_float), dimension(:,:,:), pointer :: r_array
   complex(c_float_complex), dimension(:,:,:), pointer :: c_array
+#endif
   integer(c_long) :: size_in, size_out, size_work
   
 #ifdef _CUFFT_

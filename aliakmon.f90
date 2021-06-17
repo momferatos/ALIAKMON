@@ -26,7 +26,6 @@ program aliakmon
 #endif
 #ifdef _OPENMP_
   use omp_lib
-  use fft_omp
 #endif
   implicit none
   ! 

@@ -7,4 +7,5 @@ export MKL_FFTW_INTERFACE=$HOME/fftw_mkl
 export BACKEND='mkl'
 export ACCELFLAGS=''
 export CUDALDFLAGS=''
-export OBJS='parameters.o data.o hdf5.o fft_alloc_cpp.o fft_omp.o fft_mpi.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o'
+# put '-D _DOUBLE_' here to build with double precision floats
+export PRECISION=''
