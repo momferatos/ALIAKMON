@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 from vtk import vtkStructuredGridReader
 from vtk.util import numpy_support as VN
@@ -61,5 +62,6 @@ plt.axis('off')
 #fig.set_size_inches(figsize)
 plt.contourf(np.log(field), 256, cmap=cmap)
 plt.axis('equal')
+
 plt.show()
     

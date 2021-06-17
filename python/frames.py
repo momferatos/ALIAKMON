@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 from vtk import vtkStructuredGridReader
 from vtk.util import numpy_support as VN
