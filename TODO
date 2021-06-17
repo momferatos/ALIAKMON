@@ -1,0 +1,9 @@
+Fix restarting from HDF5 file
+write time in hdf5 files
+MHD:
+- fix DEALIASING=1
+-fix Taylor microscale Reynolds number
+Passive scalar
+- fix memory allocation bug
+- validate
+Fix post-processing mode

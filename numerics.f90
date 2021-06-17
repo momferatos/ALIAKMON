@@ -38,7 +38,7 @@ contains
 
     call fourier(nn,-1_ik,rmsarr)
     
-    fac= 1.0_rk / real(nn(1)*nn(2)*gn3, rk)
+    fac= 1.0_rk / real(nn(1)*gn2*gn3, rk)
     
     do l=1,nn(4)
        tmp=0.0_rk
@@ -90,7 +90,7 @@ contains
 
     if(.not.allocated(fmean)) allocate(fmean(1:nn(4)))
     !Calculate scale factor
-    fac=1.0_rk / real(nn(1)*nn(2)*gn3,rk)
+    fac=1.0_rk / real(nn(1)*gn2*gn3,rk)
 
     !Copy Fourier-space arrays to physical-space arrays
     call copy(nn,rmsarr,fu)
@@ -911,7 +911,7 @@ contains
     integer(ik) :: i,j,k,l
     real(rk) :: fac,tmp
 
-    fac=1.0_rk/real(nn(1)*nn(2)*gn3,rk)
+    fac=1.0_rk/real(nn(1)*gn2*gn3,rk)
 
     call zero(nn,scratch)
 
@@ -1279,7 +1279,7 @@ contains
     real(rk)                                                  :: fac
     integer(ik) :: i,j,k
     
-    fac=real(nn(1)*nn(2)*gn3,rk)**(-1)
+    fac=real(nn(1)*gn2*gn3,rk)**(-1)
 
     !Get magnetic field
     call copy(nn,u,fu)
@@ -1643,7 +1643,7 @@ contains
     tot=0.0_rk
 
     !Wave-number step
-    dk=sqrt(real((nn(1)/2)**2+(nn(2)/2)**2+(gn3/2)**2,rk))/(real(nespec-1,rk))
+    dk=sqrt(real((nn(1)/2)**2+(gn2/2)**2+(gn3/2)**2,rk))/(real(nespec-1,rk))
 
     do i=1,nespec
        espec(i,1)=(i-1)*dk
@@ -2105,11 +2105,7 @@ contains
 #endif
     use mpivars
 #ifdef _MPI_
-#ifdef _CUDA_
-    use fft_cuda
-#else
-    use fft_fftw
-#endif
+    use fft_heffte
     use mpivars
 #endif
     implicit none
@@ -2141,11 +2137,7 @@ contains
 #endif
 
 #ifdef _MPI_
-#ifdef _CUDA_
-    call fft_cuda_fourier(nn,gn3,dir,u,nnfs,nnfe)
-#else
-    call fft_fftw_fourier(nn,gn3,dir,u,nnfs,nnfe)
-#endif
+    call fft_heffte_fourier(nn,dir,u,nnfs,nnfe)
 #endif
 
     return
@@ -2221,7 +2213,7 @@ contains
 
         
     !Set-up CFL condition
-    dx=LBOX/max(nn(1),nn(2),gn3)
+    dx=LBOX/max(nn(1),gn2,gn3)
     dt=CFL*dx/mvel
     if(MHD) then
        if(AMB_DIFF) then

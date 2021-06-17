@@ -1,0 +1,6 @@
+#!/bin/bash
+export BACKEND='cufft'
+export LIBSROOT='/home/giorgos/libs'
+export ACCELFLAGS='-D _CUFFT_ -acc=gpu -gpu=cc75,cuda11.3 -cuda'
+export CUDALDFLAGS='-lhefftecufftfortran -lcufft -lcudart'
+

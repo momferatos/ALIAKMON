@@ -12,7 +12,7 @@ module hdf5_aliakmon
 #ifdef _MPI_
   use mpi
 #endif
-  use mpivars,only:mpirank,mpisize,mpiroot,lkstart
+  use mpivars,only:mpirank,mpisize,mpiroot,lkstart,ljstart
   use parameters
   use data
   use hdf5
@@ -50,23 +50,24 @@ contains
     implicit none
     integer(ik), dimension(1:4), intent(in)   :: nn          
     character(len=*), intent(IN)            :: dataset_name
-    real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(IN) :: dataset
+    real(rks), dimension(1:3,1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
     rank = 4
-    dimsf(1)=nn(1)
-    dimsf(2)=nn(2)
-    dimsf(3)=gn3
-    dimsf(4)=3
+    
+    dimsf(1) = 3
+    dimsf(2) = nn(1)
+    dimsf(3) = gn2
+    dimsf(4) = gn3
 
-    icount(1) = dimsf(1)
-    icount(2) = dimsf(2)
-    icount(3) = nn(3)
-    icount(4) = dimsf(4)
+    icount(1) = 3
+    icount(2) = nn(1)
+    icount(3) = nn(2)
+    icount(4) = nn(3)
+    
     offset(1) = 0
     offset(2) = 0
-    offset(3) = lkstart-1
-    offset(4) = 0
+    offset(3) = ljstart-1
+    offset(4) = lkstart-1
 
     
     !
@@ -157,15 +158,15 @@ contains
 
     rank = 3
     dimsf(1)=nn(1)
-    dimsf(2)=nn(2)
+    dimsf(2)=gn2
     dimsf(3)=gn3
     
     icount(1) = dimsf(1)
-    icount(2) = dimsf(2)
+    icount(2) = nn(2)
     icount(3) = nn(3)
     
     offset(1) = 0
-    offset(2) = 0
+    offset(2) = ljstart-1
     offset(3) = lkstart-1
     
 
@@ -249,10 +250,9 @@ contains
 
   end subroutine write_hdf5_scalar_dataset
 
-  subroutine write_hdf5_compute_file(nn,gn3,u,time,nfile)
+  subroutine write_hdf5_compute_file(nn,u,time,nfile)
     implicit none
     integer(ik), intent(IN), dimension(1:4)                  :: nn
-    integer(ik), intent(in) :: gn3
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:nn(4)), intent(IN) :: u
     real(rk), intent(IN)                                   :: time
     integer(ik), intent(IN)                                :: nfile
@@ -261,16 +261,17 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(LEN=256)              :: filename ! File name
     character(len=64), dimension(1:nn(4)) :: datanames
+    logical, dimension(1:nn(4)) :: data_is_vector
     integer(ik)                     :: ndatanames
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
     
-    dimsf(1)=nn(1)
-    dimsf(2)=nn(2)
-    dimsf(3)=gn3
-    dimsf(4)=3
-
-    dimsfi(:)=dimsf(:)
+!!$    dimsf(1)=nn(1)
+!!$    dimsf(2)=gn2
+!!$    dimsf(3)=gn3
+!!$    dimsf(4)=3
+!!$
+!!$    dimsfi(:)=dimsf(:)
 
     !
     ! Initialize FORTRAN predefined datatypes
@@ -293,12 +294,12 @@ contains
     call h5pclose_f(plist_id, error)
 
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
-    allocate(h5_vector_data(1:nn(1),1:nn(2),1:nn(3),1:3))
+    allocate(h5_vector_data(1:3,1:nn(1),1:nn(2),1:nn(3)))
 
     
     !$omp parallel do
-    do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       h5_vector_data(i,j,k,l)=u(i,j,k,l)
+    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       h5_vector_data(l,i,j,k)=u(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
     call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
@@ -339,32 +340,36 @@ contains
     !
     call h5close_f(error)
 
-    ndatanames=nn(4)
-    datanames(nu1)='u1'
-    datanames(nu2)='u2'
-    datanames(nu3)='u3'
+    
+    ndatanames=1
+    datanames(1)='u'
+    data_is_vector(1)=.true.
+!!$    datanames(nu2)='u2'
+!!$    datanames(nu3)='u3'
 !!$    if(PASSIVE_SCALAR) then
 !!$       datanames(nsclf:nscll)='scl'
 !!$    end if
-    if(MHD) then
-       datanames(nb1)='b1'
-       datanames(nb2)='b2'
-       datanames(nb3)='b3'
-    end if
+!!$    if(MHD) then
+!!$       datanames(nb1)='b1'
+!!$       datanames(nb2)='b2'
+!!$       datanames(nb3)='b3'
+!!$    end if
 
-    if(mpirank==mpiroot) call write_xdmf_file(nn(1),nn(2),gn3,ndatanames,&
-         &datanames, filename,nfile)
+    if(mpirank==mpiroot) call write_xdmf_file(nn(1),nn(2),ndatanames,&
+         &datanames, data_is_vector, filename,nfile)
 
     return
 
   end subroutine write_hdf5_compute_file
 
-  subroutine write_xdmf_file(n1,n2,gn3,ndatanames,datanames,h5filename,nfile)
+  subroutine write_xdmf_file(n1,n2,ndatanames,datanames,&
+       &data_is_vector,h5filename,nfile)
     use types
     implicit none
-    integer(ik), intent(IN)          :: n1, n2, gn3
+    integer(ik), intent(IN)          :: n1, n2
     integer(ik), intent(IN)          :: ndatanames
     character(len=*), dimension(:)   :: datanames
+    logical, dimension(:)            :: data_is_vector
     character(len=*)                 :: h5filename
     integer(ik), intent(IN),optional :: nfile
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -395,18 +400,30 @@ contains
          &Dimensions="3"            Format="XML"'
     write(xdmf_file,'(a)') '		  Precision="8">1 1 1</DataItem>'
     write(xdmf_file,'(a)') '      </Geometry>'
-    write(xdmf_file,'(a,3i6,a)') '      <Topology Dimensions="',n1,n2,gn3,'" &
+    write(xdmf_file,'(a,3i6,a)') '      <Topology NumberOfElements="',n1,gn2,gn3,'" &
          &Type="3DCoRectMesh"/>'
     do i=1,ndatanames
-       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
-            &trim(datanames(i)),'"             Type="Scalar">'
-       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-            &Precision="',rks,'" Dimensions="'&
-            &,n1,n2,gn3,'"'
-       write(xdmf_file,'(5a)') &
-            &'            		  Format="HDF">',&
-            &trim(h5filename),':/',trim(datanames(i)),'</DataItem>'
-       write(xdmf_file,'(a)') '      </Attribute>'
+       if(data_is_vector(i)) then
+          write(xdmf_file,'(5a)') '      <Attribute Center="Node" Name="',&
+               &trim(datanames(i)),'"             Type="Vector">'
+          write(xdmf_file,'(a,i6,a,4i6,a)') '        <DataItem DataType="Float" &
+               &Precision="',rks,'" Dimensions="'&
+               &,n1,gn2,gn3,3,'"'
+          write(xdmf_file,'(5a)') &
+               &'            		  Format="HDF">',&
+               &trim(h5filename),':/',trim(datanames(i)),'</DataItem>'
+          write(xdmf_file,'(a)') '      </Attribute>'
+       else
+          write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
+               &trim(datanames(i)),'"             Type="Scalar">'
+          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
+               &Precision="',rks,'" Dimensions="'&
+               &,n1,gn2,gn3, '"'
+          write(xdmf_file,'(5a)') &
+               &'            		  Format="HDF">',&
+               &trim(h5filename),':/',trim(datanames(i)),'</DataItem>'
+          write(xdmf_file,'(a)') '      </Attribute>'
+       end if
     end do
     write(xdmf_file,'(a)') '    </Grid>'
     write(xdmf_file,'(a)') '  </Domain>'
@@ -416,10 +433,9 @@ contains
 
   end subroutine write_xdmf_file
 
-  subroutine write_hdf5_pp_file(nn,gn3,u,u2,filename)
+  subroutine write_hdf5_pp_file(nn,u,u2,filename)
     implicit none
     integer(ik), dimension(1:4), intent(IN)                        :: nn
-    integer(ik), intent(in) :: gn3
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN) :: u
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN) :: u2
     character(len=*), intent(IN)                           :: filename
@@ -432,7 +448,7 @@ contains
     integer(ik) :: i,j,k
     
     dimsf(1)=nn(1)
-    dimsf(2)=nn(2)
+    dimsf(2)=gn2
     dimsf(3)=gn3
     dimsf(4)=3
 
@@ -589,27 +605,27 @@ contains
            &Dimensions="3"            Format="XML"'
       write(xdmf_file,'(a)') '		  Precision="8">1 1 1</DataItem>'
       write(xdmf_file,'(a)') '      </Geometry>'
-      write(xdmf_file,'(a,3i6,a)') '      <Topology Dimensions="',n1,n2,gn3,'" &
+      write(xdmf_file,'(a,3i6,a)') '      <Topology NumberOfElements="',n1,gn2,gn3,'" &
            &Type="3DCoRectMesh"/>'
       if(OUTPUT_W) then
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="w1" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',trim(filename),&
               &':/w1</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="w2" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',trim(filename),&
               &':/w2</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="w3" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',trim(filename),&
               &':/w3</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
@@ -618,7 +634,7 @@ contains
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="diss" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',&
               &trim(filename), ':/diss</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
@@ -627,7 +643,7 @@ contains
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="scldiss" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',&
               &trim(filename), ':/scldiss</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
@@ -636,21 +652,21 @@ contains
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="j1" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',&
               &trim(filename), ':/j1</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="j2" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',&
               &trim(filename), ':/j2</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
          write(xdmf_file,'(a)') '      <Attribute Center="Node" Name="j3" &
               &Type="Scalar">'
          write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-              &Precision="',rks,'" Dimensions="',n1,n2,gn3,'"'
+              &Precision="',rks,'" Dimensions="',n1,gn2,gn3,'"'
          write(xdmf_file,'(3a)') '		  Format="HDF">',&
               &trim(filename), ':/j3</DataItem>'
          write(xdmf_file,'(a)') '      </Attribute>'
@@ -667,16 +683,15 @@ contains
 
   end subroutine write_hdf5_pp_file
 
-  subroutine read_hdf5_file(nn,gn3,u,filename)
+  subroutine read_hdf5_file(nn,u,filename)
     implicit none
     integer(ik), dimension(1:4), intent(IN)                         :: nn
-    integer(ik), intent(in) :: gn3
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
     character(*)                                           :: filename
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Writes HDF5 file in parallel !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+    integer(ik) :: i,j,k,l
     integer(HID_T) :: file_id       ! File identifier 
     integer(HID_T) :: dset_id       ! Dataset identifier 
     integer(HID_T) :: filespace     ! Dataspace identifier in file 
@@ -696,12 +711,12 @@ contains
 
     real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
 
-    rank=4
-    dimsf(1)=nn(1)
-    dimsf(2)=nn(2)
-    dimsf(3)=gn3
-    dimsf(4)=3
-    dimsfi(:)=dimsf(:)
+!!$    rank=4
+!!$    dimsf(1)=3
+!!$    dimsf(2)=nn(1)
+!!$    dimsf(3)=gn2
+!!$    dimsf(4)=gn3
+!!$    dimsfi(:)=dimsf(:)
 
     !
     ! Initialize FORTRAN predefined datatypes
@@ -723,10 +738,14 @@ contains
     call h5pclose_f(plist_id, error)
 
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
-    allocate(h5_vector_data(1:nn(1),1:nn(2),1:nn(3),1:3))
+    allocate(h5_vector_data(1:3,1:nn(1),1:nn(2),1:nn(3)))
 
     call read_hdf5_vector_dataset('/u',h5_vector_data,nn)
-    u(1:nn(1),1:nn(2),1:nn(3),nu1:nu3)=h5_vector_data(1:nn(1),1:nn(2),1:nn(3),1:3)
+    !$omp parallel do
+    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       u(i,j,k,l)=h5_vector_data(l,i,j,k)
+    end do; end do; end do; end do
+    !$omp end parallel do
 
 !!$    call read_hdf5_scalar_dataset('/u1',h5_scalar_data,nn)
 !!$    u(1:nn(1),1:nn(2),1:nn(3),nu1)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
@@ -782,7 +801,7 @@ contains
       character(*), intent(IN) :: dataset_name
       real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(OUT) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+      integer :: state
 
 
       !
@@ -804,10 +823,10 @@ contains
       !
       rank = 3
       icount(1) = dimsf(1)
-      icount(2) = dimsf(2)
+      icount(2) = nn(2)
       icount(3) = nn(3)
       offset(1) = 0
-      offset(2) = 0
+      offset(2) = ljstart-1
       offset(3) = lkstart-1
 
       call h5screate_simple_f(rank, icount, memspace, error) 
@@ -817,7 +836,7 @@ contains
       call h5dget_space_f(dset_id, filespace, error)
       call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
-
+      
       !
       ! Create property list for collective dataset write
       !
@@ -869,9 +888,9 @@ contains
       implicit none
       integer(ik), dimension(1:4), intent(in) :: nn
       character(*), intent(IN) :: dataset_name
-      real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(OUT) :: dataset
+      real(rks), dimension(1:3,1:nn(1),1:nn(2),1:nn(3)), intent(OUT) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+      integer(hsize_t), dimension(4) :: maxdims
 
 
       !
@@ -891,21 +910,26 @@ contains
       ! Each process defines dataset in memory and writes it to the hyperslab
       ! in the file. 
       !
+      
       rank = 4
-      icount(1) = dimsf(1)
-      icount(2) = dimsf(2)
-      icount(3) = nn(3)
-      icount(4) = 3
+      
+      icount(1) = 3
+      icount(2) = nn(1)
+      icount(3) = nn(2)
+      icount(4) = nn(3)
+      
       offset(1) = 0
       offset(2) = 0
-      offset(3) = lkstart-1
-      offset(4) = 0
+      offset(3) = ljstart-1
+      offset(4) = lkstart-1
 
       call h5screate_simple_f(rank, icount, memspace, error) 
       ! 
       ! Select hyperslab in the file.
       !
       call h5dget_space_f(dset_id, filespace, error)
+
+      
       call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
 

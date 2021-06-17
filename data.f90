@@ -42,7 +42,7 @@ module data
   real(rks), dimension(:,:,:,:), pointer        :: fsclgrad
   ! wavevector arrays
   integer(ik),  dimension(:), allocatable     :: k1, k2, k3,trk1, trk2, trk3,&
-       & gk3,trgk3
+       & gk2, trgk2, gk3,trgk3
   ! maximum wavenumber
   real(rk)                                    :: k_max
   ! used for truncation
@@ -200,16 +200,16 @@ contains
     allocate(rmsarr(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
     call zero(nn,rmsarr)
 
-    ! used for invariants validation only 
-    allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    call zero(nn,arr_en_1)
+!!$    ! used for invariants validation only 
+!!$    allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+!!$    call zero(nn,arr_en_1)
+!!$    
+!!$    allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+!!$    call zero(nn,arr_en_2)
+!!$    
+!!$    allocate(arr_en_3(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+!!$    call zero(nn,arr_en_3)
     
-    allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    call zero(nn,arr_en_2)
-    
-    allocate(arr_en_3(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-    call zero(nn,arr_en_3)
-
     if(PASSIVE_SCALAR) then
        ! gradient of the passive scalars in fourier space
        allocate(fsclgrads(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),nu1:nu3))
@@ -291,24 +291,27 @@ contains
     ! x
     allocate(k1(1:dim1(n1)))
     k1(:) = 0.0_rk
-    ! y
-    allocate(k2(1:n2))
-    k2(:) = 0.0_rk
     ! x, used for truncation
     allocate(trk1(1:dim1(n1)))
     trk1(:) = 0.0_rk
-    ! y, used for truncation
-    allocate(trk2(1:n2))
-    trk2(:) = 0.0_rk
+
+    
     ! if we're using MPI, z direction is spread across processes,
     ! each process has a slice of z-width lksize
-
 #ifdef _MPI_
+    ! y
+    allocate(k2(1:ljsize))
+    ! y, used for truncation
+    allocate(trk2(1:ljsize))
     ! z
     allocate(k3(1:lksize))
     ! z, used for truncation
     allocate(trk3(1:lksize))
 #else
+    ! y
+    allocate(k2(1:n3))
+    ! y, used for truncation
+    allocate(trk2(1:n3))
     ! z
     allocate(k3(1:n3))
     ! z, used for truncation
@@ -317,6 +320,12 @@ contains
 
     k3(:) = 0.0_rk
     trk3(:) = 0.0_rk
+    ! if we're using MPI, we also need the global y-wavevector array
+    allocate(gk2(1:gn2))
+    gk2(:) = 0.0_rk
+    ! and its counterpart for truncation
+    allocate(trgk2(1:gn2))
+    trgk2(:) = 0.0_rk
     ! if we're using MPI, we also need the global z-wavevector array
     allocate(gk3(1:gn3))
     gk3(:) = 0.0_rk
@@ -324,7 +333,7 @@ contains
     allocate(trgk3(1:gn3))
     trgk3(:) = 0.0_rk
     !initialize wave-vector arrays
-    call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk3,trgk3)
+    call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk2,trgk2,gk3,trgk3)
 
     ! initialize the mask of active modes
     n = maxval(nn(1:3))
@@ -485,7 +494,7 @@ contains
     allocate(trgk3(1:gn3))
     trgk3(:) = 0.0_rk
     !initialize wave-vector arrays
-    call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk3,trgk3)
+    call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk2, trgk2, gk3,trgk3)
 
     ! initialize the mask of active modes
     n = maxval(nn(1:3))
@@ -649,11 +658,11 @@ contains
 
   end function wv
 
-  subroutine wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk3,trgk3)
+  subroutine wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk2,trgk2,gk3,trgk3)
     use mpivars
     implicit none
-    integer(ik), dimension(1:), intent(OUT) :: k1,k2,k3,trk1,trk2,trk3,gk3,&
-         &trgk3
+    integer(ik), dimension(1:), intent(OUT) :: k1,k2,k3,trk1,trk2,trk3,&
+         &gk2, trgk2, gk3,trgk3
     !
     ! sets up wavevectors in standard FFTW order
     !
@@ -679,20 +688,46 @@ contains
     trk1(1:dim1(n1))=k1(1:dim1(n1))
     trk1(n1/2+1)=(n1/2)
 
-    ! y-direction
-    k2(1)=0_ik
-    do i=2,n2/2
-       k2(i)=(i-1)
+!!$    ! y-direction
+!!$    k2(1)=0_ik
+!!$    do i=2,n2/2
+!!$       k2(i)=(i-1)
+!!$    end do
+!!$
+!!$    k2(n2/2+1)=(n2/2)
+!!$    do i=1,n2/2-1
+!!$       j=-n2/2+i
+!!$       k2(i+n2/2+1)=j
+!!$    end do
+!!$    trk2(:)=k2(:)
+!!$    trk2(n2/2+1)=(n2/2)
+    ! y-direction is divided across MPI processes
+    ! global wave-vector array
+    gk2(1)=0_ik
+    do i=2,gn2/2
+       gk2(i)=(i-1)
     end do
 
-    k2(n2/2+1)=(n2/2)
-    do i=1,n2/2-1
-       j=-n2/2+i
-       k2(i+n2/2+1)=j
+    gk2(gn2/2+1)=(gn2/2)
+    do i=1,gn2/2-1
+       j=-gn2/2+i
+       gk2(i+gn2/2+1)=j
     end do
-    trk2(:)=k2(:)
-    trk2(n2/2+1)=(n2/2)
-
+    trgk2(:)=gk2(:)
+    trgk2(gn2/2+1)=(gn2/2)
+#ifdef _MPI_
+    do i=1,ljsize
+       ! local wave-vector array
+       k2(i)=gk2(i+ljstart)
+       trk2(i)=trgk2(i+ljstart)
+    end do
+#else
+    do i=1,n2
+       k2(i)=gk2(i)
+       trk2(i)=trgk2(i)
+    end do
+#endif
+    
     ! z-direction is divided across MPI processes
     ! global wave-vector array
     gk3(1)=0_ik
@@ -724,7 +759,7 @@ contains
     ! set maximum wavenumber
     if(TRUNCATION==SPHERICAL&
          &.or.TRUNCATION==POLYHEDRAL) then
-       kmax=TRFAC*max(n1,n2,gn3)
+       kmax=TRFAC*max(n1,gn2,gn3)
     else
        kmax=max(n1/3,n2/3,n3/3)
        if(MHD.and.AMB_DIFF) kmax=max(n1/3,n2/3,n3/3)

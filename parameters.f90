@@ -107,8 +107,16 @@ module parameters
   integer                :: nt=1
   ! Local dimensions of the domain
   integer(ik)            :: n1,n2,n3
+  ! Global y dimension across MPI processes
+  integer(ik)            :: gn2
   ! Global z dimension across MPI processes
   integer(ik)            :: gn3
+  ! Grid Subdivision
+  ! Slabs
+  integer(ik), parameter :: SLABS = 0
+  ! Pencils
+  integer(ik), parameter :: PENCILS = 1
+  integer(ik)            :: FFT_SUBDIVISION = SLABS 
   ! Maximum dimension
   integer(ik)            :: nmax
   integer(ik), parameter :: nmaxsqrt=128
@@ -321,7 +329,11 @@ module mpivars
   integer(i4b), parameter :: MPIROOT=0
   ! Number of MPI processes
   integer(i4b) :: mpisize=0
-  ! Size of MPI slice across x-dimension of FFTW array
+  ! Size of MPI slice across y-dimension of FFTW array
+  integer(ik) :: ljsize = 0
+  ! X-dimension index where FFTW array starts
+  integer(ik) :: ljstart = 1
+  ! Size of MPI slice across z-dimension of FFTW array
   integer(ik) :: lksize = 0
   ! X-dimension index where FFTW array starts
   integer(ik) :: lkstart = 1

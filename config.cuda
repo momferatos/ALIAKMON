@@ -1,5 +1,0 @@
-#!/bin/bash
-export BACKEND='cuda'
-export ACCELFLAGS='-D _CUDA_ -acc=gpu -gpu=cc75,cuda11.3 -cuda'
-export CUDALDFLAGS='-lhefftecufftfortran -lcufft -lcudart'
-export OBJS='parameters.o data.o hdf5.o fft_alloc_cpp.o fft_cuda_f90.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o'

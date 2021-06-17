@@ -34,7 +34,7 @@ contains
     namelist /particle/          PARTICLES, PART_INITCOND,NPART,NPTS,INERTIAL,&
          &PERIODIC_PARTICLES,LAGRANGIAN_HISTORY,STK
     namelist /numerics/          INTEGRATION_METHOD,TRUNCATION,DEALIASING,&
-         &CRANK_NICHOLSON
+         &CRANK_NICHOLSON, FFT_SUBDIVISION
     namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM
     namelist /inputoutput/       NOUTPUTFILES,INPUT_FIELD,INPUT_FIELD_FILENAME,&
          &NFILESTART,hdf5frate,slicefrate
@@ -56,7 +56,9 @@ contains
     n1=n
     n2=n
     n3=n
+    gn2=n
     gn3=n
+    
     if(.not.VISCOUS) FORCED=.false.
     if(.not.DIFFUSIVE) FORCED_PASSIVE_SCALAR=.false.
     if(.not.VISCOUS.or..not.DIFFUSIVE) CRANK_NICHOLSON=.false.

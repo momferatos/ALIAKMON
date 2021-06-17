@@ -1,5 +1,0 @@
-#!/bin/bash
-export BACKEND='fftw'
-export ACCELFLAGS=''
-export CUDALDFLAGS=''
-export OBJS='parameters.o data.o hdf5.o fft_alloc_cpp.o fft_fftw_f90.o fft_omp.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o'

@@ -240,13 +240,7 @@ contains
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
-    dy=LBOX/real(n2,rk)
-    !across MPI processes
-#ifdef _MPI_
-    dzmpi=LBOX/real(MPISIZE,rk)
-#else
-    dzmpi=0
-#endif
+    dy=LBOX/real(gn2,rk)
     dz=LBOX/real(gn3,rk)
     !Calculate stochastic coefficients
     do kk=k1,k2
@@ -271,7 +265,7 @@ contains
           do k=1,nn(3)
              z=(lkstart+k-1)*dz
              do j=1,nn(2)
-                y=(j-1)*dy
+                y=(ljstart+j-1)*dy
                 do i=1,nn(1)
                    !Calculate coordinates
                    x=(i-1)*dx
@@ -308,6 +302,7 @@ contains
   end subroutine abc_flow
 
   subroutine taylor_green(nn,u)
+    use hdf5_aliakmon, only: write_hdf5_file
     use types
     use data, only: nu1,nu2,nu3
     use mpivars
@@ -330,7 +325,7 @@ contains
 
     !Calculate steps
     dx=LBOX/real(n1,rk)
-    dy=LBOX/real(n2,rk)
+    dy=LBOX/real(gn2,rk)
     dz=LBOX/real(gn3,rk)
 
     !Set-up stochastic coefficients
@@ -340,26 +335,25 @@ contains
     b=0.3_rk
     c=1.0_rk-a-b
     !Calculate large-scale ABC flow
-
     do k=1,nn(3)
        z=(lkstart+k-1)*dz
        do j=1,nn(2)
-          y=(j-1)*dy
+          y=(ljstart+j-1)*dy
           do i=1,nn(1)
              x=(i-1)*dx
              !Calculate field
              u(i,j,k,nu1)=cos(a*x)*sin(b*y)*sin(c*z)
              u(i,j,k,nu2)=sin(a*x)*cos(b*y)*sin(c*z)
              u(i,j,k,nu3)=sin(a*x)*sin(b*y)*cos(c*z)
-             if(PASSIVE_SCALAR) then
-                do l=nsclf,nscll
-                   u(i,j,k,l)=cos(a*x)*sin(b*y)*sin(c*z)
-                end do
-             end if
+!!$             if(PASSIVE_SCALAR) then
+!!$                do l=nsclf,nscll
+!!$                   u(i,j,k,l)=cos(a*x)*sin(b*y)*sin(c*z)
+!!$                end do
+!!$             end if
           end do
        end do
     end do
-
+    
     call fourier(nn,1_ik,u)
 
     return
@@ -377,7 +371,7 @@ contains
     ! Orszag-Tang vortex initial condition
     !
     integer(ik) :: i,j,k,l
-    real(rk) :: dx,dy,dz,dzmpi,xx,yy,zz
+    real(rk) :: dx,dy,dz,xx,yy,zz
     real(rk)                                                :: OT_RAND
 
     OT_RAND=1.0e-1_rk
@@ -390,13 +384,9 @@ contains
 
     !Orszag-Tang vortex large-scale component
     dx=LBOX/real(nn(1)-1,rk)
-    dy=LBOX/real(nn(2)-1,rk)
+    dy=LBOX/real(gn2-1,rk)
     dz=LBOX/real(gn3-1,rk)
-#ifdef _MPI_
-    dzmpi=LBOX/real(MPISIZE,rk)
-#else
-    dzmpi=0.0_rk
-#endif
+
     dz=LBOX/real(gn3-1,rk)
     do i=1,nn(1)
        do j=1,nn(2)

@@ -18,11 +18,7 @@ program aliakmon
   use mpivars
   use hdf5_aliakmon
 #ifdef _MPI_
-#ifdef _CUDA_
-  use fft_cuda
-#else
-  use fft_fftw
-#endif
+  use fft_heffte
 #endif
 #ifdef _OPENMP_
   use omp_lib
@@ -72,14 +68,15 @@ program aliakmon
   if(mpirank==MPIROOT) print *, 'Reading input file...'
   call read_namelist_file
   lkstart=0
+  ljstart=0
 #ifdef _MPI_
   ! Allocate FFT structures
-#ifdef _CUDA_
-  call fft_cuda_alloc(n1,n2,gn3,lksize,lkstart)
-#else
-  call fft_fftw_alloc(n1,n2,gn3,lksize,lkstart)
-#endif
+
+  call fft_heffte_alloc(n1,n2,n3,ljsize,ljstart,lksize,lkstart)
+  
+  n2=ljsize
   n3=lksize
+
 #else
 #ifdef _OPENMP_
   call fft_omp_alloc(n1,n2,n3)
@@ -94,20 +91,23 @@ program aliakmon
 #endif
      stop
   end if
-  
+
   ! Allocate and initialize all arrays
   call alloc_init
 
-  
-
-!!$  call random_number(u(1:nn(1),:,:,:))
+!!$  print '(5i5)', mpirank, nn(:)
+!!$
+!!$  call random_number(u(1:nn(1),1:nn(2),1:nn(3),1))
 !!$  fu=u
 !!$  call fourier(nn,1_ik,fu)
 !!$  call fourier(nn,-1_ik,fu,trunc=.false.)
-!!$  print *, maxval(abs(u(1:nn(1),:,:,:)-fu(1:nn(1),:,:,:)))
+!!$  print *, maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
+!!$       &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
+!!$
+!!$  call finalize_mpi
 !!$  stop
 
-  MSFAC=1.0_rk/real(nn(1)*nn(2)*gn3,rk)
+  MSFAC=1.0_rk/real(nn(1)*gn2*gn3,rk)
 
   ! Calculate viscosity
   if(RE==0.0_rk) then
@@ -221,10 +221,17 @@ program aliakmon
   if(INPUT_FIELD) then
      if(mpirank==MPIROOT) print *, 'Reading restart file'
      call zero(nn,fu)
-     call read_hdf5_file(nn,gn3,u,trim(INPUT_FIELD_FILENAME))
-     call copy(nn,fu,u,nn(1))
+     call read_hdf5_file(nn,u,trim(INPUT_FIELD_FILENAME))
+     
+     call copy(nn,fu,u)
+     
      call fourier(nn,1_ik,fu)
-     call truncate(nn,fu)
+     
+     call project(nn, fu)
+
+     call copy(nn,u,fu)
+     call fourier(nn,-1_ik,u)
+     call write_hdf5_file(nn,u,0.0_rk,1_ik)
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
   else
      call set_initial_conditions(nn,u,fu)
@@ -366,11 +373,7 @@ program aliakmon
 
 
 #ifdef _MPI_
-#ifndef _CUDA_
-  call fft_fftw_dealloc
-#else
-  call fft_cuda_dealloc
-#endif
+  call fft_heffte_dealloc
   call finalize_mpi
 #endif
 
@@ -437,11 +440,11 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-    
-    call copy(nn,u,fu,nn(1))
 
+    call copy(nn,u,fu)
+    
     call fourier(nn,-1_ik,u)
-    call write_hdf5_file(nn,gn3,u,time,num)
+    call write_hdf5_file(nn,u,time,num)
 
     call zero(nn,u)
 
@@ -586,7 +589,7 @@ contains
     end do
 
     !read input HDF5 file
-    call read_hdf5_file(nn,gn3,u,trim(filename_in))
+    call read_hdf5_file(nn,u,trim(filename_in))
 
     !copy velocity
     call copy(nn, fu, u)
@@ -612,7 +615,7 @@ contains
        visc(:)=15.0_rk**(1.0_rk/4.0_rk)*(eta*RMSUTAR)/(sqrt(RE))
 
        call dissipation(nn, scratch, 1_ik, fu)
-       
+
     end if
 !!$
 !!$    if(PASSIVE_SCALAR.and.OUTPUT_SCL_DISS) then
@@ -637,7 +640,7 @@ contains
     write(filename_out,'(2a)') 'pp_',trim(filename_in)
 
     !write output HDF5 file
-    call write_hdf5_file(nn,gn3,u,scratch,trim(filename_out))
+    call write_hdf5_file(nn,u,scratch,trim(filename_out))
 
     return
 
