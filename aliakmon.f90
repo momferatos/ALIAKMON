@@ -236,11 +236,6 @@ program aliakmon
      
      call fourier(nn,1_ik,fu)
      
-     call project(nn, fu)
-
-     call copy(nn,u,fu)
-     call fourier(nn,-1_ik,u)
-     call write_hdf5_file(nn,u,0.0_rk,1_ik)
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
   else
      call set_initial_conditions(nn,u,fu)
