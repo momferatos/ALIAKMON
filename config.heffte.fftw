@@ -1,4 +1,5 @@
 #!/bin/bash
 export BACKEND='fftw'
+export LIBSROOT='/home/giorgos/libs'
 export ACCELFLAGS=''
 export CUDALDFLAGS=''
