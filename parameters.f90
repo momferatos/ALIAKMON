@@ -405,7 +405,7 @@ contains
        ! Multi-threaded
        call mpi_init_thread(MPI_THREAD_FUNNELED,provided,mpierr)
        if(provided < MPI_THREAD_FUNNELED) then
-          print('error: MPI failed to provide multi-thread support.')
+          print *, 'error: MPI failed to provide multi-thread support.'
           stop
        end if
     end if
