@@ -124,11 +124,10 @@ contains
 
   end subroutine fft_fftw_dealloc
 
-  subroutine fft_fftw_fourier(nn, gn3, dir, fu, nfs, nfe)
-    use parameters, only : dim1
+  subroutine fft_fftw_fourier(nn,dir, fu, nfs, nfe)
+    use parameters, only : dim1,gn2,gn3
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
-    integer(ik), intent(in) :: gn3
     integer(ik), intent(in)       :: dir
     integer(ik), optional :: nfs, nfe
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(inout) :: fu
@@ -136,7 +135,7 @@ contains
     real(rk)                  :: scale
     integer(ik) :: nnfs,nnfe,nfi
     integer(ik) :: i,j,k
-    
+
     if(dir == -1) then
        scale = 1.0_rk / real(nn(1)*nn(2)*gn3, rk)
     else
@@ -148,27 +147,27 @@ contains
     if(present(nfs)) nnfs=nfs
     if(present(nfe)) nnfe=nfe
 
-    
+
     do nfi=nnfs,nnfe
        if(dir == 1) then
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              array(i,j,k) = fu(i,j,k, nfi)
-          end do ; end do ; end do 
+          end do; end do ; end do 
           !$omp end parallel do
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=nn(1)+1,dim1(nn(1))
              array(i,j,k) = 0.0_rk
-          end do ; end do ; end do
+          end do; end do ; end do
           !$omp end parallel do
        else 
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
              array(i,j,k) = fu(i,j,k, nfi)
-          end do ; end do ; end do
+          end do; end do ; end do
           !$omp end parallel do
        end if
-       
+
 #ifdef _DOUBLE_
        if(dir == 1) then
           call fftw_execute_dft_r2c(plan, array, carray)
@@ -188,13 +187,13 @@ contains
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
              fu(i,j,k,nfi) = scale * array(i,j,k)
-          end do ; end do ; end do
+          end do; end do ; end do
           !$omp end parallel do
        else
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
              fu(i,j,k,nfi) = array(i,j,k)
-           end do ; end do ; end do
+          end do; end do ; end do
           !$omp end parallel do
        end if
 
@@ -204,7 +203,7 @@ contains
     return
 
   end subroutine fft_fftw_fourier
-  
+
 #endif
 end module fft_fftw
 

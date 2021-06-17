@@ -116,7 +116,7 @@ module parameters
   integer(ik), parameter :: SLABS = 0
   ! Pencils
   integer(ik), parameter :: PENCILS = 1
-  integer(ik)            :: FFT_SUBDIVISION = SLABS 
+  integer(ik)            :: FFT_DECOMPOSITION = SLABS 
   ! Maximum dimension
   integer(ik)            :: nmax
   integer(ik), parameter :: nmaxsqrt=128

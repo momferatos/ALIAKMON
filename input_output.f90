@@ -34,7 +34,7 @@ contains
     namelist /particle/          PARTICLES, PART_INITCOND,NPART,NPTS,INERTIAL,&
          &PERIODIC_PARTICLES,LAGRANGIAN_HISTORY,STK
     namelist /numerics/          INTEGRATION_METHOD,TRUNCATION,DEALIASING,&
-         &CRANK_NICHOLSON, FFT_SUBDIVISION
+         &CRANK_NICHOLSON, FFT_DECOMPOSITION
     namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM
     namelist /inputoutput/       NOUTPUTFILES,INPUT_FIELD,INPUT_FIELD_FILENAME,&
          &NFILESTART,hdf5frate,slicefrate

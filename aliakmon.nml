@@ -97,7 +97,7 @@ STK=0.5				! Stokes number for intertial particles
 INTEGRATION_METHOD=2, ! Method for time integration: 1: 2nd order Runge-Kutta, 2: 4th order Runge-Kutta
 TRUNCATION=2, 	      ! Method for truncation in Fourier space: 0: Two-thirds rule, 1: Spherical, 2: Polyhedral
 DEALIASING=0, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
-FFT_SUBDIVISION=1,    ! FFT subdivision: 0: across slabs, 1: across pencils
+FFT_DECOMPOSITION=1,    ! FFT subdivision: 0: across slabs, 1: across pencils
 &end
 
 !

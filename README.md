@@ -98,22 +98,27 @@ make install
 
 cd aliakmon
 source config.heffte.cufft
-make
+make clean 
+make 
 
 6) build ALIAKMON with heFFTe FFTW backend (100% CPU)
 
 cd aliakmon
 source config.heffte.fftw
+make clean 
 make
 
 7) buld ALIAKMON with Intel MKL (no heFFTe, so decomposition in pencils is
 not available)
 
+build Intel MKL FFTW interface
 cd aliakmon
+edit config.mkl to point to your MKL FFTW interface build
 source config.mkl
+make clean -f Makefile.mkl
 make -f Makefile.mkl
 
-8) run ALIAKMON-GPU or ALIAKMON
+8) run ALIAKMON
 
 cd aliakmon/
 mkdir test_case
@@ -122,5 +127,5 @@ cd test_case
 edit aliakon.nml (see comments inside the file)
 mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.{cufft,fftw,mkl}.exe
 
-9) As a check, open the vtk files with paraview
+9) As a check, open the .vtk or .xmf files with paraview. 
 

@@ -83,7 +83,7 @@ contains
     slice_direction=2
     pencil_direction = 0
 
-    select case(FFT_SUBDIVISION)
+    select case(FFT_DECOMPOSITION)
     case(SLABS)
        call heffte_init_slabs(&
             &int(n1,c_long),int(n2,c_long),int(n3,c_long),&

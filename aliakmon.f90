@@ -18,7 +18,11 @@ program aliakmon
   use mpivars
   use hdf5_aliakmon
 #ifdef _MPI_
+#ifdef _MKL_
+  use fft_fftw
+#else
   use fft_heffte
+#endif
 #endif
 #ifdef _OPENMP_
   use omp_lib
@@ -71,8 +75,13 @@ program aliakmon
   ljstart=0
 #ifdef _MPI_
   ! Allocate FFT structures
-
+#ifdef _MKL_
+  call fft_fftw_alloc(n1, n2, gn3,lksize, lkstart)
+  ljstart = 1
+  ljsize = n2
+#else
   call fft_heffte_alloc(n1,n2,n3,ljsize,ljstart,lksize,lkstart)
+#endif
   
   n2=ljsize
   n3=lksize
@@ -94,7 +103,7 @@ program aliakmon
 
   ! Allocate and initialize all arrays
   call alloc_init
-
+!!$
 !!$  print '(5i5)', mpirank, nn(:)
 !!$
 !!$  call random_number(u(1:nn(1),1:nn(2),1:nn(3),1))
@@ -373,7 +382,11 @@ program aliakmon
 
 
 #ifdef _MPI_
+#ifdef _MKL_
+  call fft_fftw_dealloc
+#else
   call fft_heffte_dealloc
+#endif
   call finalize_mpi
 #endif
 
