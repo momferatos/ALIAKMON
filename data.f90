@@ -461,24 +461,27 @@ contains
     ! x
     allocate(k1(1:dim1(n1)))
     k1(:) = 0.0_rk
-    ! y
-    allocate(k2(1:n2))
-    k2(:) = 0.0_rk
     ! x, used for truncation
     allocate(trk1(1:dim1(n1)))
     trk1(:) = 0.0_rk
-    ! y, used for truncation
-    allocate(trk2(1:n2))
-    trk2(:) = 0.0_rk
+
+    
     ! if we're using MPI, z direction is spread across processes,
     ! each process has a slice of z-width lksize
-
 #ifdef _MPI_
+    ! y
+    allocate(k2(1:ljsize))
+    ! y, used for truncation
+    allocate(trk2(1:ljsize))
     ! z
     allocate(k3(1:lksize))
     ! z, used for truncation
     allocate(trk3(1:lksize))
 #else
+    ! y
+    allocate(k2(1:n3))
+    ! y, used for truncation
+    allocate(trk2(1:n3))
     ! z
     allocate(k3(1:n3))
     ! z, used for truncation
@@ -487,12 +490,19 @@ contains
 
     k3(:) = 0.0_rk
     trk3(:) = 0.0_rk
+    ! if we're using MPI, we also need the global y-wavevector array
+    allocate(gk2(1:gn2))
+    gk2(:) = 0.0_rk
+    ! and its counterpart for truncation
+    allocate(trgk2(1:gn2))
+    trgk2(:) = 0.0_rk
     ! if we're using MPI, we also need the global z-wavevector array
     allocate(gk3(1:gn3))
     gk3(:) = 0.0_rk
     ! and its counterpart for truncation
     allocate(trgk3(1:gn3))
     trgk3(:) = 0.0_rk
+    
     !initialize wave-vector arrays
     call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk2, trgk2, gk3,trgk3)
 

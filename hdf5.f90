@@ -801,7 +801,6 @@ contains
       character(*), intent(IN) :: dataset_name
       real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(OUT) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      integer :: state
 
 
       !
@@ -890,7 +889,6 @@ contains
       character(*), intent(IN) :: dataset_name
       real(rks), dimension(1:3,1:nn(1),1:nn(2),1:nn(3)), intent(OUT) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      integer(hsize_t), dimension(4) :: maxdims
 
 
       !

@@ -32,9 +32,9 @@ void heffte_init_slabs(long n1, long n2, long n3,
   num_ranks = heffte::mpi::comm_size(comm);
   
   std::array<int,3> a = {0,0,0};
-  std::array<int,3> b = {n1-1, n2-1, n3-1};
+  std::array<int,3> b = {(int)(n1-1), (int)(n2-1), (int)(n3-1)};
   std::array<int,3> c = {0,0,0};
-  std::array<int,3> d = {floor(n1 / 2) + 1 - 1, n2 - 1, n3 - 1};
+  std::array<int,3> d = {(int)(floor(n1 / 2)), (int)(n2 - 1), (int)(n3 - 1)};
   heffte::box3d<> real_indexes(a,b);
   heffte::box3d<> complex_indexes(c,d);
     
@@ -101,9 +101,9 @@ void heffte_init_pencils(long n1, long n2, long n3,
   num_ranks = heffte::mpi::comm_size(comm);
   
   std::array<int,3> a = {0,0,0};
-  std::array<int,3> b = {n1-1, n2-1, n3-1};
+  std::array<int,3> b = {(int)(n1-1), (int)(n2-1), (int)(n3-1)};
   std::array<int,3> c = {0,0,0};
-  std::array<int,3> d = {floor(n1 / 2) + 1 - 1, n2 - 1, n3 - 1};
+  std::array<int,3> d = {(int)floor((int)(n1 / 2)), (int)(n2 - 1), (int)(n3 - 1)};
   heffte::box3d<> real_indexes(a,b);
   heffte::box3d<> complex_indexes(c,d);
     

@@ -85,10 +85,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!
     !Allocate FFT structures
 !!!!!!!!!!!!!!!!!!!!!!!!
-    integer(c_long)          :: nn1,nn2,nn3
-    integer(c_long), target  :: nlksize,nlkstart
-    integer(c_long) :: ndir
-    integer(c_long) :: alloc
     integer(c_int)       :: slice_direction, pencil_direction, r2c_direction
     integer(c_int) :: il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3
 
@@ -170,10 +166,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: nnfs,nnfe,nfi
     integer(ik) :: i,j,k,iii
-    integer(c_long)                     :: nn1,nn2,ngn3,nlksize,nlkstart,ndir,alloc
-    type(c_ptr) :: gpu_input_c, gpu_output_c, gpu_workspace_c
-    type(c_ptr) :: gpu_input, gpu_output, gpu_workspace
-    type(c_funptr) :: func_ptr
     complex(ck) :: ctmp
 
 
