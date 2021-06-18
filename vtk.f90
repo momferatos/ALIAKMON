@@ -25,7 +25,7 @@ contains
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     integer(ik) :: i, j, n1, n2, n3
     character(128) :: fmt
-    integer :: vtk_file=17
+    integer(ik) :: vtk_file
     real(rk) :: LBOX = 2.0 * PI
 
     
@@ -39,7 +39,7 @@ contains
     n2=nn(2)
     n3=nn(3)
 
-    open(vtk_file,file=filename,form='formatted',action='write',err=100)
+    open(newunit=vtk_file,file=filename,form='formatted',action='write',err=100)
     write(vtk_file, '(t1,a)') '# vtk DataFile Version 2.0'
     write(vtk_file, '(t1,a)') comment
     write(vtk_file, '(t1,a)') 'ASCII'
@@ -94,7 +94,7 @@ contains
     !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     integer(ik) :: i, j, n1, n2, n3, nf
     character(128) :: fmt
-    integer :: vtk_file=17
+    integer(ik) :: vtk_file
     real(rk) :: LBOX = 2.0 * PI
     character(len=1024) :: comment
     n1=nn(1)
@@ -112,7 +112,7 @@ contains
 
 
 
-    open(vtk_file,file=filename,form='formatted',action='write',err=100)
+    open(newunit=vtk_file,file=filename,form='formatted',action='write',err=100)
     write(vtk_file, '(t1,a)') '# vtk DataFile Version 2.0'
     write(vtk_file, '(t1,a)') trim(comment)
     write(vtk_file, '(t1,a)') 'BINARY'
@@ -122,7 +122,7 @@ contains
     write(vtk_file, '(t1,a,i15,a)') 'POINTS ', n1*n2, ' float '
     close(vtk_file, status='keep')
 
-    open(vtk_file, file=filename,form='unformatted',action='write',&
+    open(newunit=vtk_file, file=filename,form='unformatted',action='write',&
          &position='append', access='stream', convert='big_endian', err=100) 
     do j=1,n2
        do i=1,n1
@@ -131,13 +131,13 @@ contains
        end do
     end do
     close(vtk_file, status='keep')
-    open(vtk_file,file=filename,form='formatted',action='write',&
+    open(newunit=vtk_file,file=filename,form='formatted',action='write',&
          &position='append', err=100)
     write(vtk_file, *)
     write(vtk_file, '(t1,a,i15)') 'POINT_DATA ', n1*n2
     close(vtk_file,status='keep')
     do nf=nu1,nu3+nscl
-       open(vtk_file,file=filename,form='formatted',action='write',&
+       open(newunit=vtk_file,file=filename,form='formatted',action='write',&
             &position='append', err=100)
        write(vtk_file, '(t1,3a)') 'SCALARS ', trim(keys(nf)), ' float 1'
 
@@ -145,7 +145,7 @@ contains
        write(vtk_file, '(t1,a)') 'LOOKUP_TABLE default'
        close(vtk_file, status='keep')
 
-       open(vtk_file, file=filename,form='unformatted',action='write',&
+       open(newunit=vtk_file, file=filename,form='unformatted',action='write',&
             &position='append', access='stream', convert='big_endian', err=100) 
        do j=1,n2
           do i=1,n1

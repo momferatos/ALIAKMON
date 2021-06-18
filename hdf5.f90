@@ -376,7 +376,7 @@ contains
     !writes xdmf file corresponding to hdf5 file!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(LEN=256)     :: xdmf_filename ! File name
-    integer(ik), parameter :: xdmf_file=982
+    integer(ik)            :: xdmf_file
     integer(ik)            :: i
 
     if(present(nfile)) then
@@ -385,7 +385,7 @@ contains
        write(xdmf_filename,'(2a)') trim(h5filename),'.xmf'
     end if
 
-    open(xdmf_file,file=trim(xdmf_filename),form='formatted')
+    open(newunit=xdmf_file,file=trim(xdmf_filename),form='formatted')
 
     write(xdmf_file,'(a)') '<?xml version="1.0" encoding="utf-8"?>'
     write(xdmf_file,'(a)') '<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" &
@@ -587,10 +587,10 @@ contains
       !writes xdmf file corresponding to hdf5 file!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       character(LEN=1024) :: xdmf_filename ! File name
-      integer(ik), parameter :: xdmf_file=983
+      integer(ik)         :: xdmf_file
 
       write(xdmf_filename,'(2a)') trim(filename),'.xmf'
-      open(xdmf_file,file=trim(xdmf_filename),form='formatted')
+      open(newunit=xdmf_file,file=trim(xdmf_filename),form='formatted')
 
       write(xdmf_file,'(a)') '<?xml version="1.0" encoding="utf-8"?>'
       write(xdmf_file,'(a)') '<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" &

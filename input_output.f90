@@ -20,7 +20,7 @@ contains
   subroutine read_namelist_file
     implicit none
     integer(ik)                  :: n
-    integer,parameter            :: aliakmon_nml=786
+    integer(ik)                  :: aliakmon_nml
     
     !Read the input namelist file
     namelist /general/           n,TIMESTEPS, TMAX, CFL, RE, KMAXETA,&
@@ -41,7 +41,7 @@ contains
 
 
     !open namelist input file
-    open(aliakmon_nml,file='aliakmon.nml',action='read',err=100)
+    open(newunit=aliakmon_nml,file='aliakmon.nml',action='read',err=100)
 
     read(aliakmon_nml,nml=general)
     read(aliakmon_nml,nml=hydro)
@@ -382,13 +382,14 @@ contains
 
     !Write data files
     if(mpirank==MPIROOT) then
-       open(aux_dat, file='aux.dat', form='formatted',action='write')
+       open(newunit=aux_dat, file='aux.dat', form='formatted',action='write')
        write(aux_dat,'(a,e20.10)')  'Viscosity:                   ',visc(nu1)
        write(aux_dat,'(a,e20.10)')  'Kolmogorov microscale:       ', eta
        write(aux_dat,'(a,e20.10)')  'Mean energy dissipation rate:', emean
        close(aux_dat,status='keep')
        if(PASSIVE_SCALAR) then
-          open(auxscl_dat, file='auxscl.dat', form='formatted',action='write')
+          open(newunit=auxscl_dat, file='auxscl.dat', form='formatted',&
+               &action='write')
           write(auxscl_dat,'(a,3e20.10)')  'Prandtl number                     &
                &          :',PR
           write(auxscl_dat,'(a,3e20.10)')  'Obukhov-Corsin micorscale          &

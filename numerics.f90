@@ -1775,7 +1775,7 @@ contains
     real(rk)                                                   :: nrg,kk,scale
     real(rk)                                                   :: dk
     real(rk)                                                   :: tot,area
-    integer                                                    :: espec_file=17
+    integer(ik)                                                :: espec_file
     real(rk), dimension(nespec+1,2)                            :: espec
     real(rk)                                                   :: scale_fourier
 
@@ -1837,7 +1837,7 @@ contains
 
 
     !Write to file
-    open(espec_file,file=fname)
+    open(newunit=espec_file,file=fname)
 
     do i=1,nespec
        write(espec_file,'(2e30.14)') espec(i,1),espec(i,2)
@@ -1865,7 +1865,7 @@ contains
     real(rk)                                                   :: nrg,kk,scale
     real(rk)                                                   :: dk,tot
     real(rk)                                                   :: area
-    integer                                                    :: espec_file=17
+    integer(ik)                                                :: espec_file
     real(rk), dimension(npsspec+1,2)                           :: psspec
     real(rk)                                                   :: scale_fourier
 
@@ -1924,7 +1924,7 @@ contains
 
     !Write to file
     scale=1.0
-    open(espec_file,file=fname)
+    open(newunit=espec_file,file=fname)
     do i=1,npsspec
        write(espec_file,'(2e30.14)') psspec(i,1),psspec(i,2)
     end do

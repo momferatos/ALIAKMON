@@ -172,18 +172,20 @@ program aliakmon
 
   ! Print header
   if(mpirank==MPIROOT) then
-     print '(a)', "---------------------------------------------------------"
-     print '(a)', "|      ___ __                                           |"
-     print '(a)', "|  (  / _ \\ \       /                                  |"
-     print '(a)', "|    | |_| |\ \  _  __  ___  ___   _  __   __  _  __    |"
-     print '(a)', "|    |  _  |   \| |/  \/ / |/ / | | |/ / _ \ \| |/ /    |"
-     print '(a)', "|    | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / /     |"
-     print '(a)', "|    |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/      |"
+     print '(a)', "---------------------------------------------------------   "
+     print '(a)', "|      ___ __                                           |   "
+     print '(a)', "|  (  / _ \\\\ \\       /                                  |"
+     print '(a)', "|    | |_| |\\ \\  _  __  ___  ___   _  __   __  _  __    | "
+     print '(a)', "|    |  _  | > \\| |/  \/ / |/ / | | |/ / _ \\ \\| |/ /   &
+          &  |"
+     print '(a)', "|    | | | |/ ^ \\ ( ()  <|   <| |_| | |_/ \\_| | / /     | "
+     print '(a)', "|    |_| |_/_/ \\_\\_)__/\\_\\_|\\_\\ ._,_|\\___^___/|__/ &
+          &     |"
      print '(a)', "|                             |_|                       |" 
      print '(a)', "-------------------------------------------------------- "
      print '(a)', "|ALIAKMON Spectral Code for Fluid Turbulence Simulations|"
      print '(a)', "|                                                       |"  
-     print '(a)', "|       (C) 2009-2020 Georgios Momferatos              |"
+     print '(a)', "|       (C) 2009-2020 Georgios Momferatos               |"
      print '(a)', "---------------------------------------------------------"
      write(*,*)  ' '
 
@@ -404,7 +406,7 @@ contains
     call output_files(999999_ik)
 
     !Output information about the dissipation peak
-    open(987,file='dispeak.dat',form='formatted')
+    open(newunit=dispeak_dat,file='dispeak.dat',form='formatted')
     write(987,'(11e17.8)') time,KE,mkin_hel,emean,ils,lambda,eta,&
          &rmsu*ils/visc(nu1),REl,mkhdis,fscale(nu1)
     if(MHD) write(987,'(9e17.8)') time,emeanb,mcross_hel,ME,mmh,&
@@ -461,7 +463,8 @@ contains
 
   subroutine setup_output_dat_files
     if(INPUT_FIELD) then
-       open(maxima_dat,file='maxima.dat',form='formatted',action='write',&
+       open(newunit=maxima_dat,file='maxima.dat',form='formatted',&
+            &action='write',&
             &status='old',position='append')
     else
        open(maxima_dat,file='maxima.dat',form='formatted',action='write')
@@ -471,10 +474,10 @@ contains
     write(maxima_dat,'(6a17)') 't|','maxu|','maxb|','maxw|', &
          &'maxj|', 'maxjxb|'
     if(INPUT_FIELD) then
-       open(hydro_dat,file='hydro.dat',form='formatted',action='write',&
+       open(newunit=hydro_dat,file='hydro.dat',form='formatted',action='write',&
             &status='old',position='append')
     else
-       open(hydro_dat,file='hydro.dat',form='formatted',action='write')
+       open(newunit=hydro_dat,file='hydro.dat',form='formatted',action='write')
        write(hydro_dat,'(11a37)') 'Time|','Kinetic energy|',&
             &'Mean kinetic helicity|','Mean energy dissipation|',&
             &'Integral length scale|','Taylor microscale|',&
@@ -485,10 +488,12 @@ contains
             &'ils|','lambda|', 'eta|','Re|', 'Rel|', 'mkhdiss|','fscale'
     end if
     if(INPUT_FIELD.and.PASSIVE_SCALAR) then
-       open(passive_dat,file='passive.dat',form='formatted',action='write',&
+       open(newunit=passive_dat,file='passive.dat',form='formatted',&
+            &action='write',&
             &status='old',position='append')
     else if(PASSIVE_SCALAR) then
-       open(passive_dat,file='passive.dat',form='formatted',action='write')
+       open(newunit=passive_dat,file='passive.dat',form='formatted',&
+            &action='write')
        write(passive_dat,'(11a41)') 'Time|','Mean scalar value|',&
             &'Scalar variance|','Maximum scalar value|',&
             &'Minimum scalar value|','Mean scalar dissipation|',&
@@ -505,7 +510,8 @@ contains
        open(magnetic_dat,file='magnetic.dat',form='formatted',action='write',&
             &status='old',position='append')
     else
-       open(magnetic_dat,file='magnetic.dat',form='formatted',action='write')
+       open(newunit=magnetic_dat,file='magnetic.dat',form='formatted',&
+            &action='write')
        write(magnetic_dat,'(7a37)') 'time|','Magnetic energy|',&
             &'Ohmic dissipation|','Mean magnetic helicity|',&
             &'Mean magnetic helicity dissipation|',&
@@ -514,10 +520,12 @@ contains
             &'mch|','mchdiss|'
     end if
     if(INPUT_FIELD) then
-       open(distest_dat,file='distest.dat',form='formatted',action='write',&
+       open(newunit=distest_dat,file='distest.dat',form='formatted',&
+            &action='write',&
             &status='old',position='append')
     else
-       open(distest_dat,file='distest.dat',form='formatted',action='write')
+       open(newunit=distest_dat,file='distest.dat',form='formatted',&
+            &action='write')
     end if
 
     return

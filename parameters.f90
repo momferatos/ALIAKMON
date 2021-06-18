@@ -13,30 +13,30 @@ module types
   ! Integer, real and complex types
   ! 
   ! Integer types
-  integer, parameter     :: i1b=1 ! integer 1 bit
-  integer, parameter     :: i2b=2 ! integer 2 bits
-  integer, parameter     :: i4b=4 ! integer 4 bits
-  integer, parameter     :: i8b=8 ! integer 8 bits
-  integer, parameter     :: ik=i8b! main integer type
+  integer, parameter     :: i1b = 1 ! integer 1 bit
+  integer, parameter     :: i2b = 2 ! integer 2 bits
+  integer, parameter     :: i4b = 4 ! integer 4 bits
+  integer, parameter     :: i8b = 8 ! integer 8 bits
+  integer, parameter     :: ik = i8b! main integer type
   ! Real types
-  integer, parameter     :: sp=4  ! single precision real
-  integer, parameter     :: dp=8  ! double precision real
-  integer, parameter     :: qp=16 ! quadruple precision real
-  integer, parameter     :: rk=dp ! main real type
+  integer, parameter     :: sp = 4  ! single precision real
+  integer, parameter     :: dp = 8  ! double precision real
+  integer, parameter     :: qp = 16 ! quadruple precision real
+  integer, parameter     :: rk = dp ! main real type
   ! Real type for arrays
 #ifdef _DOUBLE_
-  integer, parameter     :: rks=dp
+  integer, parameter     :: rks = dp
 #else
-  integer, parameter     :: rks=sp
+  integer, parameter     :: rks = sp
 #endif
   ! Complex types
-  integer, parameter     :: csp=4  ! single precision complex
-  integer, parameter     :: cdp=8  ! double precision real
-  integer, parameter     :: ck=cdp ! main complex type
-  integer, parameter     :: cks=rks! complex type for arrays
+  integer, parameter     :: csp = 4  ! single precision complex
+  integer, parameter     :: cdp = 8  ! double precision real
+  integer, parameter     :: ck = cdp ! main complex type
+  integer, parameter     :: cks = rks! complex type for arrays
   ! Real types for I/O
-  integer(ik), parameter :: inrk=sp
-  integer(ik), parameter :: outrk=dp
+  integer(ik), parameter :: inrk = sp
+  integer(ik), parameter :: outrk = dp
 end module types
 
 module parameters
@@ -57,16 +57,28 @@ module parameters
   integer(ik)                                   :: nb2
   integer(ik)                                   :: nb3
   ! For the energy conservation tests
-  real(rk) :: teinitial,mchinitial,mmhinitial,mkhinitial
-  real(rk) :: rkvdis,rkodis,rkaddis,rkten,rkeinj,rkmkh,rkmkhdis
+  real(rk)                                      :: teinitial
+  real(rk)                                      :: mchinitial
+  real(rk)                                      :: mmhinitial
+  real(rk)                                      :: mkhinitial
+  real(rk)                                      :: rkvdis
+  real(rk)                                      :: rkodis
+  real(rk)                                      :: rkaddis
+  real(rk)                                      :: rkten
+  real(rk)                                      :: rkeinj
+  real(rk)                                      :: rkmkh
+  real(rk)                                      :: rkmkhdis
   ! Output files
-  integer, parameter                :: hydro_dat=997,passive_dat=998,ank_stdout=987
-  integer, parameter                :: maxima_dat=777,magnetic_dat=999
-  integer, parameter                :: distest_dat=986
-  integer(ik)            :: OMPCL
-  real(rk), parameter     :: small=1.0e-16
+  integer(ik)                                   :: dispeak_dat = 111
+  integer(ik)                                   :: hydro_dat = 222
+  integer(ik)                                   :: passive_dat = 333
+  integer(ik)                                   :: ank_stdout = 444
+  integer(ik)                                   :: maxima_dat = 555
+  integer(ik)                                   :: magnetic_dat = 666
+  integer(ik)                                   :: distest_dat = 777
+  real(rk), parameter    :: small = 1.0e-16
   ! PI
-  real(rk), parameter    :: PI=3.14159265358979323846264338327950&
+  real(rk), parameter    :: PI = 3.14159265358979323846264338327950&
        &2884197169399375105820974944592307816406286208998628034825&
        &342117068_rk
   ! factor for mean-square value calculation in Fourier space
@@ -74,7 +86,7 @@ module parameters
   ! Factor for spherical truncation
   real(rk)               :: TRFAC
   ! Length of the simulation box
-  real(rk), parameter    :: LBOX=2.0_rk*PI
+  real(rk), parameter    :: LBOX = 2.0_rk*PI
   ! Integral length scale
   real(rk)               :: ILS
   ! Taylor microscale, root-mean-square velocity, Taylor microscale Reynolds
@@ -83,15 +95,15 @@ module parameters
   ! Target root-mean-square velocity
   real(rk)               :: RMSUTAR
   ! Target kinetic energy
-  real(rk), parameter    :: KENTAR=0.5
+  real(rk), parameter    :: KENTAR = 0.5
   ! Target magnetic energy
-  real(rk), parameter    :: MENTAR=0.5
+  real(rk), parameter    :: MENTAR = 0.5
   ! Eddy turnover time
   real(rk)               :: ETT
   ! Parameter for the estimation of target Reynolds number
-  real(rk), parameter    :: D=0.4_rk
+  real(rk), parameter    :: D = 0.4_rk
   ! Imaginary unity
-  complex(ck), parameter :: ii=cmplx(0.0_rk,1.0_rk,ck)
+  complex(ck), parameter :: ii = cmplx(0.0_rk,1.0_rk,ck)
   ! Factor for rescaling the viscosity
   ! Particle relaxation time
   real(rk)               :: TP
@@ -104,7 +116,7 @@ module parameters
   ! Maximum wave-number
   real(rk)               :: kmax
   ! Number of OpenMP threads
-  integer                :: nt=1
+  integer                :: nt = 1
   ! Local dimensions of the domain
   integer(ik)            :: n1,n2,n3
   ! Global y dimension across MPI processes
@@ -119,7 +131,7 @@ module parameters
   integer(ik)            :: FFT_DECOMPOSITION = SLABS 
   ! Maximum dimension
   integer(ik)            :: nmax
-  integer(ik), parameter :: nmaxsqrt=128
+  integer(ik), parameter :: nmaxsqrt = 128
   ! Number of active and truncated modes
   integer(i8b)           :: nmodes, ntrunc
   ! Mean energy dissipation, mean passive scalar dissipation, mean magnetic
@@ -137,26 +149,26 @@ module parameters
   ! Ambipolar diffusion dissipation
   real(rk)               :: addis
   ! Kaneda et al. (2004) forcing
-  logical                :: VARIABLE_FORCING=.true.
+  logical                :: VARIABLE_FORCING = .true.
   ! For phase-shifting
   ! Constants for choice of initial conditions
-  integer(ik), parameter :: ZERO_INITCOND=0,STOCHASTIC_INITCOND_FLAT=1
-  integer(ik), parameter :: STOCHASTIC_INITCOND_WITH_SPECTRUM=2
-  integer(ik), parameter :: ORSZAG_TANG_VORTEX=3, ABC=4, TAYLOR_GREEN_VORTEX=5
+  integer(ik), parameter :: ZERO_INITCOND = 0,STOCHASTIC_INITCOND_FLAT = 1
+  integer(ik), parameter :: STOCHASTIC_INITCOND_WITH_SPECTRUM = 2
+  integer(ik), parameter :: ORSZAG_TANG_VORTEX = 3, ABC = 4, TAYLOR_GREEN_VORTEX = 5
   ! Constants for choice of time integration method
-  integer(ik), parameter :: MEULER=0, MRUNGE_KUTTA2=1,MRUNGE_KUTTA4=2
+  integer(ik), parameter :: MEULER = 0, MRUNGE_KUTTA2 = 1,MRUNGE_KUTTA4 = 2
   ! Constants for choice of truncation method
-  integer(ik), parameter :: TWO_THIRDS=0, SPHERICAL=1,POLYHEDRAL=2
+  integer(ik), parameter :: TWO_THIRDS = 0, SPHERICAL = 1,POLYHEDRAL = 2
   ! Constants for choice of dealiasing method
-  integer(ik), parameter :: NONE=0,PATTERSON_ORSZAG=1
+  integer(ik), parameter :: NONE = 0,PATTERSON_ORSZAG = 1
   ! Constants for choice of particle  initial conditions 
-  integer(ik), parameter :: HOMOGENEOUS=0,SPHERE=1,SHEET=2
+  integer(ik), parameter :: HOMOGENEOUS = 0,SPHERE = 1,SHEET = 2
   ! Random number scaling factor
   real(rk)               :: RSCALE
   ! Maximum time
   real(rk)               :: TMAX
   ! Stop at the dissipation peak?
-  logical                :: STOP_AT_DISSPEAK=.false.
+  logical                :: STOP_AT_DISSPEAK = .false.
   ! Maximum timesteps
   integer(ik)            :: TIMESTEPS
   ! Courant-Friedrichs-Lewy (CFL) condition
@@ -180,9 +192,9 @@ module parameters
   ! Integer variable for choice of forcing
   integer(ik)            :: FORCING
   ! Constants for choice of forcing
-  integer(ik), parameter :: STOCHASTIC=0,KANEDA=1
+  integer(ik), parameter :: STOCHASTIC = 0,KANEDA = 1
   ! Forcing wavenumber
-  real(rk)               :: KFORCING=2
+  real(rk)               :: KFORCING = 2
   ! Scale factor of the forcing term
   real(rk), dimension(:), allocatable    :: fscale
   ! Same for MHD
@@ -190,17 +202,17 @@ module parameters
   ! Same for passive scalar
   logical                :: PASSIVE_SCALAR
   ! Number of passive scalars
-  integer(ik)            :: numscls=0
+  integer(ik)            :: numscls = 0
   ! Logical variable for passive scalar heating
   logical                :: HEATING
   ! Logical variable for diffusivity
   logical                :: DIFFUSIVE
   ! Prandtl number
-  real(rk)               :: PR=1.0_rk
+  real(rk)               :: PR = 1.0_rk
   ! Logical variable for passive scalar forcing
-  logical                :: FORCED_PASSIVE_SCALAR=.true.
+  logical                :: FORCED_PASSIVE_SCALAR = .true.
   ! Scale factor of the forcing term of the passive scalar
-  real(rk)               :: FSCALESCL=1.0_rk
+  real(rk)               :: FSCALESCL = 1.0_rk
   ! Logical variable for magnetohydrodynamics
   logical                :: MHD
   ! Beta MHD factor: <u**2>/<b**>
@@ -226,7 +238,7 @@ module parameters
   ! Number of particles
   integer(ik)            :: NPART
   ! Number of particle timesteps per flow timestep
-  integer(ik)            :: NPTS=3
+  integer(ik)            :: NPTS = 3
   ! Logical variable for inertial particles
   logical                :: INERTIAL
   ! Logical variable for particle periodicity
@@ -260,7 +272,7 @@ module parameters
   ! Filename of the input field
   character(128)         :: INPUT_FIELD_FILENAME
   ! File number to start file output
-  integer(ik)            :: NFILESTART=0
+  integer(ik)            :: NFILESTART = 0
   ! Frame rate of HDF5 file output
   real(rk)               :: hdf5frate
   ! Frame rate of VTK slice output
@@ -268,7 +280,7 @@ module parameters
   ! Maximum vorticity, maximum current density, maximum Lorentz force
   real(rk)               :: MAXVORT, MAXJ, MAXLF, MAXVEL, MAXB
   ! Maximum passive scalar gradient
-  real(rk)               :: MAXGRADTHETA=0.0_rk
+  real(rk)               :: MAXGRADTHETA = 0.0_rk
   ! 
   ! Variables for post-processing mode
   ! 
@@ -285,7 +297,7 @@ contains
     ! Used to handle x dimension of the FFTW arrays
     ! 
     
-    dim1=int(2_ik*(floor(real(n,rk)/2.0_rk)+1),ik)
+    dim1 = int(2_ik*(floor(real(n,rk)/2.0_rk)+1),ik)
 
     return
   end function dim1
@@ -299,12 +311,12 @@ contains
     integer(ik) :: floor
     real(rk) :: frac
 
-    floor=int(x,ik)
-    frac=x-floor
+    floor = int(x,ik)
+    frac = x-floor
     if(frac>0.5_rk) then
-       round=floor+1
+       round = floor+1
     else
-       round=floor
+       round = floor
     end if
 
     return
@@ -324,15 +336,15 @@ module mpivars
 #endif
   implicit none
   ! MPI rank
-  integer(i4b) :: mpirank=0
+  integer(i4b) :: mpirank = 0
   ! MPI root process
-  integer(i4b), parameter :: MPIROOT=0
+  integer(i4b), parameter :: MPIROOT = 0
   ! Number of MPI processes
-  integer(i4b) :: mpisize=0
+  integer(i4b) :: mpisize = 0
   ! Size of MPI slice across y-dimension of FFTW array
-  integer(ik) :: ljsize = 0
+  integer(ik) :: ljsize  =  0
   ! X-dimension index where FFTW array starts
-  integer(ik) :: ljstart = 1
+  integer(ik) :: ljstart  =  1
   ! Size of MPI slice across z-dimension of FFTW array
   integer(ik) :: lksize = 0
   ! X-dimension index where FFTW array starts
@@ -348,7 +360,7 @@ module mpivars
   ! Buffers used in reductions and Broadcasts
   real(dp), dimension(1024) :: sbuf,rbuf
   ! Maximum integer
-  integer, parameter :: MPIMAXINT=2**16
+  integer, parameter :: MPIMAXINT = 2**16
 contains
   subroutine set_mpi_types
     implicit none
@@ -357,28 +369,28 @@ contains
     ! 
 
     ! Integer
-    MPIIK=MPI_INTEGER
+    MPIIK = MPI_INTEGER
 
     ! Real
-    if(rk==sp) then
-       MPIRK=MPI_REAL
-    else if(rk==dp) then
-       MPIRK=MPI_DOUBLE_PRECISION
+    if(rk == sp) then
+       MPIRK = MPI_REAL
+    else if(rk == dp) then
+       MPIRK = MPI_DOUBLE_PRECISION
     end if
 
-    if(rks==sp) then
-       MPIRKS=MPI_REAL
-    else if(rk==dp) then
-       MPIRKS=MPI_DOUBLE_PRECISION
+    if(rks == sp) then
+       MPIRKS = MPI_REAL
+    else if(rk == dp) then
+       MPIRKS = MPI_DOUBLE_PRECISION
     end if
 
-    MPISP=MPI_REAL
+    MPISP = MPI_REAL
 
     ! Complex
-    if(cks==sp) then
-       MPICKS=MPI_COMPLEX
-    else if(cks==dp) then
-       MPICKS=MPI_DOUBLE_COMPLEX
+    if(cks == sp) then
+       MPICKS = MPI_COMPLEX
+    else if(cks == dp) then
+       MPICKS = MPI_DOUBLE_COMPLEX
     end if
 
     return
@@ -398,7 +410,7 @@ contains
     call set_mpi_types
 
     ! Initialize
-    if(nt==1) then
+    if(nt == 1) then
        ! Single-threaded
        call mpi_init(mpierr)
     else

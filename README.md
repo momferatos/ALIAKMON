@@ -38,14 +38,14 @@ export ARCH=haswell
 
 2) Build FFTW 3.3.9:
 
-CFLAGS="-fast -fastsse -tp=$ARCH o-Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --prefix=$LIBS --enable-single --enable-parallel --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
+CFLAGS="-fast -fastsse -tp=$ARCH -Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-parallel --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
 make
 make check
 make install
 
 3) Build HDF5 1.12.0
 
-CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --prefix=$LIBS --enable-unsupported --prefix=$LIBSROOT/hdf5
+CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --enable-unsupported --prefix=$LIBSROOT/hdf5
 make
 make test
 make install
