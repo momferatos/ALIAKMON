@@ -38,7 +38,7 @@ export ARCH=haswell
 
 2) Build FFTW 3.3.9:
 
-CFLAGS="-fast -fastsse -tp=$ARCH -Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-parallel --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
+CFLAGS="-fast -fastsse -tp=$ARCH -Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-mpi --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
 make
 make check
 make install
