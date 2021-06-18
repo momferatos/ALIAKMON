@@ -1,9 +1,9 @@
 #!/bin/bash
-export BACKEND='fftw'
+export BACKEND='mkl'
 export LIBSROOT='/home/giorgos/libs'
 export ACCELFLAGS=''
 export CUDALDFLAGS=''
-export MKLFLAGS=''
-export MKLLDFLAGS=''
+export MKLFLAGS='-Mmkl -D _MKL_'
+export MKLLDFLAGS='-lhefftemklfortran'
 # put '-D _DOUBLE_' here to build with double precision floats
 export PRECISION=''

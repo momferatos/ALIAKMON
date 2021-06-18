@@ -13,6 +13,8 @@ module fft_heffte
   use mpivars
 #ifdef _CUFFT_
   use heffte_cufft
+#elif defined _MKL_
+  use heffte_mkl
 #else
   use heffte_fftw
 #endif
@@ -42,6 +44,8 @@ module fft_heffte
   
 #ifdef _CUFFT_
   type(heffte_fft3d_r2c_cufft) :: fft
+#elif defined _MKL_
+  type(heffte_fft3d_r2c_mkl) :: fft
 #else
   type(heffte_fft3d_r2c_fftw) :: fft
 #endif
@@ -112,6 +116,10 @@ contains
 
 #ifdef _CUFFT_
     fft = heffte_fft3d_r2c_cufft(il1,il2,il3,ih1,ih2,ih3,&
+         &ol1,ol2,ol3,oh1,oh2,oh3&
+         &,r2c_direction,MPI_COMM_WORLD)
+#elif defined _MKL_
+    fft = heffte_fft3d_r2c_mkl(il1,il2,il3,ih1,ih2,ih3,&
          &ol1,ol2,ol3,oh1,oh2,oh3&
          &,r2c_direction,MPI_COMM_WORLD)
 #else
@@ -190,6 +198,8 @@ contains
           call fft%forward(input,output,work, scale_cufft_none)
           !$acc end host_data
           !$acc update host(output(1:size_out))
+#elif defined _MKL_
+          call fft%forward(input,output,work, scale_mkl_none)
 #else
           call fft%forward(input,output,work, scale_fftw_none)
 #endif
@@ -222,6 +232,8 @@ contains
           call fft%backward(output, input, work, scale_cufft_full)
           !$acc end host_data
           !$acc update host(input(1:size_in))
+#elif defined _MKL_
+          call fft%backward(output, input, work, scale_mkl_full)
 #else
           call fft%backward(output,input,work, scale_fftw_full)
 #endif

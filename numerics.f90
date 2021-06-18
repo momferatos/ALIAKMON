@@ -2102,11 +2102,7 @@ contains
   subroutine fourier(nn,dir,u,nfs,nfe,trunc)
     use mpivars
 #ifdef _MPI_
-#ifdef _MKL_
-    use fft_fftw
-#else
     use fft_heffte
-#endif
     use mpivars
 #endif
     implicit none
@@ -2132,11 +2128,7 @@ contains
     if(dir==-1.and.tr) call truncate(nn,u,nnfs,nnfe)
 
 #ifdef _MPI_
-#ifdef _MKL_
-    call fft_fftw_fourier(nn,dir,u,nnfs,nnfe)
-#else
     call fft_heffte_fourier(nn,dir,u,nnfs,nnfe)
-#endif
 #endif
 
     return
