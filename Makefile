@@ -26,7 +26,7 @@ LIB= -L $(FFTWROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(CUDAROOT)/l
 
 LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran $(CUDALDFLAGS) $(MKLLDFLAGS) -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads
 
-OBJS=parameters.o data.o hdf5.o heffte_init.o fft_heffte.o vtk.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o	
+OBJS=parameters.o data.o hdf5.o heffte_init.o fft_heffte.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o	
 
 all: aliakmon
 

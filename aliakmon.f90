@@ -649,65 +649,64 @@ contains
   end subroutine post_processing_mode
 
   subroutine output_slices(nfile, time)
-    use vtk
+    use hdf5_aliakmon
     implicit none
     integer(ik), intent(IN) :: nfile
     real(rk), intent(IN)    :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(len=1024)     :: fname, comment
     integer(ik) :: l
-    character(len=64), dimension(:), allocatable :: keys
-    allocate(keys(nu1:nu3+nscl))
+    character(len=64), dimension(:), allocatable :: datanames
+    
 
-    keys(nu1)='w'
-    keys(nu2)='e'
-    keys(nu3)='Q2'
-    if(PASSIVE_SCALAR) then
-       do l=nsclf,nscll
-          write(keys(l),'(a,i0)') 'sg_', l-nsclf+1
-       end do
-    end if
+    nfields = 2
+    allocate(datanames(1:nfields))
+    if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
+    
+    datanames(nu1)='/w'
+    datanames(nu2)='/e'
+!!$    datanames(nu3)='/Q2'
+!!$    if(PASSIVE_SCALAR) then
+!!$       do l=nsclf,nscll
+!!$          write(datanames(l),'(a,i0)') '/sg_', l-nsclf+1
+!!$       end do
+!!$    end if
 
     call dissipation(nn,scratch,nu1,fu)
     call curl(nn,rmsarr,fu,nu1)
     call fourier(nn,-1_ik,rmsarr,nfs=nu1,nfe=nu3)
-    if(PASSIVE_SCALAR) then
-       call gradient(nn,fsclgrads,fu)
-       do l=1,3
-          fsclgrad=>fsclgrads(:,:,:,:,l)
-          call fourier(nn,-1_ik,fsclgrad)
-       end do
-       !$omp parallel do
-       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
-               &fsclgrads(i,j,k,l,1)**2)
-       end do; end do ; end do ; end do
-       !$omp end parallel do
-    end if
-    write(fname,'(a,i5.5,a)') 'slice-', nfile, '.vtk'
-    write(comment, '(a,f20.5)') 'vorticity magnitude at t = ', time
+!!$    if(PASSIVE_SCALAR) then
+!!$       call gradient(nn,fsclgrads,fu)
+!!$       do l=1,3
+!!$          fsclgrad=>fsclgrads(:,:,:,:,l)
+!!$          call fourier(nn,-1_ik,fsclgrad)
+!!$       end do
+!!$       !$omp parallel do
+!!$       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
+!!$               &fsclgrads(i,j,k,l,1)**2)
+!!$       end do; end do ; end do ; end do
+!!$       !$omp end parallel do
+!!$    end if
+    write(fname,'(a,i5.5,a)') 'slice-', nfile, '.h5'
+
+    i=1
     !$omp parallel do
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       u(i,j,k,nu1) = sqrt(rmsarr(i,j,k,nu1)**2 + rmsarr(i,j,k,nu2)**2 + rmsarr(i,j,k,nu3)**2)
-       u(i,j,k,nu2) = scratch(i,j,k,nu1)
-       u(i,j,k,nu3) = 0.0_rk
-    end do; end do ; end do
+    do k=1,nn(3) ; do j=1,nn(2) 
+       slice(1,j,k) = sqrt(rmsarr(i,j,k,nu1)**2 + &
+            &rmsarr(i,j,k,nu2)**2 + rmsarr(i,j,k,nu3)**2)
+       slice(2,j,k) = scratch(i,j,k,nu1)
+    end do; end do
     !$omp end parallel do
-#ifdef _MPI_
-    call mpi_barrier(MPI_COMM_WORLD,mpierr)
-#endif
-    if(mpirank == MPIROOT) call output_scalar_vtk_2d_file(nn, u, &
-         &trim(fname), time, keys)
-#ifdef _MPI_
-    call mpi_barrier(MPI_COMM_WORLD,mpierr)
-#endif
+
+    call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)    
 
     call zero(nn,u)
     call zero(nn,rmsarr)
     call zero(nn,scratch)
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
 
-    deallocate(keys)
+    deallocate(datanames)
 
     return
   end subroutine output_slices

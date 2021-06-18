@@ -13,7 +13,7 @@
 !
 
 &general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=320		! number of collocation points in each axis
+n=256,		! number of collocation points in each axis
 		! should be a power of two for maximum performance
 		! a scaling study on ARIS could consider n=64,128,256,512 and
 		! perhaps 1024

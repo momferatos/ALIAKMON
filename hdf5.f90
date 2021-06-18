@@ -21,7 +21,8 @@ module hdf5_aliakmon
   interface write_hdf5_file
      module procedure write_hdf5_compute_file
      module procedure write_hdf5_pp_file
-  end interface
+     module procedure write_hdf5_slice_file
+  end interface write_hdf5_file
 
 
   integer(HID_T) :: file_id       ! File identifier 
@@ -41,11 +42,12 @@ module hdf5_aliakmon
 
   integer :: error, error_n  ! Error flags
 
+  real(rks), dimension(:,:), allocatable :: h5_slice_data
   real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
   real(rks), dimension(:,:,:,:), allocatable :: h5_vector_data
 
 contains
-  
+
   subroutine write_hdf5_vector_dataset(dataset_name, dataset, nn)
     implicit none
     integer(ik), dimension(1:4), intent(in)   :: nn          
@@ -53,7 +55,7 @@ contains
     real(rks), dimension(1:3,1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: dataset
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     rank = 4
-    
+
     dimsf(1) = 3
     dimsf(2) = nn(1)
     dimsf(3) = gn2
@@ -63,13 +65,13 @@ contains
     icount(2) = nn(1)
     icount(3) = nn(2)
     icount(4) = nn(3)
-    
+
     offset(1) = 0
     offset(2) = 0
     offset(3) = ljstart-1
     offset(4) = lkstart-1
 
-    
+
     !
     ! Create the data space for the  dataset. 
     !
@@ -160,15 +162,15 @@ contains
     dimsf(1)=nn(1)
     dimsf(2)=gn2
     dimsf(3)=gn3
-    
+
     icount(1) = dimsf(1)
     icount(2) = nn(2)
     icount(3) = nn(3)
-    
+
     offset(1) = 0
     offset(2) = ljstart-1
     offset(3) = lkstart-1
-    
+
 
     !
     ! Create the data space for the  dataset. 
@@ -250,6 +252,104 @@ contains
 
   end subroutine write_hdf5_scalar_dataset
 
+  subroutine write_hdf5_slice_dataset(dataset_name, dataset, nn)
+    implicit none
+    integer(ik), dimension(1:4), intent(in)   :: nn          
+    character(len=*), intent(IN)            :: dataset_name
+    real(rks), dimension(1:nn(2),1:nn(3)), intent(IN) :: dataset
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    rank = 2
+    dimsf(1)=gn2
+    dimsf(2)=gn3
+    
+    icount(1) = nn(2)
+    icount(2) = nn(3)
+
+    offset(1) = ljstart-1
+    offset(2) = lkstart-1
+
+
+    !
+    ! Create the data space for the  dataset. 
+    !
+    call h5screate_simple_f(rank, dimsf, filespace, error)
+
+    !
+    ! Create the dataset with default properties.
+    !
+
+    if(rks==sp) then
+       call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_REAL, filespace, &
+            dset_id, error)
+    else
+       call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_DOUBLE, filespace, &
+            dset_id, error)
+    end if
+#ifdef _MPI_
+    call h5sclose_f(filespace, error)
+    !
+    ! Each process defines dataset in memory and writes it to the hyperslab
+    ! in the file. 
+    !
+
+    call h5screate_simple_f(rank, icount, memspace, error) 
+    ! 
+    ! Select hyperslab in the file.
+    !
+    call h5dget_space_f(dset_id, filespace, error)
+    call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+         &icount, error)
+
+    !
+    ! Create property list for collective dataset write
+    !
+    call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, error) 
+    call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, error)
+
+    !
+    ! Write the dataset collectively. 
+    !
+    if(rks==sp) then
+       call h5dwrite_f(dset_id, H5T_NATIVE_REAL, dataset, dimsfi, error, &
+            file_space_id = filespace, mem_space_id = memspace, &
+            &xfer_prp = plist_id)
+    else
+       call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, dataset, dimsfi, error, &
+            file_space_id = filespace, mem_space_id = memspace, &
+            &xfer_prp = plist_id)
+    end if
+
+    !
+    ! Close dataspaces.
+    !
+    call h5sclose_f(filespace, error)
+    call h5sclose_f(memspace, error)
+
+#else
+    if(rks==sp) then
+       call h5dwrite_f(dset_id, H5T_NATIVE_REAL, dataset, dimsfi, error)
+    else
+       call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, dataset, dimsfi, error)
+    end if
+#endif
+    !
+    ! Write the dataset independently. 
+    !
+    !    CALL h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, data, dimsfi, error, &
+    !                     file_space_id = filespace, mem_space_id = memspace)
+    !
+
+
+    !
+    ! Close the dataset
+    !
+    call h5dclose_f(dset_id, error)
+
+    return
+
+  end subroutine write_hdf5_slice_dataset
+
   subroutine write_hdf5_compute_file(nn,u,time,nfile)
     implicit none
     integer(ik), intent(IN), dimension(1:4)                  :: nn
@@ -265,7 +365,7 @@ contains
     integer(ik)                     :: ndatanames
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
-    
+
 !!$    dimsf(1)=nn(1)
 !!$    dimsf(2)=gn2
 !!$    dimsf(3)=gn3
@@ -296,7 +396,7 @@ contains
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
     allocate(h5_vector_data(1:3,1:nn(1),1:nn(2),1:nn(3)))
 
-    
+
     !$omp parallel do
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        h5_vector_data(l,i,j,k)=u(i,j,k,l)
@@ -340,7 +440,7 @@ contains
     !
     call h5close_f(error)
 
-    
+
     ndatanames=1
     datanames(1)='u'
     data_is_vector(1)=.true.
@@ -361,6 +461,84 @@ contains
     return
 
   end subroutine write_hdf5_compute_file
+
+  subroutine write_hdf5_slice_file(nn,nfields,slice,datanames,time,nfile)
+    implicit none
+    integer(ik), intent(IN), dimension(1:4)                :: nn
+    integer(ik), intent(IN)                                :: nfields
+    real(rks), dimension(1:nfields,1:nn(2), 1:nn(3)), intent(IN) :: slice
+    character(len=64), dimension(1:nfields) :: datanames
+    real(rk), intent(IN)                                   :: time
+    integer(ik), intent(IN)                                :: nfile
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Writes HDF5 file in parallel !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    character(LEN=256)              :: filename ! File name
+    integer(ik) :: i,j,k,l
+    integer(ik) :: nf
+
+    write(filename,'(a,i6.6,a)') 'slice.',nfile,'.h5'
+
+
+    !
+    ! Initialize FORTRAN predefined datatypes
+    !
+    call h5open_f(error) 
+
+#ifdef _MPI_
+    ! 
+    ! Setup file access property list with parallel I/O access.
+    !
+    call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, error)
+    call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL, error)
+#endif
+
+    !
+    ! Create the file collectively.
+    ! 
+    call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, error,&
+         & access_prp = plist_id)
+    call h5pclose_f(plist_id, error)
+
+    allocate(h5_slice_data(1:nn(2),1:nn(3)))
+
+    do nf=1,nfields
+
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2)
+          h5_slice_data(j,k) = slice(nf,j,k)
+       end do; end do
+       !$omp end parallel do
+
+       call write_hdf5_slice_dataset(trim(datanames(nf)),h5_slice_data,nn)
+
+
+    end do
+
+
+
+    ! Deallocate data buffer.
+    !
+    deallocate(h5_slice_data)
+
+    call h5pclose_f(plist_id, error)
+
+    !
+    ! Close the file.
+    !
+    call h5fclose_f(file_id, error)
+
+    !
+    ! Close FORTRAN predefined datatypes.
+    !
+    call h5close_f(error)
+
+    if(mpirank==mpiroot) call write_xdmf_slice_file(nn(1),nn(2),nfields,&
+        &datanames,filename,nfile)
+
+    return
+
+  end subroutine write_hdf5_slice_file
 
   subroutine write_xdmf_file(n1,n2,ndatanames,datanames,&
        &data_is_vector,h5filename,nfile)
@@ -433,6 +611,63 @@ contains
 
   end subroutine write_xdmf_file
 
+  subroutine write_xdmf_slice_file(n1,n2,ndatanames,datanames,h5filename,nfile)
+    use types
+    implicit none
+    integer(ik), intent(IN)          :: n1, n2
+    integer(ik), intent(IN)          :: ndatanames
+    character(len=*), dimension(:)   :: datanames
+    character(len=*)                 :: h5filename
+    integer(ik), intent(IN),optional :: nfile
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !writes xdmf file corresponding to hdf5 file!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    character(LEN=256)     :: xdmf_filename ! File name
+    integer(ik)            :: xdmf_file
+    integer(ik)            :: i
+
+
+    write(xdmf_filename,'(a,i6.6,a)') 'slice.',nfile,'.xmf'
+
+
+    open(newunit=xdmf_file,file=trim(xdmf_filename),form='formatted')
+
+    write(xdmf_file,'(a)') '<?xml version="1.0" encoding="utf-8"?>'
+    write(xdmf_file,'(a)') '<Xdmf xmlns:xi="http://www.w3.org/2001/XInclude" &
+         &Version="3.0">'
+    write(xdmf_file,'(a)') '  <Domain>'
+    write(xdmf_file,'(a)') '    <Grid Name="Grid">'
+    write(xdmf_file,'(a)') '      <Geometry Origin="" Type="ORIGIN_DXDYDZ">'
+    write(xdmf_file,'(a)') '        <DataItem DataType="Float" &
+         &Dimensions="3"            Format="XML"'
+    write(xdmf_file,'(a)') '		  Precision="8">0 0 0</DataItem>'
+    write(xdmf_file,'(a)') '        <DataItem DataType="Float" &
+         &Dimensions="3"            Format="XML"'
+    write(xdmf_file,'(a)') '		  Precision="8">1 1 1</DataItem>'
+    write(xdmf_file,'(a)') '      </Geometry>'
+    write(xdmf_file,'(a,3i6,a)') '      <Topology NumberOfElements="',1,gn2,gn3,'" &
+         &Type="3DRectMesh"/>'
+    do i=1,ndatanames
+
+       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
+            &trim(datanames(i)),'"             Type="Scalar">'
+       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
+            &Precision="',rks,'" Dimensions="'&
+            &,1,gn2,gn3, '"'
+       write(xdmf_file,'(5a)') &
+            &'            		  Format="HDF">',&
+            &trim(h5filename),':/',trim(datanames(i)),'</DataItem>'
+       write(xdmf_file,'(a)') '      </Attribute>'
+
+    end do
+    write(xdmf_file,'(a)') '    </Grid>'
+    write(xdmf_file,'(a)') '  </Domain>'
+    write(xdmf_file,'(a)') '</Xdmf>'
+
+    close(xdmf_file,status='keep')
+
+  end subroutine write_xdmf_slice_file
+
   subroutine write_hdf5_pp_file(nn,u,u2,filename)
     implicit none
     integer(ik), dimension(1:4), intent(IN)                        :: nn
@@ -446,7 +681,7 @@ contains
     integer(ik)                     :: ndatanames
     real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
     integer(ik) :: i,j,k
-    
+
     dimsf(1)=nn(1)
     dimsf(2)=gn2
     dimsf(3)=gn3
@@ -835,7 +1070,7 @@ contains
       call h5dget_space_f(dset_id, filespace, error)
       call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
-      
+
       !
       ! Create property list for collective dataset write
       !
@@ -908,14 +1143,14 @@ contains
       ! Each process defines dataset in memory and writes it to the hyperslab
       ! in the file. 
       !
-      
+
       rank = 4
-      
+
       icount(1) = 3
       icount(2) = nn(1)
       icount(3) = nn(2)
       icount(4) = nn(3)
-      
+
       offset(1) = 0
       offset(2) = 0
       offset(3) = ljstart-1
@@ -927,7 +1162,7 @@ contains
       !
       call h5dget_space_f(dset_id, filespace, error)
 
-      
+
       call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
 

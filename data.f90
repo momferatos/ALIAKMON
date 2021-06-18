@@ -40,6 +40,8 @@ module data
   ! auxiliary arrays for the passive scalar gradients
   real(rks), dimension(:,:,:,:,:), allocatable, target  :: fsclgrads
   real(rks), dimension(:,:,:,:), pointer        :: fsclgrad
+  ! auxiliary array for slice HDF5 output
+  real(rks), dimension(:, :, :), allocatable    :: slice
   ! wavevector arrays
   integer(ik),  dimension(:), allocatable     :: k1, k2, k3,trk1, trk2, trk3,&
        & gk2, trgk2, gk3,trgk3

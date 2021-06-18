@@ -1,4 +1,5 @@
-replace VTK slices with HDF5 slices
+merge multiple Xdmf files
+add Q2
 write time in hdf5 files
 MHD:
 - fix DEALIASING=1
