@@ -122,6 +122,7 @@ INPUT_FIELD_FILENAME='output.888888.h5',	! Name of input field file
 NFILESTART=0,					! Number of first output file
 hdf5frate=1.0,					! Framerate of output HDF5 files
 slicefrate=5.0,					! Framerate of output VTK slices
+COMPRESSION_LEVEL=5,				! HDF5 gzip compressio level (0-9)
 &end
 
 

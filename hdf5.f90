@@ -29,19 +29,28 @@ module hdf5_aliakmon
   integer(HID_T) :: dset_id       ! Dataset identifier 
   integer(HID_T) :: filespace     ! Dataspace identifier in file 
   integer(HID_T) :: memspace      ! Dataspace identifier in memory
-  integer(HID_T) :: plist_id      ! Property list identifier 
-
+  integer(HID_T) :: plist_id      ! Property list identifier
+  integer(HID_T) :: dcpl
+  
 
   integer(HSIZE_T), dimension(1:4) :: dimsf ! Dataset dimensions.
   !     INTEGER, DIMENSION(7) :: dimsfi = (/5,8,0,0,0,0,0/)
   integer(HSIZE_T), dimension(1:4) :: dimsfi 
 
   integer(HSIZE_T), dimension(1:4) :: icount  
-  integer(HSIZE_T), dimension(1:4) :: offset 
+  integer(HSIZE_T), dimension(1:4) :: offset
+  
   integer :: rank ! Dataset rank 
 
   integer :: error, error_n  ! Error flags
 
+  logical :: gzip_avail
+  integer :: filter_info, filter_info_both
+
+  integer(HSIZE_T), dimension(4) :: vecchunk = [3, 32, 32, 32]
+  integer(HSIZE_T), dimension(3) :: sclchunk = [32, 32, 32]
+  integer(HSIZE_T), dimension(2) :: slicechunk = [8, 8]
+  
   real(rks), dimension(:,:), allocatable :: h5_slice_data
   real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
   real(rks), dimension(:,:,:,:), allocatable :: h5_vector_data
@@ -71,23 +80,30 @@ contains
     offset(3) = ljstart-1
     offset(4) = lkstart-1
 
+    
 
     !
     ! Create the data space for the  dataset. 
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
+    if(gzip_avail) then
+       call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
+       call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
+       call h5pset_chunk_f(dcpl, rank, vecchunk, error)
+    end if
     !
     ! Create the dataset with default properties.
     !
 
     if(rks==sp) then
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_REAL, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     else
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_DOUBLE, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     end if
+    
 #ifdef _MPI_
     call h5sclose_f(filespace, error)
     !
@@ -177,16 +193,22 @@ contains
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
+    if(gzip_avail) then
+       call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
+       call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
+       call h5pset_chunk_f(dcpl, rank, sclchunk, error)
+    end if
+       
     !
     ! Create the dataset with default properties.
     !
 
     if(rks==sp) then
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_REAL, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     else
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_DOUBLE, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     end if
 #ifdef _MPI_
     call h5sclose_f(filespace, error)
@@ -262,7 +284,7 @@ contains
     rank = 2
     dimsf(1)=gn2
     dimsf(2)=gn3
-    
+
     icount(1) = nn(2)
     icount(2) = nn(3)
 
@@ -275,16 +297,23 @@ contains
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
+    if(gzip_avail) then
+       call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
+       call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
+       call h5pset_chunk_f(dcpl, rank, slicechunk, error)
+    end if
+
+
     !
     ! Create the dataset with default properties.
     !
 
     if(rks==sp) then
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_REAL, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     else
        call h5dcreate_f(file_id, dataset_name, H5T_NATIVE_DOUBLE, filespace, &
-            dset_id, error)
+            dset_id, error, dcpl_id=dcpl)
     end if
 #ifdef _MPI_
     call h5sclose_f(filespace, error)
@@ -377,7 +406,15 @@ contains
     ! Initialize FORTRAN predefined datatypes
     !
     call h5open_f(error) 
+    call h5zfilter_avail_f(H5Z_FILTER_DEFLATE_F, gzip_avail, error)
 
+    if(gzip_avail) then
+       call h5zget_filter_info_f(H5Z_FILTER_DEFLATE_F, filter_info, error)
+       filter_info_both=ior(H5Z_FILTER_ENCODE_ENABLED_F,&
+            &H5Z_FILTER_DECODE_ENABLED_F)
+       if(filter_info .ne. filter_info_both) gzip_avail = .false.
+    end if
+    
 #ifdef _MPI_
     ! 
     ! Setup file access property list with parallel I/O access.
@@ -956,7 +993,17 @@ contains
     !
     ! Initialize FORTRAN predefined datatypes
     !
-    call h5open_f(error) 
+    call h5open_f(error)
+
+    call h5zfilter_avail_f(H5Z_FILTER_DEFLATE_F, gzip_avail, error)
+
+    if(gzip_avail) then
+       call h5zget_filter_info_f(H5Z_FILTER_DEFLATE_F, filter_info, error)
+       filter_info_both=ior(H5Z_FILTER_ENCODE_ENABLED_F,&
+            &H5Z_FILTER_DECODE_ENABLED_F)
+       if(filter_info .ne. filter_info_both) gzip_avail = .false.
+    end if
+    
 #ifdef _MPI_
     ! 
     ! Setup file access property list with parallel I/O access.
@@ -1135,15 +1182,6 @@ contains
       ! Create the dataset with default properties.
       !
 
-      call h5dopen_f(file_id, dataset_name, &
-           dset_id, error)
-
-#ifdef _MPI_
-      !
-      ! Each process defines dataset in memory and writes it to the hyperslab
-      ! in the file. 
-      !
-
       rank = 4
 
       icount(1) = 3
@@ -1155,8 +1193,24 @@ contains
       offset(2) = 0
       offset(3) = ljstart-1
       offset(4) = lkstart-1
+      
+      
+      call h5dopen_f(file_id, dataset_name, &
+           dset_id, error)
 
-      call h5screate_simple_f(rank, icount, memspace, error) 
+
+
+#ifdef _MPI_
+      !
+      ! Each process defines dataset in memory and writes it to the hyperslab
+      ! in the file. 
+      !
+
+
+
+      call h5screate_simple_f(rank, icount, memspace, error)
+
+
       ! 
       ! Select hyperslab in the file.
       !
@@ -1169,7 +1223,8 @@ contains
       !
       ! Create property list for collective dataset write
       !
-      call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, error) 
+      call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, error)
+      call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
       call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, error)
 
       !

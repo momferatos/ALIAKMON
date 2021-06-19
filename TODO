@@ -1,3 +1,6 @@
+HDF5
+  Add schuffle filter
+  Add error correction filter
 merge multiple Xdmf files
 add Q2
 write time in hdf5 files

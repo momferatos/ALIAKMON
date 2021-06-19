@@ -277,6 +277,8 @@ module parameters
   real(rk)               :: hdf5frate
   ! Frame rate of VTK slice output
   real(rk)               :: slicefrate
+  ! HDF5 gzip Compression level
+  integer                :: COMPRESSION_LEVEL = 0
   ! Maximum vorticity, maximum current density, maximum Lorentz force
   real(rk)               :: MAXVORT, MAXJ, MAXLF, MAXVEL, MAXB
   ! Maximum passive scalar gradient
