@@ -21,6 +21,7 @@ extern "C" void heffte_init_pencils(long n1, long n2, long n3,
 			      int *ol1, int *ol2, int *ol3,
 			      int *oh1, int *oh2, int *oh3);
 
+void num_of_pencils(int mpi_size, int *pencils_y, int *pencils_z);
 
 void heffte_init_slabs(long n1, long n2, long n3,
 			 int slice_direction, int r2c_direction,
@@ -116,11 +117,11 @@ void heffte_init_pencils(long n1, long n2, long n3,
   std::array< int, 3 > const order = {0, 1, 2};
   std::array<int, 3> proc_grid_tmp;
   std::array<int, 2> proc_grid;
-  int sqr_mpi_size = int(floor(sqrt(float(num_ranks))));
-  int pencils_y = sqr_mpi_size;
-  int pencils_z = num_ranks / sqr_mpi_size;
-  if(pencils_y * pencils_z != num_ranks) pencils_y += 1;
-  assert(pencils_y * pencils_z == num_ranks);
+  
+  int pencils_y;
+  int pencils_z;
+  num_of_pencils(num_ranks, &pencils_y, &pencils_z);
+  
   proc_grid[0] = pencils_y;
   proc_grid[1] = pencils_z;
   proc_grid_tmp[0] = 1;
@@ -171,3 +172,49 @@ void heffte_init_pencils(long n1, long n2, long n3,
     
 }
 
+void num_of_pencils(int mpi_size, int *pencils_y, int *pencils_z) {
+  int n, m, nfacs, sqrt_mpi_size;
+  int *facs;
+  
+  nfacs=0;
+  n = 2;
+  m = mpi_size;
+  while(m != 1)  {
+    if(m % n == 0) {
+      nfacs++;
+      m /= n;
+    } else
+      n++;
+  }
+  
+  facs = (int *)calloc(nfacs, sizeof(int));
+
+  nfacs=0;
+  n = 2;
+  m = mpi_size;
+  while(m != 1)  {
+    if(m % n == 0) {
+      facs[nfacs++] = n;
+      m /= n;
+    } else
+      n++;
+  }
+
+  sqrt_mpi_size = int(floor(sqrt(float(num_ranks))));
+  
+  *pencils_y = 1;
+  for(n = 0; n < nfacs; n++) {
+    *pencils_y *= facs[n];
+    if(*pencils_y >= sqrt_mpi_size) break;
+  }
+
+  *pencils_z = mpi_size / *pencils_y;
+
+  assert(*pencils_y * *pencils_z == mpi_size);
+
+  if(*pencils_y != 1 && *pencils_z != 1) 
+    if(me == 0) printf("Using pencil FFT decomposition: %d x %d.\n", *pencils_y,
+	   *pencils_z);  
+  
+  return;
+}
