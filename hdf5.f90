@@ -25,20 +25,20 @@ module hdf5_aliakmon
   end interface write_hdf5_file
 
 
-  integer(HID_T) :: file_id       ! File identifier 
-  integer(HID_T) :: dset_id       ! Dataset identifier 
-  integer(HID_T) :: filespace     ! Dataspace identifier in file 
-  integer(HID_T) :: memspace      ! Dataspace identifier in memory
-  integer(HID_T) :: plist_id      ! Property list identifier
-  integer(HID_T) :: dcpl
+  integer(hid_t) :: file_id       ! File identifier 
+  integer(hid_t) :: dset_id       ! Dataset identifier 
+  integer(hid_t) :: filespace     ! Dataspace identifier in file 
+  integer(hid_t) :: memspace      ! Dataspace identifier in memory
+  integer(hid_t) :: plist_id      ! Property list identifier
+  integer(hid_t) :: dcpl
   
 
-  integer(HSIZE_T), dimension(1:4) :: dimsf ! Dataset dimensions.
+  integer(hsize_t), dimension(1:4) :: dimsf ! Dataset dimensions.
   !     INTEGER, DIMENSION(7) :: dimsfi = (/5,8,0,0,0,0,0/)
-  integer(HSIZE_T), dimension(1:4) :: dimsfi 
+  integer(hsize_t), dimension(1:4) :: dimsfi 
 
-  integer(HSIZE_T), dimension(1:4) :: icount  
-  integer(HSIZE_T), dimension(1:4) :: offset
+  integer(hsize_t), dimension(1:4) :: icount  
+  integer(hsize_t), dimension(1:4) :: offset
   
   integer :: rank ! Dataset rank 
 
@@ -47,9 +47,9 @@ module hdf5_aliakmon
   logical :: gzip_avail
   integer :: filter_info, filter_info_both
 
-  integer(HSIZE_T), dimension(4) :: vecchunk = [3, 32, 32, 32]
-  integer(HSIZE_T), dimension(3) :: sclchunk = [32, 32, 32]
-  integer(HSIZE_T), dimension(2) :: slicechunk = [8, 8]
+  integer(hsize_t), dimension(4) :: vecchunk = [3, 32, 32, 32]
+  integer(hsize_t), dimension(3) :: sclchunk = [32, 32, 32]
+  integer(hsize_t), dimension(2) :: slicechunk = [8, 8]
   
   real(rks), dimension(:,:), allocatable :: h5_slice_data
   real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
@@ -115,7 +115,7 @@ contains
     ! Select hyperslab in the file.
     !
     call h5dget_space_f(dset_id, filespace, error)
-    call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+    call h5sselect_hyperslab_f(filespace, H5S_SELECT_SET_F, offset, &
          &icount, error)
 
     !
@@ -222,7 +222,7 @@ contains
     ! Select hyperslab in the file.
     !
     call h5dget_space_f(dset_id, filespace, error)
-    call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+    call h5sselect_hyperslab_f(filespace, H5S_SELECT_SET_F, offset, &
          &icount, error)
 
     !
@@ -327,7 +327,7 @@ contains
     ! Select hyperslab in the file.
     !
     call h5dget_space_f(dset_id, filespace, error)
-    call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+    call h5sselect_hyperslab_f(filespace, H5S_SELECT_SET_F, offset, &
          &icount, error)
 
     !
@@ -964,19 +964,19 @@ contains
     ! Writes HDF5 file in parallel !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i,j,k,l
-    integer(HID_T) :: file_id       ! File identifier 
-    integer(HID_T) :: dset_id       ! Dataset identifier 
-    integer(HID_T) :: filespace     ! Dataspace identifier in file 
-    integer(HID_T) :: memspace      ! Dataspace identifier in memory
-    integer(HID_T) :: plist_id      ! Property list identifier 
+    integer(hid_t) :: file_id       ! File identifier 
+    integer(hid_t) :: dset_id       ! Dataset identifier 
+    integer(hid_t) :: filespace     ! Dataspace identifier in file 
+    integer(hid_t) :: memspace      ! Dataspace identifier in memory
+    integer(hid_t) :: plist_id      ! Property list identifier 
 
 
-    integer(HSIZE_T), dimension(1:4) :: dimsf ! Dataset dimensions.
+    integer(hsize_t), dimension(1:4) :: dimsf ! Dataset dimensions.
     !     INTEGER, DIMENSION(7) :: dimsfi = (/5,8,0,0,0,0,0/)
-    integer(HSIZE_T), dimension(1:4) :: dimsfi 
+    integer(hsize_t), dimension(1:4) :: dimsfi 
 
-    integer(HSIZE_T), dimension(1:4) :: icount  
-    integer(HSIZE_T), dimension(1:4) :: offset 
+    integer(hsize_t), dimension(1:4) :: icount  
+    integer(hsize_t), dimension(1:4) :: offset 
     integer :: rank ! Dataset rank 
 
     integer :: error  ! Error flags
@@ -1115,7 +1115,7 @@ contains
       ! Select hyperslab in the file.
       !
       call h5dget_space_f(dset_id, filespace, error)
-      call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+      call h5sselect_hyperslab_f(filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
 
       !
@@ -1217,7 +1217,7 @@ contains
       call h5dget_space_f(dset_id, filespace, error)
 
 
-      call h5sselect_hyperslab_f (filespace, H5S_SELECT_SET_F, offset, &
+      call h5sselect_hyperslab_f(filespace, H5S_SELECT_SET_F, offset, &
            &icount, error)
 
       !
