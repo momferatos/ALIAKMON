@@ -25,21 +25,21 @@ module fft_heffte
   !
   ! Heffte wrapper
   !
-#ifdef _DOUBLE_
+!#ifdef _DOUBLE_
   real(c_double), dimension(:), allocatable, target :: input
   complex(c_double_complex), dimension(:), allocatable, target :: output
   complex(c_double_complex), dimension(:), allocatable :: work
-  !$acc declare present(input, output, work) 
+  !$acc declare deviceptr(input, output, work) 
   real(c_double), dimension(:,:,:), pointer :: r_array
   complex(c_double_complex), dimension(:,:,:), pointer :: c_array
-#else
-  real(c_float), dimension(:), allocatable, target :: input
-  complex(c_float_complex), dimension(:), allocatable, target :: output
-  complex(c_float_complex), dimension(:), allocatable :: work
-  !$acc declare present(input, output, work) 
-  real(c_float), dimension(:,:,:), pointer :: r_array
-  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
-#endif
+!!$#else
+!!$  real(c_float), dimension(:), allocatable, target :: input
+!!$  complex(c_float_complex), dimension(:), allocatable, target :: output
+!!$  complex(c_float_complex), dimension(:), allocatable :: work
+!!$  !$acc declare deviceptr(input, output, work) 
+!!$  real(c_float), dimension(:,:,:), pointer :: r_array
+!!$  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
+!!$#endif
   integer(c_long) :: size_in, size_out, size_work
   
 #ifdef _CUFFT_
@@ -92,6 +92,7 @@ contains
     slice_direction=2
     pencil_direction = 0
 
+    
     select case(FFT_DECOMPOSITION)
     case(SLABS)
        call heffte_init_slabs(&
@@ -109,19 +110,16 @@ contains
     ljsize = ih2 - il2 + 1
     lkstart = il3
     lksize = ih3 - il3 + 1
-
 #ifdef _CUFFT_
-    fft = heffte_fft3d_r2c_cufft(il1,il2,il3,ih1,ih2,ih3,&
-         &ol1,ol2,ol3,oh1,oh2,oh3&
-         &,r2c_direction,MPI_COMM_WORLD)
+       fft = heffte_fft3d_r2c_cufft(il1, il2, il3, ih1, ih2, &
+            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+            &r2c_direction, MPI_COMM_WORLD, &
+            &.false., .true., .true.)
 #elif defined _MKL_
-    fft = heffte_fft3d_r2c_mkl(il1,il2,il3,ih1,ih2,ih3,&
-         &ol1,ol2,ol3,oh1,oh2,oh3&
-         &,r2c_direction,MPI_COMM_WORLD)
-#else
-    fft = heffte_fft3d_r2c_fftw(il1,il2,il3,ih1,ih2,ih3,&
-         &ol1,ol2,ol3,oh1,oh2,oh3&
-         &,r2c_direction,MPI_COMM_WORLD)
+       fft = heffte_fft3d_r2c_mkl(il1, il2, il3, ih1, ih2, &
+            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+            &r2c_direction, MPI_COMM_WORLD, &
+            &.false., .true., .true.)
 #endif
     size_in=fft%size_inbox()
     size_out=fft%size_outbox()

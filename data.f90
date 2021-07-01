@@ -202,16 +202,20 @@ contains
     allocate(rmsarr(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
     call zero(nn,rmsarr)
 
-!!$    ! used for invariants validation only 
-!!$    allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-!!$    call zero(nn,arr_en_1)
-!!$    
-!!$    allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-!!$    call zero(nn,arr_en_2)
-!!$    
-!!$    allocate(arr_en_3(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
-!!$    call zero(nn,arr_en_3)
-    
+    ! used for invariants validation only 
+    if(MHD) then
+       allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+       call zero(nn,arr_en_1)
+    end if
+
+    if(PASSIVE_SCALAR) then
+       allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+       call zero(nn,arr_en_2)
+
+       allocate(arr_en_3(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+       call zero(nn,arr_en_3)
+    end if
+
     if(PASSIVE_SCALAR) then
        ! gradient of the passive scalars in fourier space
        allocate(fsclgrads(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),nu1:nu3))
@@ -257,7 +261,7 @@ contains
     !only for ambipolar diffusion or hall effect
     if(MHD.and.AMB_DIFF.or.HALL) then
        ! ambipolar diffusion or Hall effect terms
-       allocate(ad(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
+       allocate(ad(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nfields))
        call zero(nn,ad)
     end if
 
@@ -273,10 +277,10 @@ contains
     !only for Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
        ! phase-shifted fields in physical space
-       allocate(psu(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
+       allocate(psu(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nfields))
        call zero(nn,psu)
        ! scratch of other phase-shifted terms
-       allocate(du(1:dim1(nn(1)),1:nn(2),1:nn(3),3))
+       allocate(du(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nfields))
        call zero(nn,du)
     end if
 
@@ -297,7 +301,7 @@ contains
     allocate(trk1(1:dim1(n1)))
     trk1(:) = 0.0_rk
 
-    
+
     ! if we're using MPI, z direction is spread across processes,
     ! each process has a slice of z-width lksize
 #ifdef _MPI_
@@ -730,8 +734,8 @@ contains
 #ifdef _MPI_
     do i=1,ljsize
        ! local wave-vector array
-       k2(i)=gk2(i+ljstart)
-       trk2(i)=trgk2(i+ljstart)
+       k2(i)=gk2(i+ljstart-1)
+       trk2(i)=trgk2(i+ljstart-1)
     end do
 #else
     do i=1,n2
@@ -757,8 +761,8 @@ contains
 #ifdef _MPI_
     do i=1,lksize
        ! local wave-vector array
-       k3(i)=gk3(i+lkstart)
-       trk3(i)=trgk3(i+lkstart)
+       k3(i)=gk3(i+lkstart-1)
+       trk3(i)=trgk3(i+lkstart-1)
     end do
 #else
     do i=1,n3

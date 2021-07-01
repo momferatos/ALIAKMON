@@ -1623,15 +1623,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     complex(ck)                                             :: tmp1,tmp2,tmp3
     complex(ck)                                             :: tmp4,tmp5,tmp6
-    real(dp), dimension(nespec+1)                           :: tmpespec
-    real(dp), dimension(nespec+1)                           :: tmpespec2
+    real(dp), dimension(nespec+1)                          :: tmpespec
+    real(dp), dimension(nespec+1)                          :: tmpespec2
     integer(ik)                                             :: i,j,k,iii,pos
     real(rk)                                                :: nrg,kk
     real(rk)                                                :: scale,dk
     real(rk)                                                :: tot,toten
-    real(rk), dimension(nespec+1,2)                         :: espec
+    real(rk), dimension(nespec+1,2)                        :: espec
     real(rk)                                                :: tmp,diss,area
-
+    
     !Total energy
     toten=KE
     if(MHD) toten=KE+ME
@@ -1682,7 +1682,8 @@ contains
              !tmpespec(:) index
              pos=int(kk/dk,ik)+1
              !Print an error message if we're out of bounds
-             if(pos>nespec) print '(5i4)', mpirank, pos,i,j,k
+             if(pos > nespec) pos = nespec
+             if(pos < 1) pos = 1
              tmpespec(pos)=tmpespec(pos)+nrg
              tot=tot+nrg
           end do

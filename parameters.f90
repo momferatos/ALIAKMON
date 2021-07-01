@@ -8,6 +8,7 @@
 !!$  
 !$Copyright (c) 2009-2020 Georgios Momferatos
 module types
+  use iso_fortran_env
   implicit none
   !
   ! Integer, real and complex types
@@ -21,7 +22,7 @@ module types
   ! Real types
   integer, parameter     :: sp = 4  ! single precision real
   integer, parameter     :: dp = 8  ! double precision real
-  integer, parameter     :: qp = 16 ! quadruple precision real
+  integer, parameter     :: qp = real128 ! quadruple precision real
   integer, parameter     :: rk = dp ! main real type
   ! Real type for arrays
 #ifdef _DOUBLE_
@@ -40,12 +41,14 @@ module types
 end module types
 
 module parameters
-  use types 
+  use types
+  use iso_c_binding
   implicit none
   ! 
   ! Main parameter module
   ! 
   ! number of fields
+  integer(c_int), bind(C)     :: cudaerror, numdevices, numdevice
   integer(ik)                                   :: nfields
   integer(ik)                                   :: nu1
   integer(ik)                                   :: nu2
@@ -290,7 +293,7 @@ module parameters
   logical                :: OUTPUT_DISS
   logical                :: OUTPUT_SCL_DISS
   logical                :: OUTPUT_J
-  
+
 contains
   pure elemental function dim1(n)
     integer(ik) :: dim1
@@ -298,7 +301,7 @@ contains
     ! 
     ! Used to handle x dimension of the FFTW arrays
     ! 
-    
+
     dim1 = int(2_ik*(floor(real(n,rk)/2.0_rk)+1),ik)
 
     return
@@ -324,10 +327,11 @@ contains
     return
 
   end function round
-  
+
 end module parameters
 
 module mpivars
+  use iso_c_binding
   use types
   use parameters, only: dim1
   ! 
@@ -338,11 +342,11 @@ module mpivars
 #endif
   implicit none
   ! MPI rank
-  integer(i4b) :: mpirank = 0
+  integer(i4b), bind(C) :: mpirank = 0
   ! MPI root process
   integer(i4b), parameter :: MPIROOT = 0
   ! Number of MPI processes
-  integer(i4b) :: mpisize = 0
+  integer(i4b), bind(C)  :: mpisize = 0
   ! Size of MPI slice across y-dimension of FFTW array
   integer(ik) :: ljsize  =  0
   ! X-dimension index where FFTW array starts
@@ -417,8 +421,8 @@ contains
        call mpi_init(mpierr)
     else
        ! Multi-threaded
-       call mpi_init_thread(MPI_THREAD_FUNNELED,provided,mpierr)
-       if(provided < MPI_THREAD_FUNNELED) then
+       call mpi_init_thread(MPI_THREAD_MULTIPLE,provided,mpierr)
+       if(provided < MPI_THREAD_MULTIPLE) then
           print *, 'error: MPI failed to provide multi-thread support.'
           stop
        end if

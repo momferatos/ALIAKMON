@@ -18,11 +18,16 @@ program aliakmon
   use mpivars
   use hdf5_aliakmon
 #ifdef _MPI_
+  use mpi
   use fft_heffte
 #endif
 #ifdef _OPENMP_
   use omp_lib
 #endif
+#ifdef _CUFFT_
+  use cudafor
+#endif
+  use iso_c_binding
   implicit none
   ! 
   ! Main program
@@ -39,6 +44,16 @@ program aliakmon
   integer(i4b), dimension(8)          :: date_time
   real(rk), dimension(:), allocatable :: nrgs
   integer(ik)                         :: nhdf5file, nvortfile
+  integer                             :: nodenamelen
+  character(len=256)                  :: nodename
+#ifdef _CUFFT_
+  type(cudadeviceprop)                :: prop
+#endif
+  real(rk) :: maxc
+  interface
+     subroutine print_gpus() bind(C)
+     end subroutine print_gpus
+  end interface
 
   STORE_PHASES=.true.
   tstart=0.0_rk
@@ -51,17 +66,39 @@ program aliakmon
   nhdf5file=0
   nvortfile=0
 
+
 #ifdef _MPI_
   ! Initilize MPI enviroment
 #ifdef _OPENMP_
+  !$omp parallel
   nt=omp_get_num_threads()
-#else
+  !$omp end parallel
+  !make#else
   nt=1
 #endif
   call initialize_mpi(nt)
 #else
   mpirank=MPIROOT
   mpisize=1
+#endif
+
+  !call print_gpus()
+
+  nodenamelen=256
+  call mpi_get_processor_name(nodename, nodenamelen, mpierr)
+#ifdef _CUFFT_
+  cudaerror = cudagetdevicecount(numdevices)
+  if(numdevices > 1) then
+     numdevice = mod(mpirank, numdevices)
+  else
+     numdevice = 0
+  end if
+  cudaerror = cudasetdevice(numdevice)
+  cudaerror = cudagetdevice(numdevice)
+!!$  call mpi_barrier(MPI_COMM_WORLD, mpierr)
+!!$  print '(a,i0,2a,2(a,i0),a)', 'MPI Process ', mpirank, ' running @ node ', &
+!!$       &trim(nodename), ' uses GPU # ', numdevice + 1, ' out of ', numdevices, ' available on the node.'
+!!$  call mpi_barrier(MPI_COMM_WORLD, mpierr)
 #endif
   ! Read input file
   if(mpirank==MPIROOT) print *, 'Reading input file...'
@@ -72,7 +109,7 @@ program aliakmon
   ! Allocate FFT structures
 
   call fft_heffte_alloc(n1,n2,n3,ljsize,ljstart,lksize,lkstart)
-  
+
   n2=ljsize
   n3=lksize
 
@@ -92,19 +129,16 @@ program aliakmon
   end if
 
   ! Allocate and initialize all arrays
+
+
   call alloc_init
-!!$
-!!$  print '(5i5)', mpirank, nn(:)
-!!$
-!!$  call random_number(u(1:nn(1),1:nn(2),1:nn(3),1))
-!!$  fu=u
-!!$  call fourier(nn,1_ik,fu)
-!!$  call fourier(nn,-1_ik,fu,trunc=.false.)
-!!$  print *, maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
-!!$       &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
-!!$
-!!$  call finalize_mpi
-!!$  stop
+
+
+
+  if(mpirank == mpiroot) print *, 'Finished memory allocation and &
+       &initialization.'
+
+!  call test_fft
 
   MSFAC=1.0_rk/real(nn(1)*gn2*gn3,rk)
 
@@ -223,18 +257,25 @@ program aliakmon
      if(mpirank==MPIROOT) print *, 'Reading restart file'
      call zero(nn,fu)
      call read_hdf5_file(nn,u,trim(INPUT_FIELD_FILENAME))
-     
+
      call copy(nn,fu,u)
-     
+
      call fourier(nn,1_ik,fu)
-     
+
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
   else
+     if(mpirank == mpiroot) print *, 'Initial conditions...'
      call set_initial_conditions(nn,u,fu)
+     if(mpirank == mpiroot) print *, 'Initial conditions are set.'
+     maxc=incompressibility(nn,fu,nu1)
+     if(mpirank == mpiroot) print '(a,e10.3)', 'max(comp) = ', &
+          &maxc
+     !stop
      nhdf5file=0_ik
-     call output_files(0_ik)
+     !call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
 
+     nvortfile=0
      call output_slices(nvortfile, time)
      nvortfile=nvortfile+1_ik
 
@@ -277,6 +318,7 @@ program aliakmon
   totdis=0.0_rk
   totdisprev=0.0_rk
   totdisprev2=0.0_rk
+  if(mpirank == mpiroot) print *, 'Entering main loop...'
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
@@ -436,9 +478,9 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-
-    call copy(nn,u,fu)
     
+    call copy(nn,u,fu)
+
     call fourier(nn,-1_ik,u)
     call write_hdf5_file(nn,u,time,num)
 
@@ -657,37 +699,41 @@ contains
     character(len=1024)     :: fname, comment
     integer(ik) :: l
     character(len=64), dimension(:), allocatable :: datanames
-    
+
 
     nfields = 2
     allocate(datanames(1:nfields))
     if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
-    
+
     datanames(nu1)='/w'
     datanames(nu2)='/e'
-!!$    datanames(nu3)='/Q2'
-!!$    if(PASSIVE_SCALAR) then
-!!$       do l=nsclf,nscll
-!!$          write(datanames(l),'(a,i0)') '/sg_', l-nsclf+1
-!!$       end do
-!!$    end if
+    datanames(nu3)='/Q2'
+    if(PASSIVE_SCALAR) then
+       do l=nsclf,nscll
+          write(datanames(l),'(a,i0)') '/sg_', l-nsclf+1
+       end do
+    end if
+
+
 
     call dissipation(nn,scratch,nu1,fu)
     call curl(nn,rmsarr,fu,nu1)
     call fourier(nn,-1_ik,rmsarr,nfs=nu1,nfe=nu3)
-!!$    if(PASSIVE_SCALAR) then
-!!$       call gradient(nn,fsclgrads,fu)
-!!$       do l=1,3
-!!$          fsclgrad=>fsclgrads(:,:,:,:,l)
-!!$          call fourier(nn,-1_ik,fsclgrad)
-!!$       end do
-!!$       !$omp parallel do
-!!$       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
-!!$               &fsclgrads(i,j,k,l,1)**2)
-!!$       end do; end do ; end do ; end do
-!!$       !$omp end parallel do
-!!$    end if
+    call copy(nn,u,fu)
+    call fourier(nn,-1_ik,u)
+    if(PASSIVE_SCALAR) then
+       call gradient(nn,fsclgrads,fu)
+       do l=1,3
+          fsclgrad=>fsclgrads(:,:,:,:,l)
+          call fourier(nn,-1_ik,fsclgrad)
+       end do
+       !$omp parallel do
+       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
+               &fsclgrads(i,j,k,l,1)**2)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
+    end if
     write(fname,'(a,i5.5,a)') 'slice-', nfile, '.h5'
 
     i=1
@@ -696,12 +742,12 @@ contains
        slice(1,j,k) = sqrt(rmsarr(i,j,k,nu1)**2 + &
             &rmsarr(i,j,k,nu2)**2 + rmsarr(i,j,k,nu3)**2)
        slice(2,j,k) = scratch(i,j,k,nu1)
+       slice(3,j,k) = u(i,j,k,nu1)
     end do; end do
     !$omp end parallel do
 
-    call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)    
+    call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)
 
-    call zero(nn,u)
     call zero(nn,rmsarr)
     call zero(nn,scratch)
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
@@ -710,6 +756,31 @@ contains
 
     return
   end subroutine output_slices
+
+  subroutine test_fft
+    real(rk) :: maxerr
+    integer(ik) :: i
+
+    call random_number(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4)))
+    fu=u
+
+    call fourier(nn,1_ik,fu)
+    print *, 'ok'
+    call fourier(nn,-1_ik,fu,trunc=.false.)
+
+    
+    maxerr=maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
+         &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
+#ifdef _MPI_
+    sbuf(1)=maxerr
+    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+    maxerr=rbuf(1)
+#endif
+    if(mpirank == mpiroot) print '(a,e10.3)', 'FFT max error:', maxerr
+
+    call finalize_mpi
+    stop
+  end subroutine test_fft
 
 end program aliakmon
 

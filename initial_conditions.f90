@@ -1,4 +1,4 @@
-!!$     ___ __                                       
+!!$
 !!$ (  / _ \\ \        /                               
 !!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
 !!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
@@ -324,9 +324,9 @@ contains
     call zero(nn,u)
 
     !Calculate steps
-    dx=LBOX/real(n1,rk)
-    dy=LBOX/real(gn2,rk)
-    dz=LBOX/real(gn3,rk)
+    dx=LBOX/real(n1-1,rk)
+    dy=LBOX/real(gn2-1,rk)
+    dz=LBOX/real(gn3-1,rk)
 
     !Set-up stochastic coefficients
     !call random_number(a)
@@ -387,16 +387,15 @@ contains
     dy=LBOX/real(gn2-1,rk)
     dz=LBOX/real(gn3-1,rk)
 
-    dz=LBOX/real(gn3-1,rk)
     do i=1,nn(1)
        do j=1,nn(2)
           do k=1,nn(3)
              xx=(i-1)*dx
-             yy=(j-1)*dy
+             yy=(ljstart+j-1)*dy
              zz=(lkstart+k-1)*dz
              u(i,j,k,nu1)=-2.0_rk*sin(yy)
              u(i,j,k,nu2)=2.0_rk*sin(xx)
-             u(i,j,k,nu3)=0.0_rk
+             u(i,j,k,nu3)=sin(xx)+sin(yy)
              if(MHD) then
                 u(i,j,k,nb1)=-2.0_rk*sin(2.0_rk*yy)+sin(zz)
                 u(i,j,k,nb2)=2.0_rk*sin(xx)+sin(zz)

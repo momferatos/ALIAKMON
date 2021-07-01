@@ -1,0 +1,11 @@
+#!/bin/bash
+module unload gnu intel intelmpi fftw hdf5
+module load gnu intel/19.0.1 intelmpi/5.1.3.258 
+module load fftw/3.3.9/intel hdf5/1.8.17/intel
+# edit this line to point to your Intel MKL FFTW Fortran interface files
+export MKL_FFTW_INTERFACE=$HOME/fftw_mkl
+export BACKEND='mkl'
+export ACCELFLAGS=''
+export CUDALDFLAGS=''
+# put '-D _DOUBLE_' here to build with double precision floats
+export PRECISION=''

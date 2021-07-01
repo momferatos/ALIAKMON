@@ -317,7 +317,7 @@ contains
             & ' |KE:',KE, '   |'
        write(*,'(a)') '------------------------------------------------&
             &--------------------------------'
-       if(PASSIVE_SCALAR.and..false.) then
+       if(PASSIVE_SCALAR) then
           do l=nsclf,nscll
              write(*,'(a,i3)') 'Passive scalar #', l-nsclf+1
              etaoc=(visc(l)**3/emean)**(1.0_rk/4.0_rk)
