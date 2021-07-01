@@ -87,7 +87,7 @@ contains
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
-    if(gzip_avail) then
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
        call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
        call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
        call h5pset_chunk_f(dcpl, rank, vecchunk, error)
@@ -193,7 +193,7 @@ contains
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
-    if(gzip_avail) then
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
        call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
        call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
        call h5pset_chunk_f(dcpl, rank, sclchunk, error)
@@ -297,7 +297,7 @@ contains
     !
     call h5screate_simple_f(rank, dimsf, filespace, error)
 
-    if(gzip_avail) then
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
        call h5pcreate_f(H5P_DATASET_CREATE_F, dcpl, error)
        call h5pset_deflate_f(dcpl, COMPRESSION_LEVEL, error)
        call h5pset_chunk_f(dcpl, rank, slicechunk, error)
@@ -408,7 +408,7 @@ contains
     call h5open_f(error) 
     call h5zfilter_avail_f(H5Z_FILTER_DEFLATE_F, gzip_avail, error)
 
-    if(gzip_avail) then
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
        call h5zget_filter_info_f(H5Z_FILTER_DEFLATE_F, filter_info, error)
        filter_info_both=ior(H5Z_FILTER_ENCODE_ENABLED_F,&
             &H5Z_FILTER_DECODE_ENABLED_F)
@@ -520,8 +520,17 @@ contains
     !
     ! Initialize FORTRAN predefined datatypes
     !
-    call h5open_f(error) 
+    call h5open_f(error)
+    
+    call h5zfilter_avail_f(H5Z_FILTER_DEFLATE_F, gzip_avail, error)
 
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
+       call h5zget_filter_info_f(H5Z_FILTER_DEFLATE_F, filter_info, error)
+       filter_info_both=ior(H5Z_FILTER_ENCODE_ENABLED_F,&
+            &H5Z_FILTER_DECODE_ENABLED_F)
+       if(filter_info .ne. filter_info_both) gzip_avail = .false.
+    end if
+    
 #ifdef _MPI_
     ! 
     ! Setup file access property list with parallel I/O access.
@@ -997,7 +1006,7 @@ contains
 
     call h5zfilter_avail_f(H5Z_FILTER_DEFLATE_F, gzip_avail, error)
 
-    if(gzip_avail) then
+    if(gzip_avail .and. COMPRESSION_LEVEL /= 0) then
        call h5zget_filter_info_f(H5Z_FILTER_DEFLATE_F, filter_info, error)
        filter_info_both=ior(H5Z_FILTER_ENCODE_ENABLED_F,&
             &H5Z_FILTER_DECODE_ENABLED_F)

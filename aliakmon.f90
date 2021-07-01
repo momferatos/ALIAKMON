@@ -697,11 +697,11 @@ contains
     real(rk), intent(IN)    :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(len=1024)     :: fname, comment
-    integer(ik) :: l
+    integer(ik) :: l, m
     character(len=64), dimension(:), allocatable :: datanames
 
 
-    nfields = 2 + numscls
+    nfields = 2 + 2 * numscls
     allocate(datanames(1:nfields))
     if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
 
@@ -709,7 +709,11 @@ contains
     datanames(nu2)='e'
     if(PASSIVE_SCALAR) then
        do l=3,3+numscls-1
-          write(datanames(l),'(a,i3.3)') 'sg_', l-2
+          write(datanames(l),'(a,i3.3)') 'scl_', l - 3 + 1
+       end do
+       do l=3+numscls,3+numscls+numscls-1
+          m = l - (3 + numscls) + 1 
+          write(datanames(l),'(a,i3.3)') 'sg_', m
        end do
     end if
 
@@ -721,17 +725,11 @@ contains
     call copy(nn,u,fu)
     call fourier(nn,-1_ik,u)
     if(PASSIVE_SCALAR) then
-       call gradient(nn,fsclgrads,fu)
+       call gradient(nn,fsclgrads,fu,nsclf,nscll)
        do l=1,3
           fsclgrad=>fsclgrads(:,:,:,:,l)
           call fourier(nn,-1_ik,fsclgrad)
        end do
-       !$omp parallel do
-       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          u(i,j,k,l)=sqrt(fsclgrads(i,j,k,l,1)**2+fsclgrads(i,j,k,l,1)**2+&
-               &fsclgrads(i,j,k,l,1)**2)
-       end do; end do ; end do ; end do
-       !$omp end parallel do
     end if
     write(fname,'(a,i5.5,a)') 'slice-', nfile, '.h5'
 
@@ -743,13 +741,24 @@ contains
        slice(2,j,k) = scratch(i,j,k,nu1)
     end do; end do
     !$omp end parallel do
-    do l=3,3+nscl-1
-       !$omp parallel do
-       do k=1,nn(3) ; do j=1,nn(2) 
-          slice(l,j,k) = u(i,j,k,l)
-       end do; end do
-       !$omp end parallel do
-    end do
+    if(PASSIVE_SCALAR) then
+       do l=3,3+numscls-1
+          !$omp parallel do
+          do k=1,nn(3) ; do j=1,nn(2) 
+             slice(l,j,k) = u(i,j,k,nsclf+l-3)
+          end do; end do
+          !$omp end parallel do
+       end do
+       do l=3+numscls,3+numscls+numscls-1
+          m = l - (3 + numscls) + nsclf
+          !$omp parallel do 
+          do k=1,nn(3) ; do j=1,nn(2)
+             slice(l,j,k) = sqrt(fsclgrads(i,j,k,m,1)**2+&
+                  &fsclgrads(i,j,k,m,1)**2+fsclgrads(i,j,k,m,1)**2)
+          end do; end do
+          !$omp end parallel do
+       end do
+    end if
 
     call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)
 
