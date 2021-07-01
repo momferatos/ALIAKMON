@@ -150,6 +150,9 @@ contains
     nu2=2
     nu3=3
     nfields=3
+
+    if(.not.PASSIVE_SCALAR) numscls = 0_ik
+    
     ! arbitrary number of passive scalars
     if(PASSIVE_SCALAR) then
        nscl=numscls

@@ -700,8 +700,9 @@ contains
     integer(ik) :: l, m
     character(len=64), dimension(:), allocatable :: datanames
 
+    nfields = 2
+    if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
 
-    nfields = 2 + 2 * numscls
     allocate(datanames(1:nfields))
     if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
 
