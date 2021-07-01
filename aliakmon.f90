@@ -701,16 +701,15 @@ contains
     character(len=64), dimension(:), allocatable :: datanames
 
 
-    nfields = 2
+    nfields = 2 + numscls
     allocate(datanames(1:nfields))
     if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
 
-    datanames(nu1)='/w'
-    datanames(nu2)='/e'
-    datanames(nu3)='/Q2'
+    datanames(nu1)='w'
+    datanames(nu2)='e'
     if(PASSIVE_SCALAR) then
-       do l=nsclf,nscll
-          write(datanames(l),'(a,i0)') '/sg_', l-nsclf+1
+       do l=3,3+numscls-1
+          write(datanames(l),'(a,i3.3)') 'sg_', l-2
        end do
     end if
 
@@ -742,9 +741,15 @@ contains
        slice(1,j,k) = sqrt(rmsarr(i,j,k,nu1)**2 + &
             &rmsarr(i,j,k,nu2)**2 + rmsarr(i,j,k,nu3)**2)
        slice(2,j,k) = scratch(i,j,k,nu1)
-       slice(3,j,k) = u(i,j,k,nu1)
     end do; end do
     !$omp end parallel do
+    do l=3,3+nscl-1
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2) 
+          slice(l,j,k) = u(i,j,k,l)
+       end do; end do
+       !$omp end parallel do
+    end do
 
     call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)
 

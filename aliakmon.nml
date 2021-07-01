@@ -13,7 +13,7 @@
 !
 
 &general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=256,		! number of collocation points in each axis
+n=64,		! number of collocation points in each axis
 		! should be a power of two for maximum performance
 		! a scaling study on ARIS could consider n=64,128,256,512 and
 		! perhaps 1024
@@ -96,8 +96,8 @@ STK=0.5				! Stokes number for intertial particles
 &numerics
 INTEGRATION_METHOD=2, ! Method for time integration: 1: 2nd order Runge-Kutta, 2: 4th order Runge-Kutta
 TRUNCATION=2, 	      ! Method for truncation in Fourier space: 0: Two-thirds rule, 1: Spherical, 2: Polyhedral
-DEALIASING=0, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
-FFT_DECOMPOSITION=1,    ! FFT subdivision: 0: across slabs, 1: across pencils
+DEALIASING=1, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
+FFT_DECOMPOSITION=0,    ! FFT subdivision: 0: across slabs, 1: across pencils
 &end
 
 !
