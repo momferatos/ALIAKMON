@@ -45,7 +45,7 @@ make install
 
 3) Build HDF5 1.12.0
 
-CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --enable-unsupported --prefix=$LIBSROOT/hdf5
+CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --enable-unsupported --prefix=$LIBSROOT/hdf5 --with-zlib=/usr/lib64
 make
 make test
 make install

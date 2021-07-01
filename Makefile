@@ -23,7 +23,7 @@ INCLUDE= -I $(FFTWROOT)/include -I $(HDF5ROOT)/include -I $(HEFFTEROOT)/include 
 
 LIB= -L $(FFTWROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib  -L $(CUDAROOT)/lib64 -L $(SZIPROOT)/lib
 
-LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran $(CUDALDFLAGS) $(MKLLDFLAGS) -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads -lz -lcuda
+LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftefftwfortran $(CUDALDFLAGS) $(MKLLDFLAGS) -lstdc++ -lmpi_cxx -lfftw3f -lfftw3f_mpi -lfftw3f_threads -lz 
 
 OBJS=parameters.o data.o hdf5.o heffte_init.o fft_heffte.o numerics.o validation.o initial_conditions.o input_output.o aliakmon.o	
 
