@@ -138,8 +138,8 @@ program aliakmon
   if(mpirank == mpiroot) print *, 'Finished memory allocation and &
        &initialization.'
 
-!  call test_fft
-
+  !call test_fft
+  
   MSFAC=1.0_rk/real(nn(1)*gn2*gn3,rk)
 
   ! Calculate viscosity
@@ -272,7 +272,7 @@ program aliakmon
           &maxc
      !stop
      nhdf5file=0_ik
-     !call output_files(0_ik)
+     call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
 
      nvortfile=0
@@ -436,11 +436,11 @@ contains
 
     !Output information about the dissipation peak
     open(newunit=dispeak_dat,file='dispeak.dat',form='formatted')
-    write(987,'(11e17.8)') time,KE,mkin_hel,emean,ils,lambda,eta,&
+    write(dispeak_dat,'(11e17.8)') time,KE,mkin_hel,emean,ils,lambda,eta,&
          &rmsu*ils/visc(nu1),REl,mkhdis,fscale(nu1)
     if(MHD) write(987,'(9e17.8)') time,emeanb,mcross_hel,ME,mmh,&
          &AD_COEFF*mlor,mmhdis,mchdis,fscale(nb1)
-    close(987,status='keep')
+    close(dispeak_dat,status='keep')
 
 
     !call output_spectra(99999_ik)
@@ -700,6 +700,7 @@ contains
     integer(ik) :: l, m
     character(len=64), dimension(:), allocatable :: datanames
 
+    
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
 
@@ -774,27 +775,30 @@ contains
 
   subroutine test_fft
     real(rk) :: maxerr
-    integer(ik) :: i
+    integer(ik) :: i, l
 
-    call random_number(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4)))
-    fu=u
+    do l=1,5
+       call random_number(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4)))
+       fu=u
 
-    call fourier(nn,1_ik,fu)
-    print *, 'ok'
-    call fourier(nn,-1_ik,fu,trunc=.false.)
+       call fourier(nn,1_ik,fu)
+       call fourier(nn,-1_ik,fu,trunc=.false.)
 
-    
-    maxerr=maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
-         &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
+
+       maxerr=maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
+            &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
 #ifdef _MPI_
-    sbuf(1)=maxerr
-    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-    maxerr=rbuf(1)
+       sbuf(1)=maxerr
+       call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+       maxerr=rbuf(1)
 #endif
-    if(mpirank == mpiroot) print '(a,e10.3)', 'FFT max error:', maxerr
+       if(mpirank == mpiroot) print '(a,e10.3)', 'FFT max error:', maxerr
+    end do
 
     call finalize_mpi
+    
     stop
+
   end subroutine test_fft
 
 end program aliakmon

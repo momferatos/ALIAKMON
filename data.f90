@@ -653,17 +653,7 @@ contains
     !
     integer(ik)             :: wv
 
-    ! ATTENTION: FFTW inverts the last two dimensions or all arrays in
-    ! Fourier space
-#ifdef _MPI_
-    if(dim==1) then
-       wv=k1((i-1)/2+1)
-    else if(dim==2) then
-       wv=k3(k)
-    else if(dim==3) then
-       wv=k2(j)
-    end if
-#else
+
     if(dim==1) then
        wv=k1((i-1)/2+1)
     else if(dim==2) then
@@ -671,7 +661,7 @@ contains
     else if(dim==3) then
        wv=k3(k)
     end if
-#endif
+
 
     return
 
