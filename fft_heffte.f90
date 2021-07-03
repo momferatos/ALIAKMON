@@ -29,14 +29,14 @@ module fft_heffte
   real(c_double), dimension(:), allocatable, target :: input
   complex(c_double_complex), dimension(:), allocatable, target :: output
   complex(c_double_complex), dimension(:), allocatable :: work
-  !$acc declare present(input, output, work)
+  !$acc declare deviceptr(input, output, work)
   real(c_double), dimension(:,:,:), pointer :: r_array
   complex(c_double_complex), dimension(:,:,:), pointer :: c_array
 #else
   real(c_float), dimension(:), allocatable, target :: input
   complex(c_float_complex), dimension(:), allocatable, target :: output
   complex(c_float_complex), dimension(:), allocatable :: work
-  !$acc declare present(input, output, work) 
+  !$acc declare deviceptr(input, output, work) 
   real(c_float), dimension(:,:,:), pointer :: r_array
   complex(c_float_complex), dimension(:,:,:), pointer :: c_array
 #endif
@@ -224,24 +224,29 @@ contains
        if(.not.allocated(output)) allocate(output(1:size_out))
        if(.not.allocated(work)) allocate(work(1:size_work))
 
-       !$acc data copyin(input( 1:size_in)) copyout(output(1:size_out)) create(work(1:size_work))
-       !$acc host_data use_device(input( 1:size_in), output(1:size_out), work( 1:size_work))
-       call fft%forward(input(1:size_out), output(1:size_in),&
-            & work(1:size_work))
+       !$acc enter data create(input(1:size_in), output(1:size_out), work(1:size_work))
+
+       !$acc data present(input(1:size_in), output(1:size_out), work(1:size_work))
+       !$acc update device(input(1:size_in)) 
+       !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
+       call fft%forward(input,output,work, scale_cufft_none)
        !$acc end host_data
+       !$acc update self(output(1:size_out))
+
+       !$acc update device(output(1:size_out)) 
+       !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
+       call fft%backward(output, input, work, scale_cufft_full)
+       !$acc end host_data
+       !$acc update self(input(1:size_in))
        !$acc end data
 
-       !$acc data copyout(input( 1:size_in)) copyin(output(1:size_out)) create(work(1:size_work))
-       !$acc host_data use_device(input( 1:size_in),output(1:size_out), work( 1:size_work))
-       call fft%backward(output(1:size_out), input(1:size_in),&
-            & work(1:size_work))
-       !$acc end host_data
-       !$acc end data
-
+       !$acc exit data delete(input, output, work)
 
        if(allocated(input)) deallocate(input)
        if(allocated(output)) deallocate(output)
        if(allocated(work)) deallocate(work)
+
+
 
        first = .false.
 
@@ -252,7 +257,8 @@ contains
     !$omp parallel num_threads(nthreads) &
     !$omp& default(none) &
     !$omp& shared(fu, numdevices, n1, nn, dir, nnfs, size_in, &
-    !$omp& size_out, size_work, ljsize, nnfe, lksize) &
+    !$omp& size_out, size_work, ljsize, nnfe, lksize, &
+    !$omp& scale_cufft_none, scale_cufft_full) &
     !$omp& private(nthread, numdevice, input, output, work, c_array, iii, &
     !$omp& ctmp, cudaerror, r_array, nfi, i, j, k) &
     !$omp& shared(fft)
@@ -277,10 +283,12 @@ contains
 
     call c_f_pointer(c_loc(input),r_array,shape=(/n1, ljsize, lksize/))
     call c_f_pointer(c_loc(output),c_array,shape=(/dim1(n1)/2, ljsize, lksize/))
+    !$acc enter data create(input(1:size_in), output(1:size_out), work(1:size_work))
 
-
+    !$acc data present(input(1:size_in), output(1:size_out), work(1:size_work))
     !$omp do ordered schedule(static, 1)
     do nfi=nnfs,nnfe
+
        if(dir == 1) then
 
 
@@ -293,17 +301,11 @@ contains
 
 
           !$omp ordered
-          !$acc data copyin(input( 1:size_in)) copyout(output(1:size_out)) create(work(1:size_work))
-          !$acc host_data use_device(input( 1:size_in), output( 1:size_out), work( 1:size_work))
-
-#ifdef _CUFFT_
-          call fft%forward(input(1:size_in),output(1:size_out),work(1:size_work))
-#elif defined _MKL_
-          call fft%forward(input(1:size_in),output(1:size_out),work(1:size_work), scale_mkl_none)
-#endif
-
+          !$acc update device(input(1:size_in)) 
+          !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
+          call fft%forward(input,output,work, scale_cufft_none)
           !$acc end host_data
-          !$acc end data
+          !$acc update self(output(1:size_out))
           !$omp end ordered 
 
 
@@ -326,17 +328,11 @@ contains
 
 
           !$omp ordered
-          !$acc data copyout(input( 1:size_in)) copyin(output(1:size_out)) create(work(1:size_work))
-          !$acc host_data use_device(input( 1:size_in), output(1:size_out), work( 1:size_work))
-
-#ifdef _CUFFT_
-          call fft%backward(output(1:size_out), input(1:size_in), work(1:size_work))
-#elif defined _MKL_
-          call fft%backward(output(1:size_out), input(1:size_in), work(1:size_work), scale_mkl_full)
-#endif
-
+          !$acc update device(output(1:size_out)) 
+          !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
+          call fft%backward(output, input, work, scale_cufft_full)
           !$acc end host_data
-          !$acc end data
+          !$acc update self(input(1:size_in))
           !$omp end ordered
 
 
@@ -347,29 +343,16 @@ contains
        end if
     end do
     !$omp end do
+    !$acc end data
 
-
+    !$acc exit data delete(input, output, work)
     deallocate(input)
     deallocate(output)
     deallocate(work)
 
+
     !$omp end parallel
 
-
-    if(dir == -1_ik) then
-       scale = 1.0_rk / (real(nn(1), rk) * real(gn2, rk) * real(gn3, rk))
-    else
-       scale = 1.0_rk
-    end if
-
-    !$omp parallel do
-    do nfi=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       fu(i,j,k,nfi) = scale * fu(i,j,k,nfi)
-    end do; end do; end do ; end do
-    !$omp end parallel do
-
-
-    !    call fft%release()
 
     return
 

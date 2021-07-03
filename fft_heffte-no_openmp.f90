@@ -187,7 +187,7 @@ contains
           !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
           call fft%forward(input,output,work, scale_cufft_none)
           !$acc end host_data
-          !$acc update host(output(1:size_out))
+          !$acc update self(output(1:size_out))
 #elif defined _MKL_
           call fft%forward(input,output,work, scale_mkl_none)
 #else
@@ -221,7 +221,7 @@ contains
           !$acc host_data use_device(input(1:size_in), output(1:size_out), work(1:size_work))
           call fft%backward(output, input, work, scale_cufft_full)
           !$acc end host_data
-          !$acc update host(input(1:size_in))
+          !$acc update self(input(1:size_in))
 #elif defined _MKL_
           call fft%backward(output, input, work, scale_mkl_full)
 #else
