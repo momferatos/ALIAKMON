@@ -25,21 +25,21 @@ module fft_heffte
   !
   ! Heffte wrapper
   !
-#ifdef _DOUBLE_
+  !#ifdef _DOUBLE_
   real(c_double), dimension(:), allocatable, target :: input
   complex(c_double_complex), dimension(:), allocatable, target :: output
   complex(c_double_complex), dimension(:), allocatable :: work
   !$acc declare deviceptr(input, output, work)
   real(c_double), dimension(:,:,:), pointer :: r_array
   complex(c_double_complex), dimension(:,:,:), pointer :: c_array
-#else
-  real(c_float), dimension(:), allocatable, target :: input
-  complex(c_float_complex), dimension(:), allocatable, target :: output
-  complex(c_float_complex), dimension(:), allocatable :: work
-  !$acc declare deviceptr(input, output, work) 
-  real(c_float), dimension(:,:,:), pointer :: r_array
-  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
-#endif
+!!$#else
+!!$  real(c_float), dimension(:), allocatable, target :: input
+!!$  complex(c_float_complex), dimension(:), allocatable, target :: output
+!!$  complex(c_float_complex), dimension(:), allocatable :: work
+!!$  !$acc declare deviceptr(input, output, work) 
+!!$  real(c_float), dimension(:,:,:), pointer :: r_array
+!!$  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
+!!$#endif
   integer(c_int)       :: slice_direction, pencil_direction,&
        & r2c_direction
   integer(c_int) :: il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3,oh1,oh2,oh3
@@ -79,6 +79,15 @@ module fft_heffte
        integer(c_int)        :: il1,il2,il3,ih1,ih2,ih3,ol1,ol2,ol3&
             &,oh1,oh2,oh3
      end subroutine heffte_init_pencils
+  end interface
+
+
+  interface
+     subroutine heffte_set_num_device(numd) bind(c)
+       use iso_c_binding
+       implicit none
+       integer(c_int), value :: numd
+     end subroutine heffte_set_num_device
   end interface
 
 contains
@@ -258,7 +267,7 @@ contains
     !$omp& default(none) &
     !$omp& shared(fu, numdevices, n1, nn, dir, nnfs, size_in, &
     !$omp& size_out, size_work, ljsize, nnfe, lksize, &
-    !$omp& scale_cufft_none, scale_cufft_full) &
+    !$omp& scale_cufft_none, scale_cufft_full, mpirank) &
     !$omp& private(nthread, numdevice, input, output, work, c_array, iii, &
     !$omp& ctmp, cudaerror, r_array, nfi, i, j, k) &
     !$omp& shared(fft)
@@ -270,11 +279,15 @@ contains
 #ifdef _CUFFT_
     cudaerror = cudagetdevicecount(numdevices)
     if(numdevices > 1) then
-       cudaerror = cudasetdevice(int(mod(nthread, numdevices), i4b))
+       numdevice = int(mod(nthread, numdevices), i4b)
     else
        numdevice = 0
     end if
     cudaerror = cudasetdevice(numdevice)
+    cudaerror = cudagetdevice(numdevice)
+    call heffte_set_num_device(numdevice)
+!!$    if(mpirank == mpiroot) print '(3(a,i3),a)', 'Thread # ', nthread, &
+!!$         & 'uses GPU # ', numdevice, ' out of ', numdevices, ' visible.'
 #endif
 
     allocate(input(1:size_in))

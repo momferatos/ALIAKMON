@@ -28,10 +28,18 @@ extern "C" void heffte_init_pencils(long n1, long n2, long n3,
 			      int *ih1, int *ih2, int *ih3,
 			      int *ol1, int *ol2, int *ol3,
 			      int *oh1, int *oh2, int *oh3);
-  
+
+extern "C" void heffte_set_num_device(int numd);
+
 void num_of_pencils(int mpi_size, int *pencils_y, int *pencils_z);
  
 
+void heffte_set_num_device(int numd) {
+
+  heffte::gpu::device_set(numd);
+  
+  return;
+}
 
 void heffte_init_slabs(long n1, long n2, long n3,
 			 int slice_direction, int r2c_direction,

@@ -478,6 +478,8 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
+
+    return
     
     call copy(nn,u,fu)
 
