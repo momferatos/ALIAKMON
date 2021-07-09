@@ -406,15 +406,13 @@ program aliakmon
      close(maxima_dat,status='keep')
   end if
   call output_files(888888_ik)
-  !call output_spectra(888888_ik)
-
-
+  call output_spectra(888888_ik)
 
 #ifdef _MPI_
   call fft_heffte_dealloc
   call finalize_mpi
 #endif
-
+  
   stop 
 
 contains
@@ -443,7 +441,7 @@ contains
     close(dispeak_dat,status='keep')
 
 
-    !call output_spectra(99999_ik)
+    call output_spectra(99999_ik)
     nfilespec=nfilespec+1
 
     return
@@ -478,8 +476,6 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-
-    return
     
     call copy(nn,u,fu)
 
@@ -686,7 +682,7 @@ contains
     write(filename_out,'(2a)') 'pp_',trim(filename_in)
 
     !write output HDF5 file
-    call write_hdf5_file(nn,u,scratch,trim(filename_out))
+    call write_hdf5_file(nn,u,scratch,trim(filename_out),time)
 
     return
 

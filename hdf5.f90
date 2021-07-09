@@ -57,6 +57,50 @@ module hdf5_aliakmon
 
 contains
 
+  subroutine add_timestamp(filename, time)
+    implicit none
+    character(len=*), intent(IN) :: filename
+    real(rk), intent(IN) :: time
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(hid_t) :: hdf5_file
+    character(len = 4), parameter :: dsetname = 'time'
+    integer :: trank
+    integer(hid_t) :: dset_id, dcpl
+    integer        :: error
+    integer(hsize_t), dimension(1) :: data_dims
+    real(8), dimension(1) :: time_arr
+
+    time_arr(1) = time
+
+    ! set dataset rank                                                          
+    trank = 1
+    ! Set dataset dimensions for data                                           
+    data_dims(1) = 1
+
+    call h5fopen_f(trim(filename), H5F_ACC_RDWR_F, hdf5_file, error)
+
+    ! Create the data space for the  dataset.                                   
+    call h5screate_simple_f(trank, data_dims, filespace, error)
+    ! Create the dataset                                                        
+    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_DOUBLE, filespace, &
+         &dset_id, error)
+
+    ! write the dataset                                                         
+
+    call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, time_arr, data_dims, error)
+
+    ! cleanup
+    
+    call h5sclose_f(filespace, error)
+
+    call h5dclose_f(dset_id, error)
+    
+    call h5fclose_f(hdf5_file, error)
+    
+    return
+    
+  end subroutine add_timestamp
+  
   subroutine write_hdf5_vector_dataset(dataset_name, dataset, nn)
     implicit none
     integer(ik), dimension(1:4), intent(in)   :: nn          
@@ -414,7 +458,7 @@ contains
             &H5Z_FILTER_DECODE_ENABLED_F)
        if(filter_info .ne. filter_info_both) gzip_avail = .false.
     end if
-    
+
 #ifdef _MPI_
     ! 
     ! Setup file access property list with parallel I/O access.
@@ -472,6 +516,12 @@ contains
     !
     call h5fclose_f(file_id, error)
 
+    if(mpirank==mpiroot) then
+       call write_xdmf_file(nn(1),nn(2),ndatanames,&
+            &datanames, data_is_vector, filename,nfile)
+       call add_timestamp(filename, time)
+    end if
+
     !
     ! Close FORTRAN predefined datatypes.
     !
@@ -492,8 +542,7 @@ contains
 !!$       datanames(nb3)='b3'
 !!$    end if
 
-    if(mpirank==mpiroot) call write_xdmf_file(nn(1),nn(2),ndatanames,&
-         &datanames, data_is_vector, filename,nfile)
+
 
     return
 
@@ -574,14 +623,17 @@ contains
     !
     call h5fclose_f(file_id, error)
 
+    if(mpirank==mpiroot) then
+       call add_timestamp(filename, time)
+       call write_xdmf_slice_file(nn(1),nn(2),nfields,&
+            &datanames,filename,nfile)
+    end if
+    
     !
     ! Close FORTRAN predefined datatypes.
     !
     call h5close_f(error)
-
-    if(mpirank==mpiroot) call write_xdmf_slice_file(nn(1),nn(2),nfields,&
-        &datanames,filename,nfile)
-
+        
     return
 
   end subroutine write_hdf5_slice_file
@@ -714,12 +766,13 @@ contains
 
   end subroutine write_xdmf_slice_file
 
-  subroutine write_hdf5_pp_file(nn,u,u2,filename)
+  subroutine write_hdf5_pp_file(nn,u,u2,filename,time)
     implicit none
     integer(ik), dimension(1:4), intent(IN)                        :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN) :: u
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN) :: u2
     character(len=*), intent(IN)                           :: filename
+    real(rk), intent(IN) :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Writes HDF5 file in parallel !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -850,12 +903,16 @@ contains
     !
     call h5fclose_f(file_id, error)
 
+    if(mpirank==mpiroot) then
+       call add_timestamp(filename, time)
+       call write_xdmf_pp_file
+    end if
+
     !
     ! Close FORTRAN predefined datatypes.
     !
     call h5close_f(error)
 
-    if(mpirank==mpiroot) call write_xdmf_pp_file
 
     return
 
