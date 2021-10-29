@@ -50,11 +50,22 @@ program aliakmon
   type(cudadeviceprop)                :: prop
 #endif
   real(rk) :: maxc
+  character(len=128)                  :: strlocrank
+  integer(ik)                         :: locrank
+
   interface
      subroutine print_gpus() bind(C)
      end subroutine print_gpus
   end interface
 
+  interface
+     subroutine heffte_set_num_device(numd) bind(c)
+       use iso_c_binding
+       implicit none
+       integer(c_int), value :: numd
+     end subroutine heffte_set_num_device
+  end interface
+  
   STORE_PHASES=.true.
   tstart=0.0_rk
   dt=1.0e-9_rk
@@ -87,18 +98,23 @@ program aliakmon
   nodenamelen=256
   call mpi_get_processor_name(nodename, nodenamelen, mpierr)
 #ifdef _CUFFT_
+  call mpi_barrier(MPI_COMM_WORLD, mpierr)
   cudaerror = cudagetdevicecount(numdevices)
+  call get_environment_variable('OMPI_COMM_WORLD_LOCAL_RANK', strlocrank)
+  read(strlocrank, *) locrank
   if(numdevices > 1) then
-     numdevice = mod(mpirank, numdevices)
+     numdevice = locrank
   else
      numdevice = 0
   end if
   cudaerror = cudasetdevice(numdevice)
   cudaerror = cudagetdevice(numdevice)
-!!$  call mpi_barrier(MPI_COMM_WORLD, mpierr)
-!!$  print '(a,i0,2a,2(a,i0),a)', 'MPI Process ', mpirank, ' running @ node ', &
-!!$       &trim(nodename), ' uses GPU # ', numdevice + 1, ' out of ', numdevices, ' available on the node.'
-!!$  call mpi_barrier(MPI_COMM_WORLD, mpierr)
+  call heffte_set_num_device(numdevice)
+!!$  print '(a,i0,2a,3(a,i0),a)', 'MPI Process ', mpirank, ' running @ node ', &
+!!$       &trim(nodename), ' with localrank ', locrank, ' uses GPU # ', &
+!!$       &numdevice + 1, ' out of ', &
+!!$       &numdevices, ' available on the node.'
+  call mpi_barrier(MPI_COMM_WORLD, mpierr)
 #endif
   ! Read input file
   if(mpirank==MPIROOT) print *, 'Reading input file...'
@@ -139,7 +155,7 @@ program aliakmon
        &initialization.'
 
   !call test_fft
-  
+
   MSFAC=1.0_rk/real(nn(1)*gn2*gn3,rk)
 
   ! Calculate viscosity
@@ -412,7 +428,7 @@ program aliakmon
   call fft_heffte_dealloc
   call finalize_mpi
 #endif
-  
+
   stop 
 
 contains
@@ -476,7 +492,9 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-    
+
+    return
+
     call copy(nn,u,fu)
 
     call fourier(nn,-1_ik,u)
@@ -698,7 +716,8 @@ contains
     integer(ik) :: l, m
     character(len=64), dimension(:), allocatable :: datanames
 
-    
+    return
+
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
 
@@ -794,7 +813,7 @@ contains
     end do
 
     call finalize_mpi
-    
+
     stop
 
   end subroutine test_fft

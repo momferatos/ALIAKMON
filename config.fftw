@@ -4,5 +4,6 @@ export ACCELFLAGS=''
 export CUDALDFLAGS=''
 export MKLFLAGS=''
 export MKLLDFLAGS=''
+export FFTWFLAGS='-D _FFTW_'
 # put '-D _DOUBLE_' here to build with double precision floats
-export PRECISION=''
+export PRECISION='-D _DOUBLE_'

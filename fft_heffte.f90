@@ -15,8 +15,10 @@ module fft_heffte
   use heffte_cufft
 #elif defined _MKL_
   use heffte_mkl
-#else
+#elif defined _FFTW_
   use heffte_fftw
+#else
+  use heffte_stock
 #endif
   use types
   use parameters
@@ -25,29 +27,31 @@ module fft_heffte
   !
   ! Heffte wrapper
   !
-!#ifdef _DOUBLE_
+#ifdef _DOUBLE_
   real(c_double), dimension(:), allocatable, target :: input
   complex(c_double_complex), dimension(:), allocatable, target :: output
   complex(c_double_complex), dimension(:), allocatable :: work
   !$acc declare deviceptr(input, output, work) 
   real(c_double), dimension(:,:,:), pointer :: r_array
   complex(c_double_complex), dimension(:,:,:), pointer :: c_array
-!!$#else
-!!$  real(c_float), dimension(:), allocatable, target :: input
-!!$  complex(c_float_complex), dimension(:), allocatable, target :: output
-!!$  complex(c_float_complex), dimension(:), allocatable :: work
-!!$  !$acc declare deviceptr(input, output, work) 
-!!$  real(c_float), dimension(:,:,:), pointer :: r_array
-!!$  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
-!!$#endif
+#else
+  real(c_float), dimension(:), allocatable, target :: input
+  complex(c_float_complex), dimension(:), allocatable, target :: output
+  complex(c_float_complex), dimension(:), allocatable :: work
+  !$acc declare deviceptr(input, output, work) 
+  real(c_float), dimension(:,:,:), pointer :: r_array
+  complex(c_float_complex), dimension(:,:,:), pointer :: c_array
+#endif
   integer(c_long) :: size_in, size_out, size_work
   
 #ifdef _CUFFT_
   type(heffte_fft3d_r2c_cufft) :: fft
 #elif defined _MKL_
   type(heffte_fft3d_r2c_mkl) :: fft
-#else
+#elif defined _FFTW_
   type(heffte_fft3d_r2c_fftw) :: fft
+#else
+  type(heffte_fft3d_r2c_stock) :: fft
 #endif
   !Interfaces of external subroutines in C
 
@@ -114,12 +118,22 @@ contains
        fft = heffte_fft3d_r2c_cufft(il1, il2, il3, ih1, ih2, &
             &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
-            &.false., .true., .true.)
+            &.true., int(2, c_int), .true.)
 #elif defined _MKL_
        fft = heffte_fft3d_r2c_mkl(il1, il2, il3, ih1, ih2, &
             &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
-            &.false., .true., .true.)
+            &.true., int(2, c_int), .true.)
+#elif defined _FFTW_
+       fft = heffte_fft3d_r2c_fftw(il1, il2, il3, ih1, ih2, &
+            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+            &r2c_direction, MPI_COMM_WORLD, &
+            &.true., int(2, c_int), .true.)
+#else
+       fft = heffte_fft3d_r2c_stock(il1, il2, il3, ih1, ih2, &
+            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+            &r2c_direction, MPI_COMM_WORLD, &
+            &.true., int(2, c_int), .true.)
 #endif
     size_in=fft%size_inbox()
     size_out=fft%size_outbox()
@@ -194,8 +208,10 @@ contains
           !$acc update self(output(1:size_out))
 #elif defined _MKL_
           call fft%forward(input,output,work, scale_mkl_none)
-#else
+#elif defined _FFTW_
           call fft%forward(input,output,work, scale_fftw_none)
+#else
+          call fft%forward(input,output,work, scale_stock_none)
 #endif
 
           !omp parallel do private(iii, ctmp)
@@ -228,8 +244,10 @@ contains
           !$acc update self(input(1:size_in))
 #elif defined _MKL_
           call fft%backward(output, input, work, scale_mkl_full)
-#else
+#elif defined _FFTW_
           call fft%backward(output,input,work, scale_fftw_full)
+#else
+          call fft%backward(output,input,work, scale_stock_full)
 #endif
 
 
