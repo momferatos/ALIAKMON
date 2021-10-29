@@ -35,9 +35,9 @@ void num_of_pencils(int mpi_size, int *pencils_y, int *pencils_z);
  
 
 void heffte_set_num_device(int numd) {
-
+#ifdef _CUDA_
   heffte::gpu::device_set(numd);
-  
+#endif 
   return;
 }
 
