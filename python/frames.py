@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
-from vtk import vtkStructuredGridReader
-from vtk.util import numpy_support as VN
+import h5py
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
@@ -13,119 +12,72 @@ minval = 1.0e-3
 
 pydir = os.path.dirname(os.path.realpath(__file__))
 
-ncmap = np.load(pydir + '/turb_cmap.npy') / 255.
+ncmap_blueblack = np.load(pydir + '/blue-black_cmap.npy') / 255.
+ncmap_blackbody = np.load(pydir + '/black-body_cmap.npy') / 255.
 
-cmap = ListedColormap(ncmap)
-
-reader = vtkStructuredGridReader()
+cmap_blueblack = ListedColormap(ncmap_blueblack)
+cmap_blackbody = ListedColormap(ncmap_blackbody)
 
 paths = sys.argv[1:]
 
-nvtkfiles = 0
+nh5files = 0
 for ipath,path in enumerate(paths):
-    vtkfiles = glob.glob(path + '/*.vtk', recursive=False)
-    nvtkfiles = nvtkfiles + len(vtkfiles)
+    h5files = glob.glob(path + '/*.h5', recursive=False)
+    nh5files = nh5files + len(h5files)
 
 
-ivtkfile = 0
+ih5file = 0
 for ipath,path in enumerate(paths):
-    vtkfiles = glob.glob(path + '/*.vtk', recursive=False)
-    nvtkfiles = nvtkfiles + len(vtkfiles)
+    h5files = glob.glob(path + '/*.h5', recursive=False)
+    nh5files = len(h5files)
     
-    vtkfiles.sort()
-  
-    for vtkfile in vtkfiles:
-        
-        reader.SetFileName(vtkfile)
-        reader.ReadAllVectorsOn()
-        reader.ReadAllScalarsOn()
-        reader.Update()
-
-        data = reader.GetOutput()
-        
-        print('Calculating maxima: # ' + f'{ivtkfile+1:d}/{nvtkfiles:d}', end='\r')
-        ivtkfile += 1
-        fieldkeys = ['w', 'e']
-        maxfield = {}
-        for fieldkey in fieldkeys:
-            field = VN.vtk_to_numpy(data.GetPointData().GetArray(fieldkey))
-            maxfield[fieldkey] = np.max(field)
-
-    ivtkfile = 0
-    for vtkfile in vtkfiles:
-        tmp = vtkfile.split('-')
-        tmp = tmp[-1].split('.')
-
-        reader.SetFileName(vtkfile)
-        reader.ReadAllVectorsOn()
-        reader.ReadAllScalarsOn()
-        reader.Update()
-
-        data = reader.GetOutput()
-
-        dim = data.GetDimensions()
-        vec = list(dim)
-        scl = vec
-        vec = [i-1 for i in dim]
-        vec.append(3)
-        print('Processing file # ' + f'{ivtkfile+1:d}/{nvtkfiles:d}', end='\r')
-        for fieldkey in fieldkeys:
-            field = VN.vtk_to_numpy(data.GetPointData().GetArray(fieldkey))    
-            field = field.reshape(dim)[:,:,0]
-            # field2 = field[:,0:1920-1024]
-            # field = np.concatenate((field,field2), axis=1)
-            # field2 = field[0:1080-1024,:]
-            # field = np.concatenate((field,field2), axis=0)
-            field = field / maxfield[fieldkey]
-            field = np.log(np.where(field < minval, minval, field))
-            plt.imsave(fieldkey + f'.{ivtkfile:06}.png', field, cmap=cmap)
-        ivtkfile += 1
-
-
-ivtkfile=0
-for ipath,path in enumerate(paths):
-    vtkfiles = glob.glob(path + '/*.vtk', recursive=False)
-
-    vtkfiles.sort()
-
-    for vtkfile in vtkfiles:
-
-        reader.SetFileName(vtkfile)
-        reader.ReadAllVectorsOn()
-        reader.ReadAllScalarsOn()
-        reader.Update()
-        print('Calculating maxima: # ' + f'{ivtkfile+1:d}/{nvtkfiles:d}', end='\r')
-        fieldkeys = ['w', 'e']
-        maxfield = {'w':0.0, 'e':0.0}
-        for fieldkey in fieldkeys:
-            data = reader.GetOutput()
-            field = VN.vtk_to_numpy(data.GetPointData().GetArray(fieldkey))
-            maxfield[fieldkey] = max(maxfield[fieldkey], np.max(field))
+    h5files.sort()
+    maxfield = {}
+    minfield = {}
+    for ih5file,h5file in enumerate(h5files):
+        with h5py.File(h5file, 'r') as h5file:
+            (print('Calculating maxima/minima: # '
+                   + f'{ih5file+1:d}/{nh5files:d}', end='\r'))
+            ih5file += 1
+            fieldkeys = h5file.keys() 
+            fieldkeys = ([fieldkey for fieldkey in fieldkeys
+                          if fieldkey != 'time'])
+            for fieldkey in fieldkeys:
+                field = np.array(h5file[fieldkey])
+                min_value = np.finfo(field.dtype).min
+                max_value = np.finfo(field.dtype).max
+                maxfield[fieldkey] = max(maxfield.setdefault(fieldkey,
+                                        min_value), np.max(field))
+                minfield[fieldkey] = min(minfield.setdefault(fieldkey,
+                                        max_value), np.min(field))
+    print('Done calculating maxima/minima.                                   ')
+    pngdir = os.path.join(path, 'png')
+    if not os.path.isdir(pngdir):
+        os.mkdir(pngdir)
+    ih5file = 0
+    for ih5file,h5file in enumerate(h5files):        
+        with h5py.File(h5file, 'r') as h5file:            
+            print('Processing file # ' + f'{ih5file+1:d}/{nh5files:d}',
+                  end='\r')
+            for fieldkey in fieldkeys:
+                pngfile = os.path.join(pngdir, f'{fieldkey}.{ih5file:06}.png')
+                if os.path.isfile(pngfile):
+                    continue
+                field = np.array(h5file[fieldkey])
+                field2 = field[:,0:1920-1024]
+                field = np.concatenate((field,field2), axis=1)
+                field2 = field[0:1080-1024,:]
+                field = np.concatenate((field,field2), axis=0)
+                scale = (maxfield[fieldkey] - minfield[fieldkey]) ** (-1)
+                field = scale * (field - minfield[fieldkey])
+                if 'scl' in fieldkey:
+                    cmap = cmap_blackbody
+                else:
+                    cmap = cmap_blueblack
+                    field = np.log(np.where(field < minval, minval, field))
+                #cmap = cmap_blueblack
+#                cmap = cmap_blackbody if 'scl' in fieldkey else cmap_blueblack
+                plt.imsave(pngfile, field, cmap=cmap)
+    print(f'Finished directory {path}.                                      ')
 
 
-    for vtkfile in vtkfiles:
-        
-        reader.SetFileName(vtkfile)
-        reader.ReadAllVectorsOn()
-        reader.ReadAllScalarsOn()
-        reader.Update()
-
-        data = reader.GetOutput()
-
-        dim = data.GetDimensions()
-        vec = list(dim)
-        scl = vec
-        vec = [i-1 for i in dim]
-        vec.append(3)
-        print('Processing files: # ' + f'{ivtkfile+1:d}/{nvtkfiles:d}', end='\r')
-        for fieldkey in fieldkeys:
-            field = VN.vtk_to_numpy(data.GetPointData().GetArray(fieldkey))    
-            field = field.reshape(dim)[:,:,0]
-            # field2 = field[:,0:1920-1024]
-            # field = np.concatenate((field,field2), axis=1)
-            # field2 = field[0:1080-1024,:]
-            # field = np.concatenate((field,field2), axis=0)
-            field = field / maxfield[fieldkey]
-            field = np.log(np.where(field < minval, minval, field))
-            plt.imsave(fieldkey + f'.{ivtkfile:06}.png', field, cmap=cmap)
-        ivtkfile += 1

@@ -716,8 +716,6 @@ contains
     integer(ik) :: l, m
     character(len=64), dimension(:), allocatable :: datanames
 
-    return
-
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
 

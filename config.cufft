@@ -6,4 +6,4 @@ export MKLFLAGS=''
 export MKLLDFLAGS=''
 export FFTWFLAGS=''
 # put '-D _DOUBLE_' here to build with double precision floats
-export PRECISION='-D _DOUBLE_'
+export PRECISION=''

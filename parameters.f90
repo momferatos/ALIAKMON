@@ -171,7 +171,7 @@ module parameters
   ! Maximum time
   real(rk)               :: TMAX
   ! Stop at the dissipation peak?
-  logical                :: STOP_AT_DISSPEAK = .false.
+  logical                :: STOP_AT_DISSPEAK = .true.
   ! Maximum timesteps
   integer(ik)            :: TIMESTEPS
   ! Courant-Friedrichs-Lewy (CFL) condition

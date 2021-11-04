@@ -181,7 +181,7 @@ contains
     REl=rmsu*lambda/visc(nu1)
 
     !Tolerance for Kaneda et al. (2004) forcing
-    tol=1.0e-1_rk
+    tol=1.0e-2_rk
 
     !Kaneda et al. (2004) forcing: keep kinetic energy within given bounds
     !by negative viscosity

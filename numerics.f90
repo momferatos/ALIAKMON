@@ -634,11 +634,11 @@ contains
       !$omp parallel do private(ksq,ff,fvisc)
       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1)) 
          if(isactive(i,j,k)) then
-            !call forcing_rhs(nn,i,j,k,fu,ff)
+            call forcing_rhs(nn,i,j,k,fu,ff)
             ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+wv(3_ik,i,j,k)**2
             fvisc(l)=-ksq*visc(l)*fu(i,j,k,l)
             !Add to get the right-hand-side
-            scratch(i,j,k,l)=fnl(i,j,k,l)+fvisc(l)
+            scratch(i,j,k,l)=fnl(i,j,k,l)+fvisc(l)+ff(l)
          else
             scratch(i,j,k,l)=0.0_rk
          end if
@@ -719,7 +719,7 @@ contains
 !!$          !Kaneda et al. (2004) forcing
 !!$       else if(VARIABLE_FORCING) then
        do l=1,nn(4)
-          ff(l)=fscale(l)*cmplx(fu(i,j,k,nu1),fu(i+1,j,k,nu1),ck)
+          ff(l)=fscale(l)*cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
        end do
     else
        ff(:)=cmplx(0.0_rk,0.0_rk,ck)
