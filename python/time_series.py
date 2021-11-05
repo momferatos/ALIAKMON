@@ -3,12 +3,28 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
+import os
 
-path = sys.argv[1]
+fname = sys.argv[1]
+if not os.path.isfile(fname):
+    prit(f'error: can\'t open {fname}.')
+    sys.exit(1)
+    
+ys = sys.argv[2:]
 
-series = pd.read_table(path + '/' + 'hydro.dat', delimiter='|', skiprows=1)
+df = pd.read_table(fname, delimiter='|', skiprows=1)
 
-series.plot(x='t',y='e')
+with open(fname, 'r') as hydro_dat:
+    descs = list(hydro_dat)[0].split('|')
+    
+if not ys:
+    cols = list(df.columns)
+    for col,desc in zip(cols, descs):
+        print(f'{col.strip():<10} {desc.strip():>40}')
+else:
+    for y in ys:
+        df.plot(y=y)
+        
 #series.plot(x='t',y='ke')
 plt.show()
 # hydro_dat = open(path + '/' + 'hydro.dat', 'r')

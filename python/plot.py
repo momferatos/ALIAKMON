@@ -1,67 +1,44 @@
 #!/usr/bin/env python3
 import numpy as np
-from vtk import vtkStructuredGridReader
-from vtk.util import numpy_support as VN
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import sys
-import glob
 import os
+import h5py
 
 minval = 1.0e-3
 
-
 pydir = os.path.dirname(os.path.realpath(__file__))
 
-ncmap = np.load(pydir + '/turb_cmap.npy') / 255.
+ncmap_blueblack = np.load(pydir + '/blue-black_cmap.npy') / 255.
+ncmap_blackbody = np.load(pydir + '/black-body_cmap.npy') / 255.
 
-cmap = ListedColormap(ncmap)
+cmap_blueblack = ListedColormap(ncmap_blueblack)
+cmap_blackbody = ListedColormap(ncmap_blackbody)
 
-reader = vtkStructuredGridReader()
+fname = sys.argv[1]
+h5key = sys.argv[2]
 
-if len(sys.argv) == 3:
-    vtkfile = sys.argv[2]
-else:
-    vtkfiles = glob.glob('./*.vtk', recursive=False)
-    vtkfiles.sort(reverse=True)
-    vtkfile=vtkfiles[0]
-
-reader.SetFileName(vtkfile)
-reader.ReadAllVectorsOn()
-reader.ReadAllScalarsOn()
-reader.Update()
-
-fieldkey = sys.argv[1]
-
+if not os.path.isfile(fname):
+    print(f'error: can\'t open {fname}.')
+    sys.exit(1)
     
-
-reader.SetFileName(vtkfile)
-reader.ReadAllVectorsOn()
-reader.ReadAllScalarsOn()
-reader.Update()
-
-data = reader.GetOutput()
-
-dim = data.GetDimensions()
-vec = list(dim)
-scl = vec
-vec = [i-1 for i in dim]
-vec.append(3)
-
-field = VN.vtk_to_numpy(data.GetPointData().GetArray(fieldkey))    
-field = field.reshape(dim)[:,:,0]
-field = np.where(field < 0.0001, 0.0001, field)
-
-
-
-#rcParams.update({'figure.figsize':figsize})
-fig = plt.figure()
-plt.axes([0,0,1,1]) # Make the plot occupy the whole canvas
-plt.axis('off')
-#fig.set_size_inches(figsize)
-plt.contourf(np.log(field), 256, cmap=cmap)
-plt.axis('equal')
-
-plt.show()
+with h5py.File(fname, 'r') as h5file:
+    h5keys = h5file.keys()
+    if h5key not in h5keys:
+        print(f'error: key {h5key} not found')
+        sys.exit(1)
+    field = np.array(h5file[h5key])
+    if 'scl' in h5key:
+        cmap = cmap_blackbody
+    else:
+        cmap = cmap_blueblack
+        field = np.log(np.where(field < minval, minval, field))
+    plt.figure()
+    plt.axes([0,0,1,1]) # Make the plot occupy the whole canvas
+    plt.axis('off')
+    plt.contourf(field, 256, cmap=cmap)
+    plt.axis('equal')
+    plt.show()
     
