@@ -424,6 +424,8 @@ contains
   end subroutine write_hdf5_slice_dataset
 
   subroutine write_hdf5_compute_file(nn,u,time,nfile)
+    use data, only: ga
+    use fvdom, only: calcqr
     implicit none
     integer(ik), intent(IN), dimension(1:4)                  :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:nn(4)), intent(IN) :: u
@@ -477,6 +479,12 @@ contains
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
     allocate(h5_vector_data(1:3,1:nn(1),1:nn(2),1:nn(3)))
 
+    if(RADIATION) then
+       call calcqr
+       call write_hdf5_scalar_dataset('/G', ga, nn)
+       call write_hdf5_vector_dataset('/q', qr, nn)
+    end if
+    
 
     !$omp parallel do
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -549,6 +557,8 @@ contains
   end subroutine write_hdf5_compute_file
 
   subroutine write_hdf5_slice_file(nn,nfields,slice,datanames,time,nfile)
+    use data, only: ga
+    use fvdom, only: calcqr
     implicit none
     integer(ik), intent(IN), dimension(1:4)                :: nn
     integer(ik), intent(IN)                                :: nfields
@@ -610,8 +620,24 @@ contains
 
     end do
 
-
-
+    if(RADIATION) then
+       call calcqr
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2)
+          h5_slice_data(j,k) = ga(1,j,k)
+       end do; end do
+       !$omp end parallel do
+       print *, 'G:', minval(h5_slice_data), maxval(h5_slice_data)
+       call write_hdf5_slice_dataset('/G',h5_slice_data,nn)
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2)
+          h5_slice_data(j,k) = sqrt(sum(qr(1, j, k, :) ** 2))
+       end do; end do
+       !$omp end parallel do
+       print *, 'q:', minval(h5_slice_data), maxval(h5_slice_data)
+       call write_hdf5_slice_dataset('/q',h5_slice_data,nn)
+    end if
+    
     ! Deallocate data buffer.
     !
     deallocate(h5_slice_data)
@@ -701,6 +727,27 @@ contains
           write(xdmf_file,'(a)') '      </Attribute>'
        end if
     end do
+
+    if(RADIATION) then
+       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
+            &'G','"             Type="Scalar">'
+       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
+            &Precision="',rks,'" Dimensions="'&
+            &,n1,gn2,gn3, '"'
+       write(xdmf_file,'(5a)') &
+            &'            		  Format="HDF">',&
+            &trim(h5filename),':/','G','</DataItem>'
+       write(xdmf_file,'(a)') '      </Attribute>'
+       write(xdmf_file,'(5a)') '      <Attribute Center="Node" Name="',&
+            &'q','"             Type="Vector">'
+       write(xdmf_file,'(a,i6,a,4i6,a)') '        <DataItem DataType="Float" &
+            &Precision="',rks,'" Dimensions="'&
+            &,n1,gn2,gn3,3,'"'
+       write(xdmf_file,'(5a)') &
+            &'            		  Format="HDF">',&
+            &trim(h5filename),':/','q','</DataItem>'
+    end if
+
     write(xdmf_file,'(a)') '    </Grid>'
     write(xdmf_file,'(a)') '  </Domain>'
     write(xdmf_file,'(a)') '</Xdmf>'
@@ -758,6 +805,29 @@ contains
        write(xdmf_file,'(a)') '      </Attribute>'
 
     end do
+
+    if(RADIATION) then
+       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
+            &'G','"             Type="Scalar">'
+       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
+            &Precision="',rks,'" Dimensions="'&
+            &,1,gn2,gn3, '"'
+       write(xdmf_file,'(5a)') &
+            &'            		  Format="HDF">',&
+            &trim(h5filename),':/','G','</DataItem>'
+       write(xdmf_file,'(a)') '      </Attribute>'
+
+       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
+            &'q','"             Type="Scalar">'
+       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
+            &Precision="',rks,'" Dimensions="'&
+            &,1,gn2,gn3, '"'
+       write(xdmf_file,'(5a)') &
+            &'            		  Format="HDF">',&
+            &trim(h5filename),':/','q','</DataItem>'
+       write(xdmf_file,'(a)') '      </Attribute>'
+    end if
+
     write(xdmf_file,'(a)') '    </Grid>'
     write(xdmf_file,'(a)') '  </Domain>'
     write(xdmf_file,'(a)') '</Xdmf>'

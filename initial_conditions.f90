@@ -119,6 +119,7 @@ contains
   subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
     use mpivars
+    use fvdom, only: calcia
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
@@ -189,6 +190,8 @@ contains
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
 
+    if(RADIATION) call calcia
+    
     return
 
   end subroutine set_initial_conditions
@@ -211,7 +214,7 @@ contains
     real(rk)                                               :: a,b,c
     real(rk)                                               :: dx,dy,dz
     real(rk)                                               :: x,y,z,dzmpi
-    real(rk), dimension(1:3)                                 :: xx
+    real(rk), dimension(1:nn(4))                                 :: xx
     integer(ik), dimension(k1:k2, 1:nn(4))                   :: ii
     real(rk), dimension(1:3)                                 :: aa,r
     integer(ik)                                            :: nu,l

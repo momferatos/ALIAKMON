@@ -59,6 +59,7 @@ module parameters
   integer(ik)                                   :: nb1
   integer(ik)                                   :: nb2
   integer(ik)                                   :: nb3
+  integer(ik)                                   :: ntemp
   ! For the energy conservation tests
   real(rk)                                      :: teinitial
   real(rk)                                      :: mchinitial
@@ -122,6 +123,7 @@ module parameters
   integer                :: nt = 1
   ! Local dimensions of the domain
   integer(ik)            :: n1,n2,n3
+  !$acc declare create(n1, n2, n3)
   ! Global y dimension across MPI processes
   integer(ik)            :: gn2
   ! Global z dimension across MPI processes
@@ -234,7 +236,15 @@ module parameters
   real(rk)               :: HALL_COEFF
   ! Logical variable for MHD forcing
   logical                :: FORCED_MHD
-  ! Logical variable for Hall particles
+  ! Logical variable for radiation
+  logical                :: RADIATION = .true.
+  integer(ik)            :: EQSECTS = 1
+  integer(ik)            :: nsects = 10
+  integer(ik)            :: niterdo = 1000
+  real(rk)               :: FVTOL = 1.0e2
+  real(rk), parameter    :: STEFB = 5.67037321e-8_rk
+  !$acc declare create(STEFB)
+  ! Logical variable for particles
   logical                :: PARTICLES
   ! Default value for particle initial condition
   integer                :: PART_INITCOND
@@ -362,7 +372,7 @@ module mpivars
   ! Global value for maximum wavenumber 
   integer(ik) :: glkmax,kstep
   ! Constants for MPI data types
-  integer :: MPIRK,MPISP,MPICKS, MPIIK,MPIRKS
+  integer :: MPIRK, MPI2RK, MPISP,MPICKS, MPIIK,MPIRKS
   ! Buffers used in reductions and Broadcasts
   real(dp), dimension(1024) :: sbuf,rbuf
   ! Maximum integer
@@ -380,8 +390,10 @@ contains
     ! Real
     if(rk == sp) then
        MPIRK = MPI_REAL
+       MPI2RK = MPI_2REAL
     else if(rk == dp) then
        MPIRK = MPI_DOUBLE_PRECISION
+       MPI2RK = MPI_2DOUBLE_PRECISION
     end if
 
     if(rks == sp) then

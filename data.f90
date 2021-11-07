@@ -61,14 +61,469 @@ module data
   real(rks), dimension(:,:,:), allocatable    :: rho
   real(rks), dimension(:,:), allocatable      :: rho2d
   integer(ik), dimension(1:4)                   :: nn
+  !$acc declare create(nn)
 
+  real(rks), dimension(:, :, :, :), allocatable, target ::  ia    ! radiation intensity
+  !$acc declare create(ia)
+  real(rks), dimension(:, :, :, :), allocatable, target ::  iba   ! radiation intensity at previous iteration
+  !$acc declare create(iba)
+  real(rks), dimension(:, :, :), allocatable, target ::  temp   ! temperature buffer
+  !$acc declare create(temp)
+  real(rks), dimension(:, :, :), allocatable, target ::  ga   ! incident radiation
+  !$acc declare create(ga)
+  real(rks), dimension(:, :, :, :), allocatable, target ::  qr   ! incident radiation
+  !$acc declare create(qr)
+  real(rk), dimension(:, :), allocatable :: s      ! vector pointing at the direction of the center of the angular
+  !$acc declare create(s)
+  real(rk), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
+  !$acc declare create(omeg)
+  integer(ik) :: nnphi
+  ! sign vectors used to check the direction of the shat vector
+  real(rk), dimension(8, 3) :: sgn
+  !$acc declare create(sgn(1:8, 1:3))
+  integer(ik), dimension(8) :: istart, iend, istep ! starts, ends and steps of the i-sweep (step is +/- 1)
+  !$acc declare create(istart(1:8), istep(1:8), iend(1:8))
+  integer(ik), dimension(8) :: jstart, jstep, jend ! starts, ends and steps of the j-sweep (step is +/- 1)
+  !$acc declare create(jstart(1:8), jstep(1:8), jend(1:8))
+  integer(ik), dimension(8) :: kstart, kstep, kend ! starts, ends and steps of the k-sweep (step is +/- 1)
+  !$acc declare create(kstart(1:8), kstep(1:8), kend(1:8))
+  real(rks), dimension(:, :, :), allocatable :: sendbuf, recvbuf
+  
   interface zero
      module procedure zero3d
      module procedure zero4d
   end interface zero
-  
+
 contains
 
+  
+  subroutine allocate_fvdom
+    use types
+    use parameters
+    implicit none
+    integer(ik) :: nphi
+!!!!!!!!!!!!!!!!!!!!
+    ! allocates memory !
+!!!!!!!!!!!!!!!!!!!!
+
+    ! find the closest integer nphi for which nsects = nphi * (nphi + 2)
+    if(EQSECTS == 2) then
+       nphi = int(sqrt(real(nsects, 8)), 8)
+       nphi = 2*int(nphi / 2., 8)
+       nsects = nphi * (nphi + 2)
+       nnphi = nphi
+    end if
+
+    !allocate memory
+    if(.not.allocated(ia)) allocate(ia(-1:nn(1) + 1, -1:nn(2) + 1, -1:nn(3) + 1, 1:nsects))
+    !$acc enter data create(ia(-1:nn(1) + 1, -1:nn(2) + 1, -1:nn(3) + 1, 1:nsects))
+    if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
+    !$acc enter data create(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
+    if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
+    !$acc enter data create(temp(1:nn(1), 1:nn(2), 1:nn(3)))
+    if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
+!!$acc enter data create(ga(1:nn(1), 1:nn(2), 1:nn(3)))
+    if(.not.allocated(qr)) allocate(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
+!!$acc enter data create(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
+    if(.not.allocated(s)) allocate(s(nsects, 1:3))
+    !$acc enter data create(s(nsects, 1:3))
+    if(.not.allocated(omeg)) allocate(omeg(1:nsects))
+    !$acc enter data create(omeg(1:nsects))
+
+    !$acc enter data create(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
+    !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
+
+    if(.not.allocated(sendbuf)) allocate(sendbuf(1:n1, 1:n2, 1:nsects))
+    if(.not.allocated(recvbuf)) allocate(recvbuf(1:n1, 1:n2, 1:nsects))
+    
+    return
+
+  end subroutine allocate_fvdom
+
+  subroutine deallocate_fvdom
+
+    implicit none
+!!!!!!!!!!!!!!!!!!!!!!
+    ! deallocates memory !
+!!!!!!!!!!!!!!!!!!!!!!
+
+    if(allocated(ia)) deallocate(ia)
+    !$acc exit data delete(ia)
+    if(allocated(iba)) deallocate(iba)
+    !$acc exit data delete(iba)
+    if(allocated(temp)) deallocate(temp)
+    !$acc exit data delete(temp)
+    if(allocated(ga)) deallocate(ga)
+    !!$acc exit data delete(ga)
+    if(allocated(qr)) deallocate(qr)
+    !!$acc exit data delete(qr)
+    if(allocated(s)) deallocate(s)
+    !$acc exit data delete(s)
+    if(allocated(omeg)) deallocate(omeg)
+    !$acc exit data delete(omeg)
+
+    !$acc exit data delete(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
+    !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
+
+    if(allocated(sendbuf)) deallocate(sendbuf)
+    if(allocated(recvbuf)) deallocate(recvbuf)
+    
+    return
+
+  end subroutine deallocate_fvdom
+
+  subroutine init_fvdom
+    use parameters
+    use mpivars, only: ljstart, ljsize, lkstart, lksize
+    implicit none
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! initializes all relevant module variables and arrays !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(ik) :: m, mp, ns, i, j, k, l
+    integer(ik) :: isl, iel, jsl, jel, ksl, kel
+
+    !nsects = 80
+
+    ! initialize radiative intensities to zero
+    !$omp parallel do 
+    do l=1,nsects ; do k=-1,nn(3)+1 ; do j=-1,nn(2)+1 ; do i=-1,nn(1)+1
+       ia(i, j, k, l) = 0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+    !$acc update device(ia(-1:n1+1, -1:n2+1, -1:n3+1, 1:nsects))
+
+    !$omp parallel do 
+    do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       ia(i, j, k, l) = 0.0_rk
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+    !$acc update device(ia(1:n1, 1:n2, 1:n3, 1:nsects))
+
+
+    !$omp parallel do 
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       ga(i, j, k) = 0.0_rk
+    end do; end do ; end do
+    !$omp end parallel do
+!!$acc update device(ga(1:n1, 1:n2, 1:n3))
+
+    !$omp parallel do 
+    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       qr(i, j, k, l) = 0.0_rk
+    end do; end do ; end do; end do
+    !$omp end parallel do
+!!$acc update device(qr(1:n1, 1:n2, 1:n3,1:3))
+
+    !$omp parallel do
+    do ns=1,nsects
+       do j=1,n2
+          do i=1,n1
+             sendbuf(i, j, ns) = 0.0_rks
+             recvbuf(i, j, ns) = 0.0_rks
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+    ! perform subdivision of the unit sphere in equal-area angular control volumes        
+    call sectors
+    !$acc update device(s(1:nsects, 1:3), omeg(1:nsects))
+
+    isl = 1
+    iel = nn(1)
+
+    istart = (/isl,  isl,  isl,  isl,  iel, iel, iel, iel/)  ! starts of the i-sweep
+    iend   = (/iel, iel, iel, iel, isl,  isl,  isl,  isl /)  ! ends of the i-sweep
+    istep  = (/1,  1,  1,  1, -1, -1, -1, -1 /)  ! steps of the i-sweep
+
+    jsl = 1
+    jel = ljsize
+
+    jstart = (/jsl,  jsl,  jel, jel, jsl,  jsl,  jel, jel/)  ! starts of the j-sweep
+    jend   = (/jel, jel, jsl,  jsl,  jel, jel, jsl,  jsl /)  ! ends of the j-sweep
+    jstep  = (/1,  1, -1, -1,  1,  1, -1, -1 /)  ! steps of the j-sweep
+
+    ksl = 1
+    kel = lksize
+
+    kstart = (/ksl,  kel, ksl,  kel, ksl,  kel, ksl,  kel/)  ! starts of the k-sweep
+    kend   = (/kel, ksl,  kel, ksl,  kel, ksl,  kel, ksl /)  ! ends of the k-sweep
+    kstep  = (/1, -1,  1, -1,  1, -1,  1, -1 /)  ! steps of the k-sweep
+
+    !$acc update device(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
+    !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
+
+    return
+
+  end subroutine init_fvdom
+
+  subroutine sectors
+    implicit none
+
+    if(EQSECTS == 1) then
+       call sectors_equal ! exactly equal angular control volumes
+    else if(EQSECTS == 0) then
+       call sectors_unequal ! unequal angular control volumes
+    else if(EQSECTS == 2) then
+       call sectors_almost_equal ! almost equal angular control volumes
+    end if
+
+  end subroutine sectors
+
+  subroutine sectors_unequal
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! subdivision of the unit sphere into nsects = nphi * ntheta sectors
+    ! of unequal area
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    implicit none
+    real(rk) :: theta, phi, dphi, dtheta, phi0, theta0,&
+         &phi1, phi2, theta1, theta2 
+    integer(ik) :: nphi, ntheta, ns, np, nt
+
+    ! find integer number of subdivisions across phi, theta
+    nphi = int(sqrt(real(nsects, 8)), 8)
+    ntheta = int(sqrt(real(nsects, 8)), 8)
+
+    ! new total number of directions
+    nsects = nphi * ntheta
+
+    ! phi, theta increments
+    dphi = PI / nphi
+    dtheta = 2 * PI / ntheta
+
+    ! phi, theta starting points
+    phi0 = 0.0
+    theta0 = 0.0
+
+    ns  = 0
+    do np=1,nphi
+       phi1 = phi0 + (np - 1) * dphi ! phi startpoint of sector
+       phi2 = phi0 + np * dphi ! phi endpoint of sector
+       do nt=1,ntheta
+          theta1 = theta0 + (nt - 1) * dtheta ! theta startpoint of sector
+          theta2 = theta0 + nt * dtheta ! theta endpoint of sector
+          ns = ns  + 1 ! next sector
+
+          ! total sector area
+          omeg(ns) = (theta2 - theta1) * (cos(phi1) - cos(phi2)) 
+
+          ! sector vector components (vector has magnitude equal to sector area) 
+          s(ns, 1) = 0.5 * (phi1 - phi2 - cos(phi1) * sin(phi1) + &
+               &cos(phi2) * sin(phi2)) * (sin(theta1) - sin(theta2))
+
+          s(ns, 2) = 0.25 * (cos(theta1) - cos(theta2)) * (-2.0 * phi1 + &
+               & 2.0 * phi2 + sin(2 * phi1) - sin(2 * phi2))
+
+          s(ns, 3) = -0.25 * (theta1 - theta2) * (cos(2 * phi1) - &
+               &cos(2 * phi2))
+
+       end do
+    end do
+
+    ! write vectors to file for checks
+    open(789, file = 's.dat', form = 'formatted')
+    do ns=1,nsects
+       write(789, '(3e16.8)') s(ns, :) 
+    end do
+    close(789, status = 'keep')
+
+    return
+
+  end subroutine sectors_unequal
+
+  subroutine sectors_almost_equal
+    implicit none
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! subdivision of the unit sphere into nsects = nphi * (nphi + 2) sectors
+    ! of almost equal area
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    real(rk) :: theta, phi, dphi, dtheta, phi0, theta0,&
+         &phi1, phi2, theta1, theta2 
+    integer(ik) :: nphi, ntheta, ns, np, nt, nphi_middle, nn
+
+    nphi = nnphi ! number of phi subdivisions
+    nphi_middle = nphi / 2 ! middle phi subdivision
+    dphi = PI / nphi ! phi increment
+
+    ! phi, theta starting points
+    phi0 = 0.0
+    theta0 = 0.0
+
+    ns  = 0
+    ntheta = 4 ! starting value of theta subdivisions
+    do np=1,nphi
+       phi1 = phi0 + (np - 1) * dphi ! phi startpoint of sector 
+       phi2 = phi0 + np * dphi ! phi endpoint of sector
+       dtheta = 2 * PI / ntheta ! theta increment
+       do nt=1,ntheta
+          theta1 = theta0 + (nt - 1) * dtheta ! theta startpoint of sector 
+          theta2 = theta0 + nt * dtheta ! theta endpoint of sector
+          ns = ns + 1 ! next sector
+
+          ! sector area
+          omeg(ns) = (theta2 - theta1) * (cos(phi1) - cos(phi2)) 
+
+          ! sector vector components (vector has magnitude equal to sector area)             
+          s(ns, 1) = 0.5 * (phi1 - phi2 - cos(phi1) * sin(phi1) + &
+               &cos(phi2) * sin(phi2)) * (sin(theta1) - sin(theta2))
+
+          s(ns, 2) = 0.25 * (cos(theta1) - cos(theta2)) * (-2.0 * phi1 + &
+               & 2.0 * phi2 + sin(2 * phi1) - sin(2 * phi2))
+
+          s(ns, 3) = -0.25 * (theta1 - theta2) * (cos(2 * phi1) - &
+               &cos(2 * phi2))
+
+       end do
+
+       ! update number of theta subdivisions
+       if(np < nphi_middle) then
+          ntheta = ntheta + 4
+       else if(np > nphi_middle) then
+          ntheta = ntheta - 4
+       end if
+
+    end do
+
+    !write vectors to file for checks
+    open(789, file = 's.dat', form = 'formatted')
+    do ns=1,nsects
+       write(789, '(3e16.8)') s(ns, :) 
+    end do
+    close(789, status = 'keep')
+
+    return
+
+  end subroutine sectors_almost_equal
+
+
+  subroutine sectors_equal
+
+    implicit none
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! perform subdivision of the unit sphere in equal-area angular control volumes !
+    ! using the method of:                                                         !
+    !                                                                              !
+    ! Leopardi, Paul. "A partition of the unit sphere into regions of equal area   !
+    ! and small diameter." Electronic Transactions on Numerical Analysis 25.12     !
+    ! (2006): 309-327.                                                             !
+    !                                                                              !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    real(rk) :: omega, V_R, phi_c, delta_i, n_i, delta_f
+    real(rk) :: delta_theta, theta1, theta2, theta, delta_phi
+    real(rk) :: phi1, phi2, phi
+    integer(ik) :: n, ns
+    real(rk), dimension(:), allocatable :: theta_f, yy, a
+    integer(ik), dimension(:), allocatable :: m
+    integer(ik) :: i, j, np
+    ! total sphere area
+    omega = 4.0 * PI
+
+    ! partition (sector) area
+    V_R = omega / real(nsects, 8)
+
+    ! colattitude of north polar spherical cap
+    phi_c = 2.0 * asin(sqrt(1.0_8 / real(nsects, 8)))
+
+    ! ideal collar angle
+    delta_i = sqrt(V_R)
+
+    ! ideal number of collars
+    n_i = (PI - 2.0 * phi_c) / delta_i
+
+    ! n: actual number of collars
+    if(nsects == 2) then
+       n = 0
+    else
+       n = max(1, floor(n_i + 0.5))
+    end if
+
+    allocate(theta_f(1:n + 1))
+
+    ! ideal number of regions for each collar
+    delta_f = n_i / n * delta_i
+    do i=1,n+1
+       theta_f(i) = phi_c + (i - 1) * delta_f
+    end do
+
+    allocate(yy(1:n))
+
+    do i=1,n
+       yy(i) = (V(theta_f(i+1)) - V(theta_f(i))) / V_R
+    end do
+
+    ! m(1:n): actual number of regions for each collar
+    allocate(m(1:n))
+    allocate(a(0:n))
+    a = 0.0
+    do i=1,n
+       m(i) = floor(yy(i) + a(i-1) + 0.5)
+       a(i) = a(i-1) + yy(i) - m(i)
+    end do
+
+    deallocate(theta_f)
+    deallocate(yy)
+    deallocate(a)
+
+    ! calculate direction vectors
+    s(1, :) = V_R * (/0.0, 0.0, 1.0/) ! north pole vector
+    s(2, :) = V_R * (/0.0, 0.0, -1.0/) ! south pole vector
+    ! for the rest of the direction vectors, subdivide spherical
+    ! coordinates theta and phi
+    delta_phi = (PI - 2.0 * phi_c) / real(n, 8) ! theta increment
+    ns = 3
+    do i=1,n
+       phi1 = phi_c + (i - 1) * delta_phi ! theta startpoint of sector
+       phi2 = phi_c + i * delta_phi ! theta endpoint of sector
+       delta_theta = 2.0 * PI / real(m(i), 8) ! phi increment
+       do j=1,m(i)
+          theta1 = (j - 1) * delta_theta ! phi startpoint of sector
+          theta2 = j * delta_theta ! phi endpoint of sector
+
+          ! sector vector components (vector has magnitude equal to sector area)             
+          s(ns, 1) = 0.5 * (phi1 - phi2 - cos(phi1) * sin(phi1) + &
+               &cos(phi2) * sin(phi2)) * (sin(theta1) - sin(theta2))
+
+          s(ns, 2) = 0.25 * (cos(theta1) - cos(theta2)) * (-2.0 * phi1 + &
+               & 2.0 * phi2 + sin(2 * phi1) - sin(2 * phi2))
+
+          s(ns, 3) = -0.25 * (theta1 - theta2) * (cos(2 * phi1) - &
+               &cos(2 * phi2))
+
+          ns = ns + 1 ! next sector
+       end do
+    end do
+
+    omeg(:) = V_R ! solid angles of sectors are equal
+
+    ! wtite vectors to file for checks
+    open(789, file = 's.dat', form = 'formatted')
+    do ns=1,nsects
+       write(789, '(3e16.8)') s(ns, :)
+    end do
+    close(789, status = 'keep')
+
+
+    deallocate(m)
+
+    return
+
+  end subroutine sectors_equal
+
+  function V(theta) 
+
+    implicit none
+    real(rk) :: V
+    real(rk) :: theta
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! area of spherical cap of angle theta !
+    ! function (2.9) in (Leonardi, 2006)   !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    V = 4.0 * PI * sin(0.5 * theta) * sin(0.5 * theta)
+
+    return
+
+  end function V
   
   subroutine zero3d(nn,array)
     use types
@@ -79,13 +534,13 @@ contains
     ! fills array with zeros
     !
     integer(ik) :: i,j,k,l
-    
+
     !$omp parallel do
     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        array(i,j,k,l)=0.0_rks
     end do; end do ; end do ; end do
     !$omp end parallel do
-    
+
     return
   end subroutine zero3d
 
@@ -98,13 +553,13 @@ contains
     ! fills array with zeros
     !
     integer(ik) :: i,j,k,l,m
-    
+
     !$omp parallel do
     do m=1,3 ; do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1)) 
        array(i,j,k,l,m)=0.0_rks
     end do; end do ; end do ; end do ; end do
     !$omp end parallel do
-    
+
     return
   end subroutine zero4d
 
@@ -125,13 +580,13 @@ contains
     !$omp parallel do
     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,iilim
        dest(i,j,k,l)=source(i,j,k,l)
-    end do ; end do ; end do ; end do
+    end do; end do ; end do ; end do
     !$omp end parallel do
 
     return
-    
+
   end subroutine copy
-  
+
   subroutine alloc_init
     use mpivars
     implicit none
@@ -152,7 +607,7 @@ contains
     nfields=3
 
     if(.not.PASSIVE_SCALAR) numscls = 0_ik
-    
+
     ! arbitrary number of passive scalars
     if(PASSIVE_SCALAR) then
        nscl=numscls
@@ -168,12 +623,14 @@ contains
        nfields=nfields+3
     end if
 
+    ntemp = nsclf
+    
     ! set vector of array dimensions
     nn(1)=n1
     nn(2)=n2
     nn(3)=n3
     nn(4)=nfields
-
+    !$acc update device(nn(1:4))
 
     ! viscosities, scalar diffusivities, magnetic diffusivities
     allocate(visc(1:nn(4)))
@@ -380,6 +837,11 @@ contains
        end if
     end do; end do ; end do
 
+    if(RADIATION) then
+       call allocate_fvdom
+       call init_fvdom
+    end if
+    
     return
 
   end subroutine alloc_init
@@ -474,7 +936,7 @@ contains
     allocate(trk1(1:dim1(n1)))
     trk1(:) = 0.0_rk
 
-    
+
     ! if we're using MPI, z direction is spread across processes,
     ! each process has a slice of z-width lksize
 #ifdef _MPI_
@@ -511,7 +973,7 @@ contains
     ! and its counterpart for truncation
     allocate(trgk3(1:gn3))
     trgk3(:) = 0.0_rk
-    
+
     !initialize wave-vector arrays
     call wave_vectors(k1,k2,k3,trk1,trk2,trk3,gk2, trgk2, gk3,trgk3)
 
@@ -736,7 +1198,7 @@ contains
        trk2(i)=trgk2(i)
     end do
 #endif
-    
+
     ! z-direction is divided across MPI processes
     ! global wave-vector array
     gk3(1)=0_ik

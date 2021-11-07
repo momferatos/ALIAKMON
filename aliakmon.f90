@@ -17,6 +17,7 @@ program aliakmon
   use validation
   use mpivars
   use hdf5_aliakmon
+  use fvdom
 #ifdef _MPI_
   use mpi
   use fft_heffte
@@ -338,7 +339,7 @@ program aliakmon
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
-
+     
      ! Print progress to stdout
      call print_progress(k,time,&
           &tstart,t1)
@@ -378,6 +379,9 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
+     if(RADIATION) then
+        call calcia
+     end if
      !call energy_test(nn,u,fu,rhs)     
      ! Write maxima to file
      write(maxima_dat,'(6e17.8)') time,maxu,maxb,MAXVORT, MAXJ, MAXLF
@@ -396,11 +400,12 @@ program aliakmon
         nvortfile = nvortfile + 1
      end if
 
-     if(int(floor(time * hdf5frate), ik) == nhdf5file .and. NOUTPUTFILES /= 0) then
+     if(int(floor(time * hdf5frate), ik) == &
+          &nhdf5file .and. NOUTPUTFILES /= 0) then
         call output_files(nhdf5file)
         nhdf5file = nhdf5file + 1
      end if
-
+          
   end do timeloop
 
   ! Print estimated total time information
@@ -414,8 +419,8 @@ program aliakmon
      mins=int(et/60.)
      secs=et-mins*60.
 
-     print '(4(a,i4),2(a,f10.3))', 'Time: ', days,':',hours,':',mins,':',secs, &
-          &' Time/timestep: ', ((t2-t1))/(k-1), ' timesteps/hour: ',&
+     print '(4(a,i4),2(a,f10.3))', 'Time: ', days,':',hours,':',mins,':', &
+          &secs, ' Time/timestep: ', ((t2-t1))/(k-1), ' timesteps/hour: ',&
           & k/((t2-t1))*60*60
 
 
@@ -489,12 +494,15 @@ contains
 
   subroutine output_files(num)
     use hdf5_aliakmon
+    use fvdom, only: calcqr
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
 
-    return
-
+    if(RADIATION) then
+       call calcqr
+    end if
+    
     call copy(nn,u,fu)
 
     call fourier(nn,-1_ik,u)

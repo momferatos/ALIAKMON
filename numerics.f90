@@ -2006,7 +2006,7 @@ contains
 
 
   subroutine rescale(nn,fu)
-    use data, only: nu1,nu3,nsclf,nscll,nb1,nb3
+    use data, only: u, nu1,nu3,nsclf,nscll,nb1,nb3
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -2017,6 +2017,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                                :: i,j,k,l
     real(rk), dimension(:), allocatable ::tmp
+    real(rk) :: smax, smin
 
     if(.not.allocated(tmp)) allocate(tmp(1:nn(4)))
 
@@ -2029,10 +2030,29 @@ contains
     if(PASSIVE_SCALAR) then
        !$omp parallel do
        do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-          fu(i,j,k,l)=fu(i,j,k,l)/sqrt(tmp(l))
+          fu(i,j,k,l)= fu(i,j,k,l)/sqrt(tmp(l))
        end do; end do ; end do ; end do
        !$omp end parallel do
+       
+       if(RADIATION) then
+          call copy(nn,u,fu)
+          call fourier(nn,-1_rk,u,nfs=ntemp,nfe=ntemp)
+          smax = maxval(u(:, :, :, ntemp))
+          smin = minval(u(:, :, :, ntemp))
+          !$omp parallel do
+          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))   
+             u(i,j,k,ntemp)= 2000.0 * (u(i,j,k,ntemp) - smin) / &
+                  &(smax - smin) + 300.0
+          end do; end do ; end do
+          !$omp end parallel do
+          call copy(nn,fu,u)
+          call fourier(nn,1_rk,fu,nfs=ntemp,nfe=ntemp)
+       end if
+
+
     end if
+
+
     if(MHD) then
        !$omp parallel do
        do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))

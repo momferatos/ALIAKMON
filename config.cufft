@@ -1,6 +1,6 @@
 #!/bin/bash
 export BACKEND='cufft'
-export ACCELFLAGS='-D _CUFFT_ -acc=gpu -cuda'
+export ACCELFLAGS='-D _CUFFT_ -acc=gpu,autopar,verystrict -cuda -Minfo=accel'
 export CUDALDFLAGS='-lhefftecufftfortran -lcufft -lcudart -lcuda'
 export MKLFLAGS=''
 export MKLLDFLAGS=''
