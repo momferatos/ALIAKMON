@@ -88,6 +88,10 @@ module data
   integer(ik), dimension(8) :: kstart, kstep, kend ! starts, ends and steps of the k-sweep (step is +/- 1)
   !$acc declare create(kstart(1:8), kstep(1:8), kend(1:8))
   real(rks), dimension(:, :, :), allocatable :: sendbuf, recvbuf
+  real(rks), dimension(:, :, :), allocatable :: ghostleft
+  !$acc declare create(ghostleft)
+  real(rks), dimension(:, :, :), allocatable :: ghostright
+  !$acc declare create(ghostright)
   
   interface zero
      module procedure zero3d
@@ -96,7 +100,7 @@ module data
 
 contains
 
-  
+
   subroutine allocate_fvdom
     use types
     use parameters
@@ -115,8 +119,8 @@ contains
     end if
 
     !allocate memory
-    if(.not.allocated(ia)) allocate(ia(-1:nn(1) + 1, -1:nn(2) + 1, -1:nn(3) + 1, 1:nsects))
-    !$acc enter data create(ia(-1:nn(1) + 1, -1:nn(2) + 1, -1:nn(3) + 1, 1:nsects))
+    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), -1:nn(3) + 1, 1:nsects))
+    !$acc enter data create(ia(1:nn(1), 1:nn(2), -1:nn(3) + 1, 1:nsects))
     if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
     !$acc enter data create(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -135,7 +139,12 @@ contains
 
     if(.not.allocated(sendbuf)) allocate(sendbuf(1:n1, 1:n2, 1:nsects))
     if(.not.allocated(recvbuf)) allocate(recvbuf(1:n1, 1:n2, 1:nsects))
-    
+
+    if(.not.allocated(ghostleft)) allocate(ghostleft(1:n1, 1:n2, 1:nsects))
+    !$acc enter data create(ghostleft(1:n1, 1:n2, 1:nsects))
+    if(.not.allocated(ghostright)) allocate(ghostright(1:n1, 1:n2, 1:nsects))
+    !$acc enter data create(ghostright(1:n1, 1:n2, 1:nsects))
+
     return
 
   end subroutine allocate_fvdom
@@ -154,9 +163,9 @@ contains
     if(allocated(temp)) deallocate(temp)
     !$acc exit data delete(temp)
     if(allocated(ga)) deallocate(ga)
-    !!$acc exit data delete(ga)
+!!$acc exit data delete(ga)
     if(allocated(qr)) deallocate(qr)
-    !!$acc exit data delete(qr)
+!!$acc exit data delete(qr)
     if(allocated(s)) deallocate(s)
     !$acc exit data delete(s)
     if(allocated(omeg)) deallocate(omeg)
@@ -167,7 +176,12 @@ contains
 
     if(allocated(sendbuf)) deallocate(sendbuf)
     if(allocated(recvbuf)) deallocate(recvbuf)
-    
+
+    if(allocated(ghostleft)) deallocate(ghostleft)
+    !$acc exit data delete(ghostleft)
+    if(allocated(ghostright)) deallocate(ghostright)
+    !$acc exit data delete(ghostright)
+
     return
 
   end subroutine deallocate_fvdom
@@ -186,11 +200,11 @@ contains
 
     ! initialize radiative intensities to zero
     !$omp parallel do 
-    do l=1,nsects ; do k=-1,nn(3)+1 ; do j=-1,nn(2)+1 ; do i=-1,nn(1)+1
+    do l=1,nsects ; do k=-1,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
        ia(i, j, k, l) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(ia(-1:n1+1, -1:n2+1, -1:n3+1, 1:nsects))
+    !$acc update device(ia(1:n1, 1:n2, -1:n3+1, 1:nsects))
 
     !$omp parallel do 
     do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -220,6 +234,8 @@ contains
           do i=1,n1
              sendbuf(i, j, ns) = 0.0_rks
              recvbuf(i, j, ns) = 0.0_rks
+             ghostleft(i, j, ns) = 0.0_rks
+             ghostright(i, j, ns) = 0.0_rks
           end do
        end do
     end do
@@ -524,7 +540,7 @@ contains
     return
 
   end function V
-  
+
   subroutine zero3d(nn,array)
     use types
     implicit none
@@ -624,7 +640,7 @@ contains
     end if
 
     ntemp = nsclf
-    
+
     ! set vector of array dimensions
     nn(1)=n1
     nn(2)=n2
@@ -841,7 +857,7 @@ contains
        call allocate_fvdom
        call init_fvdom
     end if
-    
+
     return
 
   end subroutine alloc_init

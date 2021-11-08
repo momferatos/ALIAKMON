@@ -436,7 +436,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(LEN=256)              :: filename ! File name
     character(len=64), dimension(1:nn(4)) :: datanames
-    logical, dimension(1:nn(4)) :: data_is_vector
+    logical, dimension(1:nn(4) + 2) :: data_is_vector
     integer(ik)                     :: ndatanames
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
@@ -479,37 +479,54 @@ contains
     allocate(h5_scalar_data(1:nn(1),1:nn(2),1:nn(3)))
     allocate(h5_vector_data(1:3,1:nn(1),1:nn(2),1:nn(3)))
 
-    if(RADIATION) then
-       call calcqr
-       call write_hdf5_scalar_dataset('/G', ga, nn)
-       call write_hdf5_vector_dataset('/q', qr, nn)
-    end if
-    
-
+    data_is_vector(:) = .false.
+    ndatanames = 0
     !$omp parallel do
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        h5_vector_data(l,i,j,k)=u(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
     call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
-
-!!$    !write passive scalar
-!!$    if(PASSIVE_SCALAR) then
-!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nsclf)
-!!$       call write_hdf5_scalar_dataset('/scl',h5_scalar_data,nn)
-!!$    end if
-
-    !write mhd
-    if(MHD) then
-       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-       call write_hdf5_scalar_dataset('/b1',h5_scalar_data,nn)
-
-       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-       call write_hdf5_scalar_dataset('/b2',h5_scalar_data,nn)
-
-       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-       call write_hdf5_scalar_dataset('/b3',h5_scalar_data,nn)
+    ndatanames = ndatanames + 1
+    datanames(ndatanames) = 'u'
+    data_is_vector(ndatanames) = .true.
+    !write passive scalar
+    if(PASSIVE_SCALAR) then
+       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nsclf)
+       call write_hdf5_scalar_dataset('/scl',h5_scalar_data,nn)
+       ndatanames = ndatanames + 1
+       datanames(ndatanames) = 'scl'
     end if
+
+    if(RADIATION) then
+       call calcqr
+       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=ga(1:nn(1),1:nn(2),1:nn(3))
+       call write_hdf5_scalar_dataset('/G', h5_scalar_data, nn)
+       ndatanames = ndatanames + 1
+       datanames(ndatanames) = 'G'
+       !$omp parallel do
+       do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          h5_vector_data(l,i,j,k)=qr(i,j,k,l)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
+       call write_hdf5_vector_dataset('/q', h5_vector_data, nn)
+       ndatanames = ndatanames + 1
+       datanames(ndatanames) = 'q'
+       data_is_vector(ndatanames) = .true.
+    end if
+
+
+!!$    !write mhd
+!!$    if(MHD) then
+!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
+!!$       call write_hdf5_scalar_dataset('/b1',h5_scalar_data,nn)
+!!$
+!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
+!!$       call write_hdf5_scalar_dataset('/b2',h5_scalar_data,nn)
+!!$
+!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
+!!$       call write_hdf5_scalar_dataset('/b3',h5_scalar_data,nn)
+!!$    end if
 
     ! Deallocate data buffer.
     !
@@ -536,9 +553,7 @@ contains
     call h5close_f(error)
 
 
-    ndatanames=1
-    datanames(1)='u'
-    data_is_vector(1)=.true.
+    
 !!$    datanames(nu2)='u2'
 !!$    datanames(nu3)='u3'
 !!$    if(PASSIVE_SCALAR) then
@@ -627,14 +642,14 @@ contains
           h5_slice_data(j,k) = ga(1,j,k)
        end do; end do
        !$omp end parallel do
-       print *, 'G:', minval(h5_slice_data), maxval(h5_slice_data)
+       
        call write_hdf5_slice_dataset('/G',h5_slice_data,nn)
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)
           h5_slice_data(j,k) = sqrt(sum(qr(1, j, k, :) ** 2))
        end do; end do
        !$omp end parallel do
-       print *, 'q:', minval(h5_slice_data), maxval(h5_slice_data)
+       
        call write_hdf5_slice_dataset('/q',h5_slice_data,nn)
     end if
     
@@ -727,26 +742,6 @@ contains
           write(xdmf_file,'(a)') '      </Attribute>'
        end if
     end do
-
-    if(RADIATION) then
-       write(xdmf_file,'(3a)') '      <Attribute Center="Node" Name="',&
-            &'G','"             Type="Scalar">'
-       write(xdmf_file,'(a,i6,a,3i6,a)') '        <DataItem DataType="Float" &
-            &Precision="',rks,'" Dimensions="'&
-            &,n1,gn2,gn3, '"'
-       write(xdmf_file,'(5a)') &
-            &'            		  Format="HDF">',&
-            &trim(h5filename),':/','G','</DataItem>'
-       write(xdmf_file,'(a)') '      </Attribute>'
-       write(xdmf_file,'(5a)') '      <Attribute Center="Node" Name="',&
-            &'q','"             Type="Vector">'
-       write(xdmf_file,'(a,i6,a,4i6,a)') '        <DataItem DataType="Float" &
-            &Precision="',rks,'" Dimensions="'&
-            &,n1,gn2,gn3,3,'"'
-       write(xdmf_file,'(5a)') &
-            &'            		  Format="HDF">',&
-            &trim(h5filename),':/','q','</DataItem>'
-    end if
 
     write(xdmf_file,'(a)') '    </Grid>'
     write(xdmf_file,'(a)') '  </Domain>'

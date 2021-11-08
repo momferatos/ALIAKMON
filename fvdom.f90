@@ -1,6 +1,5 @@
 module fvdom
   use types
-  use data
   implicit none
 
 contains
@@ -42,11 +41,11 @@ contains
   end function absorb
 
   subroutine calcia
-    use parameters, only: n1
-    use mpivars, only : mpirank
-    use data, only: istart, iend, istep, jstart, jend, jstep, kstart, kend, kstep, nn
+    use parameters, only: n1, nsects, niterdo, fvtol
+    use data, only: istart, iend, istep, jstart, jend, jstep, kstart, kend, kstep, nn, ghostleft, ghostright,&
+         &temp, ia, iba, ntemp, u, sgn, s, fu, copy
     use mpi
-    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, MPIROOT
+    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, MPIROOT, mpirank
     use numerics, only: fourier
     implicit none
     integer(ik) :: ns
@@ -69,15 +68,18 @@ contains
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        temp(i, j, k) = u(i, j, k, ntemp)
     end do; end do ; end do
-    !$acc update device(temp(1:n1, 1:n2, 1:n3),  ia(-1:n1 + 1, -1:n2 + 1, -1:n3 + 1, 1:nsects))
-    
+    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)),  ia(1:nn(1), 1:nn(2), -1:nn(3)+1, 1:nsects))
+
     ! iteration loop      
     iterloop:do nit=1,niterdo
-       call ghost_nodes
+
+
+       !$acc update device(ghostleft(1:nn(1), 1:nn(2), 1:nsects), ghostright(1:nn(1), 1:nn(2), 1:nsects))
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! TODO: define ghost cells !!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-       
+
        maxerr = 0.0_rk
        err = 0.0_rk
        !$acc parallel firstprivate(err, ierr, jerr, kerr, nserr) reduction(max:maxerr)
@@ -88,8 +90,15 @@ contains
        end do; end do ; end do ; end do
        !$acc end loop
 
+
        !$acc loop seq
        do sd=1,8 ! sweep the domain in 8 directions, one from each corner
+          call ghost_nodes(ghostleft, ghostright)
+          do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+             ia(i, j, -1, ns) = ghostleft(i, j, ns)
+             ia(i, j, nn(3)+1, ns) = ghostright(i, j, ns)
+          end do; end do ; end do 
+
           !$acc loop independent
           do ns=1,nsects             
              shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) ! direction cosines of s
@@ -102,7 +111,7 @@ contains
                       !$acc loop independent
                       do i=istart(sd),iend(sd),istep(sd)
                          ! update the cell's radiative intensity according to the step scheme
-                         call cell_step_scheme(ns, i, j, k, ia)
+                         call cell_step_scheme(ns, i, j, k)
                       end do
                       !$cc end do
                    end do
@@ -140,7 +149,7 @@ contains
           end do
        end do
        !$acc end loop
-       !       maxerr = maxval(abs(ia(1:n1,1:n2,1:n3,1:nsects) - iba(1:n1,1:n2,1:n3,1:nsects)))
+       !       maxerr = maxval(abs(ia(1:nn(1),1:nn(2),1:nn(3),1:nsects) - iba(1:nn(1),1:nn(2),1:nn(3),1:nsects)))
        !$acc end parallel
 
 !!$          !reduce maximum error across processes
@@ -181,75 +190,151 @@ contains
 !!$    kerr = sbuf(3)
 !!$    nserr = sbuf(4)
 
-    
-    
+
+
     return
 
   end subroutine calcia
 
-  subroutine ghost_nodes
+  subroutine ghost_nodes(ghostleft, ghostright)
     use mpi
-    use mpivars, only: mpirank, MPIRKS, MPIROOT, mpisize, mpierr, sbuf, rbuf
-    use data, only: ia, sendbuf, recvbuf
+    use mpivars, only: mpirank, MPIRKS, MPIROOT, &
+         &mpisize, mpierr, sbuf, rbuf, lkstart, lksize
+    use data, only: ia, sendbuf, recvbuf, nsects, nn
     implicit none
-    integer(i4b) :: left, right, status(MPI_STATUS_SIZE), count
+    real(rks), dimension(1:nn(1), 1:nn(2), 1:nsects), intent(OUT) :: ghostleft, ghostright
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(i4b) :: left, right, status(MPI_STATUS_SIZE), count, dir, rank
     integer(i4b), parameter :: L2R = 0, R2L = 1
     integer(ik) :: i, j, ns
-    left = mpirank - 1
-    right = mpirank + 1
+
+    
+    rank = lkstart / lksize
+    
+    left = rank - 1
+    right = rank + 1
     if(left == -1) left = mpisize - 1
     if(right == mpisize) right = 0
-    count = int(n1 * n2 * nsects, i4b)
-
-
-!!$    call mpi_send(sbuf, count, MPIRKS, right, 0, MPI_COMM_WORLD, mpierr)
-!!$    call mpi_recv(rbuf, count, MPIRKS, left, 0,  MPI_COMM_WORLD, status, mpierr)
-!!$    call mpi_send(sbuf, count, MPIRKS, left, 1, MPI_COMM_WORLD, mpierr)
-!!$    call mpi_recv(rbuf, count, MPIRKS, right, 1,  MPI_COMM_WORLD, status, mpierr)
-
-
-    !$omp parallel do
-    do ns=1,nsects ; do j=1,n2 ; do i=1,n1
-       sendbuf(i, j, ns) = ia(i, j, n3, ns)
-    end do; end do; end do
-    !$omp end parallel do
-    call mpi_sendrecv(sendbuf, count, MPIRKS, right, R2L,&
-         & recvbuf, count, MPIRKS, left, R2L, MPI_COMM_WORLD, status, mpierr)
-    !$omp parallel do
-    do ns=1,nsects ; do j=1,n2 ; do i=1,n1
-       ia(i, j, -1, ns) = recvbuf(i, j, ns)
-    end do; end do; end do 
-
-    !$omp end parallel do
-    !$omp parallel do
-    do ns=1,nsects ; do j=1,n2 ; do i=1,n1
-       sendbuf(i, j, ns) = ia(i, j, 1, ns)
-    end do; end do; end do
-    !$omp end parallel do
-    call mpi_sendrecv(sendbuf, count, MPIRKS, left, L2R,&
-         & recvbuf, count, MPIRKS, right, L2R, MPI_COMM_WORLD, status, mpierr)
-    !$omp parallel do
-    do ns=1,nsects ; do j=1,n2 ; do i=1,n1
-       ia(i, j, -1, ns) = recvbuf(i, j, ns)
-    end do; end do; end do
-    !$omp end parallel do
+    count = int(nn(1) * nn(2) * nsects, i4b)
 
 
 
+!!$
+!!$    !$omp parallel do
+!!$    do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+!!$       sendbuf(i, j, ns) = ia(i, j, nn(3), ns)
+!!$    end do; end do; end do
+!!$    !$omp end parallel do
+!!$    call mpi_sendrecv(sendbuf, count, MPIRKS, right, R2L,&
+!!$         & recvbuf, count, MPIRKS, left, R2L, MPI_COMM_WORLD, status, mpierr)
+!!$    !$omp parallel do
+!!$    do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+!!$       ia(i, j, -1, ns) = recvbuf(i, j, ns)
+!!$    end do; end do; end do 
+!!$
+!!$    !$omp end parallel do
+!!$    !$omp parallel do
+!!$    do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+!!$       sendbuf(i, j, ns) = ia(i, j, 1, ns)
+!!$    end do; end do; end do
+!!$    !$omp end parallel do
+!!$    call mpi_sendrecv(sendbuf, count, MPIRKS, left, L2R,&
+!!$         & recvbuf, count, MPIRKS, right, L2R, MPI_COMM_WORLD, status, mpierr)
+!!$    !$omp parallel do
+!!$    do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+!!$       ia(i, j, -1, ns) = recvbuf(i, j, ns)
+!!$    end do; end do; end do
+!!$    !$omp end parallel do
+    
     return
+    
+    if(mod(rank, 2) == 0) then
+       dir = R2L
+       call copy_sendbuf(dir)
+       call mpi_send(sendbuf, count, MPIRKS, right, dir, MPI_COMM_WORLD, mpierr)
+       call mpi_recv(recvbuf, count, MPIRKS, left, dir,  MPI_COMM_WORLD, status, mpierr)
+       call copy_recvbuf(dir)
+       dir = L2R
+       call copy_sendbuf(dir)
+       call mpi_send(sendbuf, count, MPIRKS, left, dir, MPI_COMM_WORLD, mpierr)
+       call mpi_recv(recvbuf, count, MPIRKS, right, dir,  MPI_COMM_WORLD, status, mpierr)
+       call copy_recvbuf(dir)
+    else
+       dir = R2L
+       call mpi_recv(recvbuf, count, MPIRKS, left, dir,  MPI_COMM_WORLD, status, mpierr)
+       call copy_recvbuf(dir)
+       call copy_sendbuf(dir)
+       call mpi_send(sendbuf, count, MPIRKS, right, dir, MPI_COMM_WORLD, mpierr)
+       dir = L2R
+       call mpi_recv(recvbuf, count, MPIRKS, right, dir,  MPI_COMM_WORLD, status, mpierr)
+       call copy_recvbuf(dir)
+       call copy_sendbuf(dir)
+       call mpi_send(sendbuf, count, MPIRKS, left, dir, MPI_COMM_WORLD, mpierr)
+    end if
+ 
+    return
+
+  contains
+
+    subroutine copy_sendbuf(dir)
+      use types
+      implicit none
+      integer(i4b) :: dir
+
+      if(dir == R2L) then
+         !$omp parallel do
+         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+            sendbuf(i, j, ns) = ia(i, j, 1, ns)
+         end do; end do; end do
+         !$omp end parallel do
+      else
+         !$omp parallel do
+         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+            sendbuf(i, j, ns) = ia(i, j, nn(3), ns)
+         end do; end do; end do
+         !$omp end parallel do
+      end if
+
+    end subroutine copy_sendbuf
+
+    subroutine copy_recvbuf(dir)
+      use types
+      implicit none
+      integer(i4b) :: dir
+
+      if(dir == R2L) then
+         !$omp parallel do
+         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+            ghostright(i, j, ns) = recvbuf(i, j, ns)
+         end do; end do; end do
+         !$omp end parallel do
+      else
+         !$omp parallel do
+         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
+            ghostleft(i, j, ns) = recvbuf(i, j, ns)
+         end do; end do; end do 
+         !$omp end parallel do
+      end if
+
+    end subroutine copy_recvbuf
 
   end subroutine ghost_nodes
   
   
   subroutine calcqr
     use types
-    use data, only: nn
+    use parameters, only: nsects
+    use data, only: nn, qr, ga, ia, s, omeg
+    use mpi
+    use mpivars
     implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! calculates radiative heat flux and incindent radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(8) :: i, j, k, ns
-    !$acc update self(ia(-1:n1 + 1, -1:n2 + 1, -1:n3 + 1, 1:nsects))
+    integer(ik) :: i, j, k, ns
+    real(rk) :: maxga
+    
+    !$acc update self(ia(1:nn(1), 1:nn(2), -1:nn(3) + 1, 1:nsects))
     !radiative heat flux and incindent radiation at the interior of the domain
     !$omp parallel do 
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
@@ -264,18 +349,22 @@ contains
     end do; end do; end do
     !$omp end parallel do
 
+    sbuf(1) = maxval(ga)
+    call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
+         &MPI_MAX, MPI_COMM_WORLD, mpierr);
+    maxga = rbuf(1)
+    print *, 'max(G) = ', maxga
     return
 
   end subroutine calcqr
   
-  subroutine cell_step_scheme(ns, i, j, k, ia)
-    use data, only: nn
-    use parameters, only: PI
+  subroutine cell_step_scheme(ns, i, j, k)
+    use data, only: nn, ia, s, omeg, temp
+    use parameters, only: PI, STEFB
     implicit none
     !$acc routine seq
     integer(ik), intent(IN) :: ns ! number of direction
     integer(ik), intent(IN) :: i, j, k  ! number of cell
-    real(rks), dimension(-1:, -1:, -1:, 1:), intent(OUT) :: ia ! radiative intensity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Update the radiative intensity at the center of the cell according to the step scheme      !
     ! see: Modest, Michael F. Radiative heat transfer. Academic press, 2013., eq. (17.62) p. 568 !
@@ -303,7 +392,7 @@ contains
     surf(:) = 0.0
 
     ! calculate intensity on faces and face surface area
-    call faces_step_scheme(ns, i, j, k, faces_step, surf, ia) 
+    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
 
     sumin = 0.0  ! sum of incoming intensities
     sumout = 0.0 ! sum of outgoing intensities
@@ -333,8 +422,8 @@ contains
 
   end subroutine cell_step_scheme
 
-  pure subroutine faces_step_scheme(ns, i, j, k, faces_step, surf, ia)
-    use data, only: nn
+  pure subroutine faces_step_scheme(ns, i, j, k, faces_step, surf)
+    use data, only: nn, ia
     use parameters, only: PI
     implicit none
     !$acc routine seq
@@ -342,7 +431,6 @@ contains
     integer(ik), intent(IN) :: i, j, k  ! number of cell
     real(ik), dimension(6), intent(OUT) :: faces_step ! intensities at the faces of the cell
     real(ik), dimension(6), intent(OUT) :: surf ! surface area of the faces of the cell
-    real(rks), dimension(-1:, -1:, -1:, 1:), intent(IN) :: ia  ! radiative intensity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Calculates intensity at the faces of the cell according for the step scheme: !
     ! the intensity at the face is equal to the neighbouring intensity             !
@@ -360,8 +448,8 @@ contains
     faces_step(2) = ia(per(i - 1), j, k, ns)
     faces_step(3) = ia(i, per(j + 1), k, ns)
     faces_step(4) = ia(i, per(j - 1), k, ns)
-    faces_step(5) = ia(i, j, per(k + 1), ns)
-    faces_step(6) = ia(i, j, per(k - 1), ns)
+    faces_step(5) = ia(i, j, k + 1, ns)
+    faces_step(6) = ia(i, j, k - 1, ns)
 
     return
 

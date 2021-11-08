@@ -123,7 +123,6 @@ module parameters
   integer                :: nt = 1
   ! Local dimensions of the domain
   integer(ik)            :: n1,n2,n3
-  !$acc declare create(n1, n2, n3)
   ! Global y dimension across MPI processes
   integer(ik)            :: gn2
   ! Global z dimension across MPI processes
@@ -243,7 +242,6 @@ module parameters
   integer(ik)            :: niterdo = 1000
   real(rk)               :: FVTOL = 1.0e2
   real(rk), parameter    :: STEFB = 5.67037321e-8_rk
-  !$acc declare create(STEFB)
   ! Logical variable for particles
   logical                :: PARTICLES
   ! Default value for particle initial condition
