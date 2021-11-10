@@ -1,6 +1,6 @@
 #!/bin/bash
 export BACKEND='stock'
-export ACCELFLAGS=''
+export ACCELFLAGS='-acc=multicore,autopar,verystrict'
 export CUDALDFLAGS=''
 export MKLFLAGS=''
 export MKLLDFLAGS=''

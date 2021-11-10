@@ -1,6 +1,6 @@
 #!/bin/bash
 export BACKEND='fftw'
-export ACCELFLAGS=''
+export ACCELFLAGS='-acc=multicore,noautopar,verystrict'
 export CUDALDFLAGS=''
 export MKLFLAGS=''
 export MKLLDFLAGS=''

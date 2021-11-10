@@ -46,7 +46,7 @@ contains
          &kstart, kend, kstep, nn, ghostleft, ghostright,&
          &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right
     use mpi
-    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr
+    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     use numerics, only: fourier
     implicit none
     integer(ik) :: ns
@@ -102,28 +102,25 @@ contains
 
        !$acc loop seq
        do sd=1,8 ! sweep the domain in 8 directions, one from each corner
-
-          !$acc loop independent
+          !$acc loop independent gang
           do ns=1,nsects             
-             shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) ! direction cosines of s
+             !             shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) ! direction cosines of s
              ! check if the direction cosines are within the quadrant of the sweep
              if(all(sgn(sd, :) * shat(:) >= 0.0)) then
                 ! sweep...
-                !$acc loop independent
+                !$acc loop seq
                 do k=kstart(sd),kend(sd),kstep(sd)
+                   !$acc loop seq
                    do j=jstart(sd),jend(sd),jstep(sd)
-                      !$acc loop independent
+                      !$acc loop independent vector
                       do i=istart(sd),iend(sd),istep(sd)
                          ! update the cell's radiative intensity according to the step scheme
                          call cell_step_scheme(ns, i, j, k)
                       end do
-                      !$cc end do
                    end do
                 end do
-                !$acc end loop
              end if
           end do
-          !$acc end loop
        end do
        !$acc end loop
        ! calculate maximum error and its position for each MPI process
@@ -146,14 +143,15 @@ contains
                       !ierr = i
                       !jerr = j
                       !kerr = k
-                      nserr = ns
+                      !nserr = ns
                    end if
                 end do
              end do
           end do
        end do
        !$acc end loop
-       
+
+       !$acc loop seq collapse(3)
        do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
           left(i, j, ns) = ia(i, j, 1_ik, ns)
           right(i, j, ns) = ia(i, j, nn(3), ns)
@@ -172,7 +170,7 @@ contains
        call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
             &MPI_MAX, MPI_COMM_WORLD, mpierr);
        maxerr = rbuf(1)
-
+       if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
        if(maxerr < fvtol) then
           exit iterloop  
        end if
@@ -345,7 +343,7 @@ contains
     
     !$acc update self(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
     !radiative heat flux and incindent radiation at the interior of the domain
-    !$omp parallel do 
+!    !$omp parallel do 
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
        ga(i, j, k) = 0.0
        qr(i, j, k, 1:3) = 0.0 
@@ -356,7 +354,7 @@ contains
           ga(i, j, k) = ga(i, j, k) + (ia(i, j, k, ns) * omeg(ns)) ! same for the incindent radiation
        end do
     end do; end do; end do
-    !$omp end parallel do
+ !   !$omp end parallel do
 
     sbuf(1) = maxval(ga)
     call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
