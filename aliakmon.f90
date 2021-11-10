@@ -499,6 +499,8 @@ contains
     integer(ik), intent(IN) :: num
     !Output fields in files
 
+    if(num /= 999999_ik) return
+    
     if(RADIATION) then
        call calcqr
     end if

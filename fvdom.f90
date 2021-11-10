@@ -79,7 +79,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! TODO: define ghost cells !!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+       call ghost_nodes(ghostleft, ghostright)
        maxerr = 0.0_rk
        err = 0.0_rk
        !$acc parallel firstprivate(err, ierr, jerr, kerr, nserr) reduction(max:maxerr)
@@ -93,7 +93,7 @@ contains
 
        !$acc loop seq
        do sd=1,8 ! sweep the domain in 8 directions, one from each corner
-          call ghost_nodes(ghostleft, ghostright)
+          
           do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
              ia(i, j, -1, ns) = ghostleft(i, j, ns)
              ia(i, j, nn(3)+1, ns) = ghostright(i, j, ns)
@@ -280,7 +280,8 @@ contains
       use types
       implicit none
       integer(i4b) :: dir
-
+      integer(ik) :: ns, i, j, k
+      
       if(dir == R2L) then
          !$omp parallel do
          do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)

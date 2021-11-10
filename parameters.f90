@@ -236,9 +236,10 @@ module parameters
   ! Logical variable for MHD forcing
   logical                :: FORCED_MHD
   ! Logical variable for radiation
-  logical                :: RADIATION = .true.
+  logical                :: RADIATION = .false.
   integer(ik)            :: EQSECTS = 1
   integer(ik)            :: nsects = 10
+  !$acc declare create(nsects)
   integer(ik)            :: niterdo = 1000
   real(rk)               :: FVTOL = 1.0e2
   real(rk), parameter    :: STEFB = 5.67037321e-8_rk
@@ -361,8 +362,10 @@ module mpivars
   integer(ik) :: ljstart  =  1
   ! Size of MPI slice across z-dimension of FFTW array
   integer(ik) :: lksize = 0
+  !$acc declare create(lksize)
   ! X-dimension index where FFTW array starts
   integer(ik) :: lkstart = 1
+  !$acc declare create(lkstart)
 #ifdef _MPI_
   integer(i4b) :: mpirequest
   integer(i4b) :: mpistat(MPI_STATUS_SIZE)
