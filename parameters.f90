@@ -236,12 +236,12 @@ module parameters
   ! Logical variable for MHD forcing
   logical                :: FORCED_MHD
   ! Logical variable for radiation
-  logical                :: RADIATION = .false.
+  logical                :: RADIATION = .true.
   integer(ik)            :: EQSECTS = 1
-  integer(ik)            :: nsects = 10
+  integer(ik)            :: nsects = 100
   !$acc declare create(nsects)
   integer(ik)            :: niterdo = 1000
-  real(rk)               :: FVTOL = 1.0e2
+  real(rk)               :: FVTOL = 1.0e-2
   real(rk), parameter    :: STEFB = 5.67037321e-8_rk
   ! Logical variable for particles
   logical                :: PARTICLES

@@ -92,6 +92,10 @@ module data
   !$acc declare create(ghostleft)
   real(rks), dimension(:, :, :), allocatable :: ghostright
   !$acc declare create(ghostright)
+  real(rks), dimension(:, :, :), allocatable :: left
+  !$acc declare create(left)
+  real(rks), dimension(:, :, :), allocatable :: right
+  !$acc declare create(right)
   
   interface zero
      module procedure zero3d
@@ -119,8 +123,8 @@ contains
     end if
 
     !allocate memory
-    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), -1:nn(3) + 1, 1:nsects))
-    !$acc enter data create(ia(1:nn(1), 1:nn(2), -1:nn(3) + 1, 1:nsects))
+    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
+    !$acc enter data create(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
     if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
     !$acc enter data create(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -144,6 +148,11 @@ contains
     !$acc enter data create(ghostleft(1:n1, 1:n2, 1:nsects))
     if(.not.allocated(ghostright)) allocate(ghostright(1:n1, 1:n2, 1:nsects))
     !$acc enter data create(ghostright(1:n1, 1:n2, 1:nsects))
+
+    if(.not.allocated(left)) allocate(left(1:n1, 1:n2, 1:nsects))
+    !$acc enter data create(left(1:n1, 1:n2, 1:nsects))
+    if(.not.allocated(right)) allocate(right(1:n1, 1:n2, 1:nsects))
+    !$acc enter data create(right(1:n1, 1:n2, 1:nsects))
 
     return
 
@@ -181,6 +190,11 @@ contains
     !$acc exit data delete(ghostleft)
     if(allocated(ghostright)) deallocate(ghostright)
     !$acc exit data delete(ghostright)
+    
+    if(allocated(left)) deallocate(left)
+    !$acc exit data delete(left)
+    if(allocated(right)) deallocate(right)
+    !$acc exit data delete(right)
 
     return
 
@@ -200,11 +214,11 @@ contains
 
     ! initialize radiative intensities to zero
     !$omp parallel do 
-    do l=1,nsects ; do k=-1,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
+    do l=1,nsects ; do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
        ia(i, j, k, l) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(ia(1:n1, 1:n2, -1:n3+1, 1:nsects))
+    !$acc update device(ia(1:n1, 1:n2, 0:nn(3)+1, 1:nsects))
 
     !$omp parallel do 
     do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -236,6 +250,8 @@ contains
              recvbuf(i, j, ns) = 0.0_rks
              ghostleft(i, j, ns) = 0.0_rks
              ghostright(i, j, ns) = 0.0_rks
+             left(i, j, ns) = 0.0_rks
+             right(i, j, ns) = 0.0_rks
           end do
        end do
     end do
@@ -253,14 +269,14 @@ contains
     istep  = (/1,  1,  1,  1, -1, -1, -1, -1 /)  ! steps of the i-sweep
 
     jsl = 1
-    jel = ljsize
+    jel = nn(2)
 
     jstart = (/jsl,  jsl,  jel, jel, jsl,  jsl,  jel, jel/)  ! starts of the j-sweep
     jend   = (/jel, jel, jsl,  jsl,  jel, jel, jsl,  jsl /)  ! ends of the j-sweep
     jstep  = (/1,  1, -1, -1,  1,  1, -1, -1 /)  ! steps of the j-sweep
 
     ksl = 1
-    kel = lksize
+    kel = nn(3)
 
     kstart = (/ksl,  kel, ksl,  kel, ksl,  kel, ksl,  kel/)  ! starts of the k-sweep
     kend   = (/kel, ksl,  kel, ksl,  kel, ksl,  kel, ksl /)  ! ends of the k-sweep

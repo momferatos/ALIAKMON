@@ -643,14 +643,15 @@ contains
        end do; end do
        !$omp end parallel do
        
-       call write_hdf5_slice_dataset('/G',h5_slice_data,nn)
+       call write_hdf5_slice_dataset('/G',h5_slice_data, nn)
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)
-          h5_slice_data(j,k) = sqrt(sum(qr(1, j, k, :) ** 2))
+          h5_slice_data(j,k) = sqrt(dot_product(qr(1, j, k, 1:3),&
+               qr(1, j, k, 1:3)))
        end do; end do
        !$omp end parallel do
        
-       call write_hdf5_slice_dataset('/q',h5_slice_data,nn)
+       call write_hdf5_slice_dataset('/q',h5_slice_data, nn)
     end if
     
     ! Deallocate data buffer.

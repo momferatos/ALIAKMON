@@ -2033,12 +2033,18 @@ contains
           fu(i,j,k,l)= fu(i,j,k,l)/sqrt(tmp(l))
        end do; end do ; end do ; end do
        !$omp end parallel do
-       
+
        if(RADIATION) then
           call copy(nn,u,fu)
           call fourier(nn,-1_rk,u,nfs=ntemp,nfe=ntemp)
           smax = maxval(u(:, :, :, ntemp))
+          sbuf(1)=smax
+          call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+          smax=rbuf(1)
           smin = minval(u(:, :, :, ntemp))
+          sbuf(1)=smin
+          call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MIN,MPI_COMM_WORLD,mpierr)
+          smin=rbuf(1)
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))   
              u(i,j,k,ntemp)= 2000.0 * (u(i,j,k,ntemp) - smin) / &
