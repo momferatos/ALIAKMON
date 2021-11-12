@@ -26,7 +26,7 @@ program aliakmon
   use omp_lib
 #endif
 #ifdef _CUFFT_
-  use openacc
+  use cudafor
 #endif
   use iso_c_binding
   implicit none
@@ -47,6 +47,9 @@ program aliakmon
   integer(ik)                         :: nhdf5file, nvortfile
   integer                             :: nodenamelen
   character(len=256)                  :: nodename
+#ifdef _CUFFT_
+  type(cudadeviceprop)                :: prop
+#endif
   real(rk) :: maxc
   character(len=128)                  :: strlocrank
   integer(ik)                         :: locrank
@@ -63,7 +66,7 @@ program aliakmon
        integer(c_int), value :: numd
      end subroutine heffte_set_num_device
   end interface
-
+  
   STORE_PHASES=.true.
   tstart=0.0_rk
   dt=1.0e-9_rk
@@ -97,7 +100,7 @@ program aliakmon
   call mpi_get_processor_name(nodename, nodenamelen, mpierr)
 #ifdef _CUFFT_
   call mpi_barrier(MPI_COMM_WORLD, mpierr)
-  numdevices = acc_get_num_devices(acc_device_nvidia)
+  cudaerror = cudagetdevicecount(numdevices)
   call get_environment_variable('OMPI_COMM_WORLD_LOCAL_RANK', strlocrank)
   read(strlocrank, *) locrank
   if(numdevices > 1) then
@@ -105,10 +108,8 @@ program aliakmon
   else
      numdevice = 0
   end if
-
-  call acc_set_device_num(numdevice, acc_device_nvidia)
-  numdevice = acc_get_device_num(acc_device_nvidia)
-  
+  cudaerror = cudasetdevice(numdevice)
+  cudaerror = cudagetdevice(numdevice)
   call heffte_set_num_device(numdevice)
 !!$  print '(a,i0,2a,3(a,i0),a)', 'MPI Process ', mpirank, ' running @ node ', &
 !!$       &trim(nodename), ' with localrank ', locrank, ' uses GPU # ', &
@@ -338,7 +339,7 @@ program aliakmon
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
-
+     
      ! Print progress to stdout
      call print_progress(k,time,&
           &tstart,t1)
@@ -404,7 +405,7 @@ program aliakmon
         call output_files(nhdf5file)
         nhdf5file = nhdf5file + 1
      end if
-
+          
   end do timeloop
 
   ! Print estimated total time information
@@ -497,13 +498,11 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-
-    if(num == 0) return
-
+    
     if(RADIATION) then
        call calcqr
     end if
-
+    
     call copy(nn,u,fu)
 
     call fourier(nn,-1_ik,u)
