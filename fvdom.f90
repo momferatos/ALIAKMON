@@ -432,10 +432,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
     real(rk) :: maxga
-    
+
     !$acc update self(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
     !radiative heat flux and incindent radiation at the interior of the domain
-!    !$omp parallel do 
+    !$omp parallel do 
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
        ga(i, j, k) = 0.0
        qr(i, j, k, 1:3) = 0.0 
@@ -446,7 +446,7 @@ contains
           ga(i, j, k) = ga(i, j, k) + (ia(i, j, k, ns) * omeg(ns)) ! same for the incindent radiation
        end do
     end do; end do; end do
- !   !$omp end parallel do
+    !$omp end parallel do
 
     sbuf(1) = maxval(ga)
     call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
