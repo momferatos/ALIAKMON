@@ -96,7 +96,8 @@ module data
   !$acc declare create(left)
   real(rks), dimension(:, :, :), allocatable :: right
   !$acc declare create(right)
-  
+  logical, dimension(:, :), allocatable :: is_wq
+  !$acc declare create(is_wq)
   interface zero
      module procedure zero3d
      module procedure zero4d
@@ -113,7 +114,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!
     ! allocates memory !
 !!!!!!!!!!!!!!!!!!!!
-
+    
     ! find the closest integer nphi for which nsects = nphi * (nphi + 2)
     if(EQSECTS == 2) then
        nphi = int(sqrt(real(nsects, 8)), 8)
@@ -154,6 +155,9 @@ contains
     if(.not.allocated(right)) allocate(right(1:n1, 1:n2, 1:nsects))
     !$acc enter data create(right(1:n1, 1:n2, 1:nsects))
 
+    if(.not.allocated(is_wq)) allocate(is_wq(1:8, 1:nsects))
+    !$acc enter data create(is_wq(1:8, 1:nsects))
+    
     return
 
   end subroutine allocate_fvdom
@@ -190,12 +194,15 @@ contains
     !$acc exit data delete(ghostleft)
     if(allocated(ghostright)) deallocate(ghostright)
     !$acc exit data delete(ghostright)
-    
+
     if(allocated(left)) deallocate(left)
     !$acc exit data delete(left)
     if(allocated(right)) deallocate(right)
     !$acc exit data delete(right)
 
+    if(allocated(is_wq)) deallocate(is_wq)
+    !$acc exit data delete(is_wq)
+    
     return
 
   end subroutine deallocate_fvdom
@@ -209,7 +216,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: m, mp, ns, i, j, k, l
     integer(ik) :: isl, iel, jsl, jel, ksl, kel
-
+    real(rk), dimension(3) :: shat
+    integer(ik) :: sd
+    
     !nsects = 80
 
     ! initialize radiative intensities to zero
@@ -285,6 +294,15 @@ contains
     !$acc update device(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
 
+    do ns=1,nsects
+       do sd=1,8
+          ! direction cosines of s
+          shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) 
+          is_wq(sd, ns) = all(sgn(sd, :) * shat(:) >= 0.0)
+       end do
+    end do
+    !$acc update device(is_wq(1:8, 1:nsects))
+    
     return
 
   end subroutine init_fvdom
@@ -663,7 +681,9 @@ contains
     nn(3)=n3
     nn(4)=nfields
     !$acc update device(nn(1:4))
-
+    if(nsects == 0) nsects = nn(1)
+    !$acc update device(nsects)
+    
     ! viscosities, scalar diffusivities, magnetic diffusivities
     allocate(visc(1:nn(4)))
     visc(:)=0.0_rk

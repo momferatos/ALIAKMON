@@ -7,7 +7,7 @@ import os
 
 fname = sys.argv[1]
 if not os.path.isfile(fname):
-    prit(f'error: can\'t open {fname}.')
+    print(f'error: can\'t open {fname}.')
     sys.exit(1)
     
 ys = sys.argv[2:]
@@ -23,7 +23,7 @@ if not ys:
         print(f'{col.strip():<10} {desc.strip():>40}')
 else:
     for y in ys:
-        df.plot(y=y)
+        df.plot(x='t', y=y)
         
 #series.plot(x='t',y='ke')
 plt.show()

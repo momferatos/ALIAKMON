@@ -44,7 +44,8 @@ contains
     use parameters, only: n1, nsects, niterdo, fvtol
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, nn, ghostleft, ghostright,&
-         &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right
+         &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right,&
+         &is_wq
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     use numerics, only: fourier
@@ -88,7 +89,8 @@ contains
 
        maxerr = 0.0_rk
        err = 0.0_rk
-       !$acc parallel firstprivate(err, ierr, jerr, kerr, nserr) reduction(max:maxerr)
+       !$acc parallel num_gangs(nsects) &
+       !$acc& vector_length(n1) reduction(max:maxerr)
        do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
           ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
           ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
@@ -102,19 +104,18 @@ contains
 
        !$acc loop seq
        do sd=1,8 ! sweep the domain in 8 directions, one from each corner
-          !$acc loop independent gang
+          !$acc loop independent gang 
           do ns=1,nsects             
-             !             shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) ! direction cosines of s
-             ! check if the direction cosines are within the quadrant of the sweep
-             if(all(sgn(sd, :) * shat(:) >= 0.0)) then
-                ! sweep...
+             ! sweep...
+             if(is_wq(sd, ns)) then
                 !$acc loop seq
                 do k=kstart(sd),kend(sd),kstep(sd)
                    !$acc loop seq
                    do j=jstart(sd),jend(sd),jstep(sd)
                       !$acc loop independent vector
                       do i=istart(sd),iend(sd),istep(sd)
-                         ! update the cell's radiative intensity according to the step scheme
+                         ! update the cell's radiative intensity
+                         ! according to the step scheme
                          call cell_step_scheme(ns, i, j, k)
                       end do
                    end do
