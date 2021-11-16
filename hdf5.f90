@@ -500,7 +500,11 @@ contains
 
     if(RADIATION) then
        call calcqr
-       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=ga(1:nn(1),1:nn(2),1:nn(3))
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          h5_scalar_data(i,j,k)=ga(i, j, k)
+       end do; end do ; end do
+       !$omp end parallel do
        call write_hdf5_scalar_dataset('/G', h5_scalar_data, nn)
        ndatanames = ndatanames + 1
        datanames(ndatanames) = 'G'
