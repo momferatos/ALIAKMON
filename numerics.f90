@@ -575,19 +575,19 @@ contains
          call divergence(nn, fdivqr, fqr)
 
 
-         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
-         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            tt = u(i, j, k, ntemp)
-            y = (tt - TEMPMIN) / (TEMPMAX - TEMPMIN)
-            y = max(0.0_rk, min(real(y, rk), 1.0_rk))
-            pp = 1.0e-6 * PRESS
-            dens = DTp( tt, pp, dens, icode )
-            dens_air = 1.1455_rk
-            dens = y * dens + (1 - y) * dens_air
-            cv = CvTp( tt, pp, cv, icode )
-            icp(i, j, k, 1) = (dens * 1.0e-3_rk * cv) ** -1
-         end do; end do ; end do
-         !$omp end parallel do
+!!$         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
+!!$         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$            tt = u(i, j, k, ntemp)
+!!$            y = (tt - TEMPMIN) / (TEMPMAX - TEMPMIN)
+!!$            y = max(0.0_rk, min(real(y, rk), 1.0_rk))
+!!$            pp = 1.0e-6 * PRESS
+!!$            dens = DTp( tt, pp, dens, icode )
+!!$            dens_air = 1.1455_rk
+!!$            dens = y * dens + (1 - y) * dens_air
+!!$            cv = CvTp( tt, pp, cv, icode )
+!!$            icp(i, j, k, 1) = (dens * 1.0e-3_rk * cv) ** -1
+!!$         end do; end do ; end do
+!!$         !$omp end parallel do
 
 !!$         print *, 'min(c)', minval(icp), 'max(c)', maxval(icp)
 !!$         icp = 1.0_rk / (1.0e3_rk * icp)
@@ -596,7 +596,8 @@ contains
          
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + icp(i, j, k, 1) * &
+            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + ((4.0e3_rk) ** (-1)) * &
+                 &icp(i, j, k, 1) * &
                  &fdivqr(i, j, k)
          end do; end do ; end do
          !$omp end parallel do

@@ -400,7 +400,7 @@ program aliakmon
      end if
 
      if(int(floor(time * hdf5frate), ik) == &
-          &nhdf5file .and. NOUTPUTFILES /= 0) then
+          &nhdf5file .and. hdf5frate /= 0.0_rk) then
         call output_files(nhdf5file)
         nhdf5file = nhdf5file + 1
      end if

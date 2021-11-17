@@ -1,9 +1,9 @@
 #!/bin/bash
 export BACKEND='cufft'
-export ACCELFLAGS='-D _CUFFT_ -acc=gpu,noautopar -Minfo=accel -cuda'
+export ACCELFLAGS='-D _CUFFT_ -acc=gpu,autopar -gpu=cc80,fastmath -Minfo=accel -cuda'
 export CUDALDFLAGS='-lhefftecufftfortran -lcufft -lcudart -lcuda'
 export MKLFLAGS=''
 export MKLLDFLAGS=''
 export FFTWFLAGS=''
 # put '-D _DOUBLE_' here to build with double precision floats
-export PRECISION='-D _DOUBLE_'
+export PRECISION=''
