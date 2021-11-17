@@ -68,11 +68,15 @@ module data
   real(rks), dimension(:, :, :, :), allocatable, target ::  iba   ! radiation intensity at previous iteration
   !$acc declare create(iba)
   real(rks), dimension(:, :, :), allocatable, target ::  temp   ! temperature buffer
+  real(rks), dimension(:, :, :, :), allocatable, target ::  icp   ! incident radiation
+  real(rks), dimension(:, :, :, :), allocatable, target ::  ficp   ! incident radiation
   !$acc declare create(temp)
   real(rks), dimension(:, :, :), allocatable, target ::  ga   ! incident radiation
   !$acc declare create(ga)
   real(rks), dimension(:, :, :, :), allocatable, target ::  qr   ! incident radiation
   !$acc declare create(qr)
+  real(rks), dimension(:, :, :, :), allocatable, target ::  fqr   ! incident radiation
+  real(rks), dimension(:, :, :), allocatable, target ::  fdivqr
   real(rk), dimension(:, :), allocatable :: s      ! vector pointing at the direction of the center of the angular
   !$acc declare create(s)
   real(rk), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
@@ -133,6 +137,10 @@ contains
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
 !!$acc enter data create(ga(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(qr)) allocate(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
+    if(.not.allocated(fqr)) allocate(fqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:3))
+    if(.not.allocated(fdivqr)) allocate(fdivqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3)))
+    if(.not.allocated(icp)) allocate(icp(1:nn(1), 1:nn(2), 1:nn(3), 1:1))
+    if(.not.allocated(ficp)) allocate(ficp(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:1))
 !!$acc enter data create(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
     if(.not.allocated(s)) allocate(s(nsects, 1:3))
     !$acc enter data create(s(nsects, 1:3))
@@ -176,8 +184,12 @@ contains
     if(allocated(temp)) deallocate(temp)
     !$acc exit data delete(temp)
     if(allocated(ga)) deallocate(ga)
+    if(allocated(icp)) deallocate(icp)
+    if(allocated(ficp)) deallocate(ficp)
 !!$acc exit data delete(ga)
     if(allocated(qr)) deallocate(qr)
+    if(allocated(fqr)) deallocate(fqr)
+    if(allocated(fdivqr)) deallocate(fdivqr)
 !!$acc exit data delete(qr)
     if(allocated(s)) deallocate(s)
     !$acc exit data delete(s)
@@ -240,6 +252,14 @@ contains
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0_rk
+       icp(i, j, k, 1) = 0.0_rk
+       ficp(i, j, k, 1) = 0.0_rk
+    end do; end do ; end do
+    !$omp end parallel do
+
+    !$omp parallel do 
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       fdivqr(i, j, k) = 0.0_rk
     end do; end do ; end do
     !$omp end parallel do
 !!$acc update device(ga(1:n1, 1:n2, 1:n3))
@@ -247,6 +267,12 @@ contains
     !$omp parallel do 
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        qr(i, j, k, l) = 0.0_rk
+    end do; end do ; end do; end do
+    !$omp end parallel do
+
+        !$omp parallel do 
+    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       fqr(i, j, k, l) = 0.0_rk
     end do; end do ; end do; end do
     !$omp end parallel do
 !!$acc update device(qr(1:n1, 1:n2, 1:n3,1:3))
@@ -613,22 +639,26 @@ contains
     return
   end subroutine zero4d
 
-  subroutine copy(nn,dest,source,ilim)
+  subroutine copy(nn,dest,source,nfs,nfe,ilim)
     use types
     implicit none
     integer(ik), dimension(4), intent(in) :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(out) :: dest
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(in) :: source
-    integer(ik), optional :: ilim
+    integer(ik), optional :: nfs,nfe,ilim
     !
     ! copies array source to array dest
     !
-    integer(ik) :: i,j,k,l,iilim
+    integer(ik) :: i,j,k,l,iilim,nnfs,nnfe
 
+    nnfs=1
+    if(present(nfs)) nnfs=nfs
+    nnfe=nn(4)
+    if(present(nfe)) nnfe=nfe
     iilim=dim1(nn(1))
     if(present(ilim)) iilim=ilim
     !$omp parallel do
-    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,iilim
+    do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,iilim
        dest(i,j,k,l)=source(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do

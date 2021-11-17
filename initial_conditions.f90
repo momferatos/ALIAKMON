@@ -119,7 +119,7 @@ contains
   subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
     use mpivars
-    use fvdom, only: calcia
+    use numerics, only: calcia
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u

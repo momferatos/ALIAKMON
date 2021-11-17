@@ -17,7 +17,6 @@ program aliakmon
   use validation
   use mpivars
   use hdf5_aliakmon
-  use fvdom
 #ifdef _MPI_
   use mpi
   use fft_heffte
@@ -494,7 +493,7 @@ contains
 
   subroutine output_files(num)
     use hdf5_aliakmon
-    use fvdom, only: calcqr
+    use numerics, only: calcqr
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files

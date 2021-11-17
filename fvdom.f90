@@ -111,12 +111,6 @@ contains
        !$acc update device(ghostleft(1:nn(1), 1:nn(2), 1:nsects),&
        !$acc& ghostright(1:nn(1), 1:nn(2), 1:nsects))
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!! TODO: define ghost cells !!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
        maxerr = 0.0_rk
        err = 0.0_rk
        !$acc parallel private(ii, faces_step(1:6), sumin, &
