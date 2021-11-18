@@ -157,7 +157,7 @@ contains
     end select
 
     !Perform truncation
-    !call truncate(nn,fu)
+    call truncate(nn,fu)
 
     !Enforce incompressibility / zero magnetic field divergence
     call project(nn,fu)
@@ -190,17 +190,7 @@ contains
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
    
-    if(RADIATION) then
-!!$       !$omp parallel do private(temp, ib)
-!!$       do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$          temp = u(i, j, k, ntemp)
-!!$          ib = STEFB / PI * temp ** 4
-!!$          ia(i, j, k, l) = absorb(real(temp, rks), real(temp, rks)) * ib
-!!$          iba(i, j, k, l) = absorb(real(temp, rks), real(temp, rks)) * ib
-!!$       end do; end do ; end do ; end do
-!!$       !$omp end parallel do
-       call calcia(fu)
-    end if
+    if(RADIATION) call calcia(fu)
 
     return
 
@@ -209,7 +199,7 @@ contains
 
   subroutine abc_flow(nn,k1,k2,u)
     use types
-    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,rks1
+    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,scratch
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -296,19 +286,22 @@ contains
     call fourier(nn,1_ik,u)
 
     !Set-up stochastic small-scale component
-    call random_field(nn,rks1,2.0_rk)
+    call random_field(nn,scratch,2.0_rk)
     !Enforce incompressibility / zero magnetic field divergence
-    call project(nn,rks1)
+    call project(nn,scratch)
     !rescale to unit rms
-    call rescale(nn,rks1)
+    call rescale(nn,scratch)
+    !truncate
+    call truncate(nn, scratch)
+    
     !$omp parallel do
     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        !Add components
-       u(i,j,k,l)=u(i,j,k,l)+rks1(i,j,k,l)
+       u(i,j,k,l)=u(i,j,k,l)+scratch(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
 
-    call zero(nn,rks1)
+    call zero(nn,scratch)
     
     return
 
@@ -355,14 +348,14 @@ contains
           do i=1,nn(1)
              x=(i-1)*dx
              !Calculate field
-             u(i,j,k,nu1)=cos(a*x)*sin(b*y)*sin(c*z)
-             u(i,j,k,nu2)=sin(a*x)*cos(b*y)*sin(c*z)
-             u(i,j,k,nu3)=sin(a*x)*sin(b*y)*cos(c*z)
-!!$             if(PASSIVE_SCALAR) then
-!!$                do l=nsclf,nscll
-!!$                   u(i,j,k,l)=cos(a*x)*sin(b*y)*sin(c*z)
-!!$                end do
-!!$             end if
+             u(i,j,k,nu1)=a*cos(a*x)*sin(b*y)*sin(c*z)
+             u(i,j,k,nu2)=b*sin(a*x)*cos(b*y)*sin(c*z)
+             u(i,j,k,nu3)=c*sin(a*x)*sin(b*y)*cos(c*z)
+             if(PASSIVE_SCALAR) then
+                do l=nsclf,nscll
+                   u(i,j,k,l)=cos(a*x)*sin(b*y)*sin(c*z)
+                end do
+             end if
           end do
        end do
     end do

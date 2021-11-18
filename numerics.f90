@@ -500,7 +500,7 @@ contains
 
     subroutine compute_passive_scalar
       use types
-      use data, only: qr, fqr, fdivqr
+      use data, only: qr, fqr, fdivqr, ia, iba
       implicit none
       real(rk) :: scale, tmp, tt, cv, dens, vappress, pp, dens_air, y
       integer(ik), dimension(4) :: nnn
@@ -607,7 +607,16 @@ contains
          !$omp end parallel do
 
          if(DEALIASING == PATTERSON_ORSZAG) then
-            call shift(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+            call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+            call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik)
+            ia = 0.0
+            iba = 0.0
+            call calcia(scratch)
+            call calcqr
+            nnn(1:3) = nn(1:3)
+            nnn(4) = 3_ik
+            call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+            call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
             call divergence(nnn, fdivqr, fqr)
             !$omp parallel do
             do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
