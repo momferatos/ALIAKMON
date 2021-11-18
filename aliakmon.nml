@@ -12,18 +12,18 @@
 ! Namelist general: basic parameters of the simulation
 !
 
-&general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=64,		! number of collocation points in each axis
-		! should be a power of two for maximum performance
-		! a scaling study on ARIS could consider n=64,128,256,512 and
-		! perhaps 1024
-		!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-TIMESTEPS=10,	! number of timesteps, use TMAX if zero
-TMAX=10.0,	! maximum time limit
-CFL=0.8,	! Courant-Friedrichs-Lewy number
-RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
-KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
-STOP_AT_DISSPEAK=.false. ! Stop at the dissipation peak?
+&general	
+n=64,				! number of collocation points in each axis
+		  		! (should be a power of two for maximum
+				! performance)
+TIMESTEPS=10,			! number of timesteps, use TMAX if zero
+TMAX=10.0,	  	 	! maximum time limit
+CFL=0.8,	  	 	! Courant-Friedrichs-Lewy number
+RE=0,		  	 	! Taylor microscale Reynolds number,
+			 	! use KMAXETA if zero
+KMAXETA=2.0,	  	 	! Target maximum wavenumber times Kolmogorov
+			 	! microscale
+STOP_AT_DISSPEAK=.false. 	! Stop at the dissipation peak?
 &end
 
 !
@@ -41,7 +41,9 @@ BURGERS=.false.,! Include the pressure term?
 
 &force
 FORCED=.false.,			! Force the hydrodynamic equations?
-VARIABLE_FORCING=.false.,	! if true, Kaneda et al. (2004) negative viscosity large-scale forcing, else toy stochastic forcing
+VARIABLE_FORCING=.false.,	! if true, Kaneda et al. (2004) negative
+				! viscosity large-scale forcing, else toy
+				! stochastic forcing
 KFORCING=2.5,			! Maximum forced wavenumber
 &end
 
@@ -59,6 +61,27 @@ NUMSCLS=1,			! Number of passive scalar fields
 &end
 
 !
+! Namelist radiation: Thermal radiation parameters
+!
+
+&radiation
+RADIATION=.false.,		! Turn on thermal radiation calculations
+EQSECTS=1,			! Angular subdivision method:
+				! 0: Naive (unequal angular control volumes)
+				! 1: Exactly equal angular control volumes
+				! 2: Aproximatelly equal angular control
+				!    volumes
+TEMPMAX=2000.,			! Maximum temperature (K) < 2500.0
+TEMPMIN=1000.,			! Minimum temperature (K) > 300.0
+NSECTS=0,			! Number of angular control volumes. If
+				! NSECTS = 0 then NSECTS=n (from namelist
+				! general)
+FVTOL=1.0e-2,			! Tolerance for the step scheme
+NITERDO=1000,			! Maximum number of iterations for the step
+				! scheme
+&end
+
+!
 ! Namelist magnetrohydro: Magnetohydrodynamic parameters
 !
 
@@ -67,8 +90,10 @@ MHD=.false.,		 ! Include the induction equation?
 MAGNETIC_PR=1.0,	 ! Magnetic Prandtl number
 RESISTIVE=.false.,	 ! Include the resistive term?
 FORCED_MHD=.false.,	 ! Force the induction equation?
-BETA=1.0,		 ! Ratio of rms velocity to rms magnetic field in the initial conditions
-AMB_DIFF=.false.,	 ! Include the ambipolar diffusion term in the induction equation?
+BETA=1.0,		 ! Ratio of rms velocity to rms magnetic field in the
+			 ! initial conditions
+AMB_DIFF=.false.,	 ! Include the ambipolar diffusion term in the
+			 ! induction equation?
 AD_COEFF=0.01,		 ! Coefficient in front of the ambipolar diffusion term
 HALL=.false.,		 ! Include the Hall term in the induction equation?
 HALL_COEFF=0.01,	 ! Hall coefficient
@@ -94,10 +119,19 @@ STK=0.5				! Stokes number for intertial particles
 !
 
 &numerics
-INTEGRATION_METHOD=2, ! Method for time integration: 1: 2nd order Runge-Kutta, 2: 4th order Runge-Kutta
-TRUNCATION=2, 	      ! Method for truncation in Fourier space: 0: Two-thirds rule, 1: Spherical, 2: Polyhedral
-DEALIASING=1, 	      ! Dealiasing method: 0: None, 1: Patterson-Orszag
-FFT_DECOMPOSITION=0,    ! FFT subdivision: 0: across slabs, 1: across pencils
+INTEGRATION_METHOD=2,		! Method for time integration:
+				! 1: 2nd order Runge-Kutta,
+				! 2: 4th order Runge-Kutta
+TRUNCATION=2, 	      		! Method for truncation in Fourier space:
+				! 0: Two-thirds rule,
+				! 1: Spherical,
+				! 2: Polyhedral
+DEALIASING=1, 	      		! Dealiasing method:
+				! 0: None,
+				! 1: Patterson-Orszag
+FFT_DECOMPOSITION=0,    	! FFT subdivision: 
+				! 0: across slabs,
+				! 1: across pencils
 &end
 
 !
@@ -105,10 +139,15 @@ FFT_DECOMPOSITION=0,    ! FFT subdivision: 0: across slabs, 1: across pencils
 !
 
 &initialconditions
-INITCOND=4,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
-			! spectrum, 3: Orszag-Tang vortex variation, 4: Arnold-Beltrami-Childress flow, 5: Taylor-Green vortex
-KINITCOND=2.5,		! Exponential cutoff wavenumber for the initial conditions
-SEEDRANDOM=.false.,	! Seed the random number generator?
+INITCOND=4,			! Choose initial conditions:
+				! 0: Zero fields,
+				! 1: Stochastic with flat spectrum,
+				! 2: Stochastic with non-flat spectrum,
+				! 3: Orszag-Tang vortex variation,
+				! 4: Arnold-Beltrami-Childress flow,
+				! 5: Taylor-Green vortex
+KINITCOND=2.5,			! Exponential cutoff wavenumber for the initial conditions
+SEEDRANDOM=.false.,		! Seed the random number generator?
 &end
 
 !
@@ -116,13 +155,17 @@ SEEDRANDOM=.false.,	! Seed the random number generator?
 !
 
 &inputoutput
-NOUTPUTFILES=0,				! Number of output files
-INPUT_FIELD=.false.,				! Read initial conditions from file?
+NOUTPUTFILES=0,					! Number of output files
+INPUT_FIELD=.false.,				! Read initial conditions
+						! from file?
 INPUT_FIELD_FILENAME='output.888888.h5',	! Name of input field file
 NFILESTART=0,					! Number of first output file
-hdf5frate=1.0,					! Framerate of output HDF5 files
-slicefrate=5.0,					! Framerate of output VTK slices
-COMPRESSION_LEVEL=5,				! HDF5 gzip compressio level (0-9)
+hdf5frate=1.0,					! Framerate of output HDF5
+						! files
+slicefrate=5.0,					! Framerate of output HDF5
+						! slice files
+COMPRESSION_LEVEL=5,				! HDF5 gzip compressio level
+						! (0-9)
 &end
 
 

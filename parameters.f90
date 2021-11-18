@@ -87,8 +87,10 @@ module parameters
        &342117068_rk
   real(rk), parameter    :: CP = 4.0e3_rk
   real(rk), parameter    :: PRESS = 1.01325e5
-  real(rk), parameter    :: TEMPMIN = 700._rk
-  real(rk), parameter    :: TEMPMAX = 2000._rk           
+  real(rk)               :: TEMPMIN
+  !$acc declare create(TEMPMIN)
+  real(rk)               :: TEMPMAX
+  !$acc declare create(TEMPMAX)
   ! factor for mean-square value calculation in Fourier space
   real(rk)               :: MSFAC
   ! Factor for spherical truncation
@@ -240,12 +242,12 @@ module parameters
   ! Logical variable for MHD forcing
   logical                :: FORCED_MHD
   ! Logical variable for radiation
-  logical                :: RADIATION = .true.
-  integer(ik)            :: EQSECTS = 1
-  integer(ik)            :: nsects = 0
+  logical                :: RADIATION
+  integer(ik)            :: EQSECTS
+  integer(ik)            :: nsects
   !$acc declare create(nsects)
-  integer(ik)            :: niterdo = 1000
-  real(rk)               :: FVTOL = 1.0e-2
+  integer(ik)            :: NITERDO
+  real(rk)               :: FVTOL
   real(rk), parameter    :: STEFB = 5.67037321e-8_rk
   ! Logical variable for particles
   logical                :: PARTICLES

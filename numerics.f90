@@ -2450,6 +2450,7 @@ contains
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        temp(i, j, k) = scratch(i, j, k, ntemp)
     end do; end do ; end do
+    call zero(nn, scratch)
     !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)), &
     !$acc& ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
 
@@ -2635,10 +2636,6 @@ contains
 !!$    jerr = sbuf(2)
 !!$    kerr = sbuf(3)
 !!$    nserr = sbuf(4)
-
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       scratch(i, j, k, ntemp) = 0.0_rk
-    end do; end do ; end do
 
     return
 

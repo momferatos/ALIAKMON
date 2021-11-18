@@ -116,7 +116,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!
     ! allocates memory !
 !!!!!!!!!!!!!!!!!!!!
-    
+
     ! find the closest integer nphi for which nsects = nphi * (nphi + 2)
     if(EQSECTS == 2) then
        nphi = int(sqrt(real(nsects, 8)), 8)
