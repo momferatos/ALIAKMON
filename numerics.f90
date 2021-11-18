@@ -599,8 +599,12 @@ contains
 
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
-                 &fdivqr(i, j, k)
+            if(isactive(i, j, k)) then
+               fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
+                    &fdivqr(i, j, k)
+            else
+               fnl(i,j,k,ntemp) = 0.0_rk
+            end if
          end do; end do ; end do
          !$omp end parallel do
 
@@ -609,8 +613,12 @@ contains
             call divergence(nnn, fdivqr, fqr)
             !$omp parallel do
             do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-               fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
-                    &fdivqr(i, j, k)
+               if(isactive(i, j, k)) then
+                  fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
+                       &fdivqr(i, j, k)
+               else
+                  fnls(i,j,k,ntemp) = 0.0_rk
+               end if
             end do; end do ; end do
             !$omp end parallel do
          end if
