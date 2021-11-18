@@ -533,7 +533,8 @@ contains
       end do
       !$omp parallel do
       do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         fnl(i,j,k,l)=u(i,j,k,nu1)*fsclgrads(i,j,k,l,nu1)+u(i,j,k,nu2)*fsclgrads(i,j,k,l,nu2)+&
+         fnl(i,j,k,l)=u(i,j,k,nu1)*fsclgrads(i,j,k,l,nu1)+&
+              &u(i,j,k,nu2)*fsclgrads(i,j,k,l,nu2)+&
               &u(i,j,k,nu3)*fsclgrads(i,j,k,l,nu3)
       end do; end do ; end do ; end do
       !$omp end parallel do
@@ -561,7 +562,8 @@ contains
          end do
          !$omp parallel do
          do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnls(i,j,k,l)=psu(i,j,k,nu1)*fsclgrads(i,j,k,l,nu1)+psu(i,j,k,nu2)*fsclgrads(i,j,k,l,nu2)+&
+            fnls(i,j,k,l)=psu(i,j,k,nu1)*fsclgrads(i,j,k,l,nu1)+&
+                 &psu(i,j,k,nu2)*fsclgrads(i,j,k,l,nu2)+&
                  &psu(i,j,k,nu3)*fsclgrads(i,j,k,l,nu3)
          end do; end do ; end do ; end do
          !$omp end parallel do
@@ -569,7 +571,7 @@ contains
       end if
 
       if(RADIATION) then
-         call calcia
+         call calcia(fu)
          call calcqr
          nnn(1:3) = nn(1:3)
          nnn(4) = 3_ik
@@ -599,12 +601,8 @@ contains
 
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            if(isactive(i, j, k)) then
-               fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
-                    &fdivqr(i, j, k)
-            else
-               fnl(i,j,k,ntemp) = 0.0_rk
-            end if
+            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
+                 &fdivqr(i, j, k)
          end do; end do ; end do
          !$omp end parallel do
 
@@ -613,12 +611,8 @@ contains
             call divergence(nnn, fdivqr, fqr)
             !$omp parallel do
             do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-               if(isactive(i, j, k)) then
-                  fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
-                       &fdivqr(i, j, k)
-               else
-                  fnls(i,j,k,ntemp) = 0.0_rk
-               end if
+               fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
+                    &fdivqr(i, j, k)
             end do; end do ; end do
             !$omp end parallel do
          end if
@@ -2394,15 +2388,18 @@ contains
 
   end function absorb
 
-  subroutine calcia
+  subroutine calcia(fu)
     use parameters, only: n1, nsects, niterdo, fvtol, LBOX, STEFB, PI
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, nn, ghostleft, ghostright,&
-         &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right,&
+         &temp, ia, iba, ntemp, scratch, sgn, s, copy, left, right,&
          &is_wq, omeg
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
+    real(rks), dimension(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:nn(4)), intent(in)&
+         &:: fu
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: ns
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Explicit MPI method for the calculation of the radiative intensity !
@@ -2448,10 +2445,10 @@ contains
     surf = dx ** 2
     vol = dx ** 3
     ! copy temperature
-    call copy(nn, u, fu)
-    call fourier(nn, -1_ik, u, nfs=ntemp, nfe=ntemp)
+    call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+    call fourier(nn, -1_ik, scratch, nfs=ntemp, nfe=ntemp)
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       temp(i, j, k) = u(i, j, k, ntemp)
+       temp(i, j, k) = scratch(i, j, k, ntemp)
     end do; end do ; end do
     !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)), &
     !$acc& ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
@@ -2639,7 +2636,9 @@ contains
 !!$    kerr = sbuf(3)
 !!$    nserr = sbuf(4)
 
-
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       scratch(i, j, k, ntemp) = 0.0_rk
+    end do; end do ; end do
 
     return
 

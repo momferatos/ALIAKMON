@@ -157,7 +157,7 @@ contains
     end select
 
     !Perform truncation
-    call truncate(nn,fu)
+    !call truncate(nn,fu)
 
     !Enforce incompressibility / zero magnetic field divergence
     call project(nn,fu)
@@ -189,7 +189,7 @@ contains
 
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
-
+   
     if(RADIATION) then
 !!$       !$omp parallel do private(temp, ib)
 !!$       do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -199,7 +199,7 @@ contains
 !!$          iba(i, j, k, l) = absorb(real(temp, rks), real(temp, rks)) * ib
 !!$       end do; end do ; end do ; end do
 !!$       !$omp end parallel do
-       call calcia
+       call calcia(fu)
     end if
 
     return
