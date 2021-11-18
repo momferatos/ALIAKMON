@@ -596,12 +596,21 @@ contains
          
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + ((4.0e3_rk) ** (-1)) * &
-                 &icp(i, j, k, 1) * &
+            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
                  &fdivqr(i, j, k)
          end do; end do ; end do
          !$omp end parallel do
 
+         if(DEALIASING == PATTERSON_ORSZAG) then
+            call shift(nn,1_ik, fdivqr)
+            !$omp parallel do
+            do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+            fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
+                 &fdivqr(i, j, k)
+         end do; end do ; end do
+         !$omp end parallel do
+         end if
+         
       end if
 
       return

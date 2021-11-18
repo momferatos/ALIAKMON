@@ -85,9 +85,10 @@ module parameters
   real(rk), parameter    :: PI = 3.14159265358979323846264338327950&
        &2884197169399375105820974944592307816406286208998628034825&
        &342117068_rk
-  real(rk) , parameter   :: PRESS = 1.01325e5
-  real(rk) , parameter   :: TEMPMIN = 290._rk
-  real(rk) , parameter   :: TEMPMAX = 300._rk           
+  real(rk), parameter    :: CP = 4.0e3_rk
+  real(rk), parameter    :: PRESS = 1.01325e5
+  real(rk), parameter    :: TEMPMIN = 700._rk
+  real(rk), parameter    :: TEMPMAX = 2000._rk           
   ! factor for mean-square value calculation in Fourier space
   real(rk)               :: MSFAC
   ! Factor for spherical truncation
