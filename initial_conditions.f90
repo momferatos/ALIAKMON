@@ -127,8 +127,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Initial conditions for the velocity, magnetic and scalar fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik)                                             :: i, j, k, l
-    
+    integer(ik)                                             :: i, j, k, l, ns
+    real(rk)                                                :: temp, ib
     !Set initial conditions for particles
 !!$    if(PARTICLES) then
 !!$       call lset_initial_conditions(np,x,vp)
@@ -155,7 +155,7 @@ contains
     case(taylor_green_vortex)
        call taylor_green(nn,fu)
     end select
-        
+
     !Perform truncation
     call truncate(nn,fu)
 
@@ -171,7 +171,7 @@ contains
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
           fu(i,j,k,nb1:nb3)=sqrt(BETA)*fu(i,j,k,nb1:nb3)
-       end do ; end do ; end do
+       end do; end do ; end do
        !$omp end parallel do
     end if
 
@@ -186,12 +186,22 @@ contains
 
     !Copy Fourier arrays to physical-space arrays
     call copy(nn,u,fu)
-    
+
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
 
-    if(RADIATION) call calcia
-    
+    if(RADIATION) then
+!!$       !$omp parallel do private(temp, ib)
+!!$       do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$          temp = u(i, j, k, ntemp)
+!!$          ib = STEFB / PI * temp ** 4
+!!$          ia(i, j, k, l) = absorb(real(temp, rks), real(temp, rks)) * ib
+!!$          iba(i, j, k, l) = absorb(real(temp, rks), real(temp, rks)) * ib
+!!$       end do; end do ; end do ; end do
+!!$       !$omp end parallel do
+       call calcia
+    end if
+
     return
 
   end subroutine set_initial_conditions

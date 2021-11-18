@@ -68,8 +68,6 @@ module data
   real(rks), dimension(:, :, :, :), allocatable, target ::  iba   ! radiation intensity at previous iteration
   !$acc declare create(iba)
   real(rks), dimension(:, :, :), allocatable, target ::  temp   ! temperature buffer
-  real(rks), dimension(:, :, :, :), allocatable, target ::  icp   ! incident radiation
-  real(rks), dimension(:, :, :, :), allocatable, target ::  ficp   ! incident radiation
   !$acc declare create(temp)
   real(rks), dimension(:, :, :), allocatable, target ::  ga   ! incident radiation
   !$acc declare create(ga)
@@ -137,11 +135,10 @@ contains
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
 !!$acc enter data create(ga(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(qr)) allocate(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
-    if(.not.allocated(fqr)) allocate(fqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:3))
-    if(.not.allocated(fdivqr)) allocate(fdivqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3)))
-    if(.not.allocated(icp)) allocate(icp(1:nn(1), 1:nn(2), 1:nn(3), 1:1))
-    if(.not.allocated(ficp)) allocate(ficp(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:1))
 !!$acc enter data create(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
+    if(.not.allocated(fqr)) allocate(fqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:3))
+    if(.not.allocated(fdivqr)) allocate(fdivqr(1:dim1(nn(1)), 1:nn(2),&
+         & 1:nn(3)))
     if(.not.allocated(s)) allocate(s(nsects, 1:3))
     !$acc enter data create(s(nsects, 1:3))
     if(.not.allocated(omeg)) allocate(omeg(1:nsects))
@@ -184,8 +181,6 @@ contains
     if(allocated(temp)) deallocate(temp)
     !$acc exit data delete(temp)
     if(allocated(ga)) deallocate(ga)
-    if(allocated(icp)) deallocate(icp)
-    if(allocated(ficp)) deallocate(ficp)
 !!$acc exit data delete(ga)
     if(allocated(qr)) deallocate(qr)
     if(allocated(fqr)) deallocate(fqr)
@@ -243,17 +238,14 @@ contains
 
     !$omp parallel do 
     do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       ia(i, j, k, l) = 0.0_rk
+       iba(i, j, k, l) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(ia(1:n1, 1:n2, 1:n3, 1:nsects))
-
-
+    !$acc update device(iba(1:n1, 1:n2, 1:nn(3), 1:nsects))
+    
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0_rk
-       icp(i, j, k, 1) = 0.0_rk
-       ficp(i, j, k, 1) = 0.0_rk
     end do; end do ; end do
     !$omp end parallel do
 

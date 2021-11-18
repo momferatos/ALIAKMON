@@ -500,9 +500,10 @@ contains
 
     subroutine compute_passive_scalar
       use types
-      use data, only: qr, fqr, fdivqr, icp, ficp, ga
+      use data, only: qr, fqr, fdivqr
       implicit none
       real(rk) :: scale, tmp, tt, cv, dens, vappress, pp, dens_air, y
+      integer(ik), dimension(4) :: nnn
       integer :: icode
       real(8), external :: cvtp
       real(8), external :: cptp
@@ -570,9 +571,11 @@ contains
       if(RADIATION) then
          call calcia
          call calcqr
-         call copy(nn, fqr, qr, nfs=1_ik, nfe=3_ik, ilim=nn(1))
-         call fourier(nn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-         call divergence(nn, fdivqr, fqr)
+         nnn(1:3) = nn(1:3)
+         nnn(4) = 3_ik
+         call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+         call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+         call divergence(nnn, fdivqr, fqr)
 
 
 !!$         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
@@ -593,7 +596,7 @@ contains
 !!$         icp = 1.0_rk / (1.0e3_rk * icp)
 !!$         print *, 'min(ic)', minval(icp), 'max(ic)', maxval(icp)
          !call fourier(nn, 1_ik, icp, nfs=1_ik, nfe=1_ik)
-         
+
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
             fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
@@ -602,15 +605,16 @@ contains
          !$omp end parallel do
 
          if(DEALIASING == PATTERSON_ORSZAG) then
-            call shift(nn,1_ik, fdivqr)
+            call shift(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+            call divergence(nnn, fdivqr, fqr)
             !$omp parallel do
             do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
-                 &fdivqr(i, j, k)
-         end do; end do ; end do
-         !$omp end parallel do
+               fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
+                    &fdivqr(i, j, k)
+            end do; end do ; end do
+            !$omp end parallel do
          end if
-         
+
       end if
 
       return
@@ -2158,23 +2162,31 @@ contains
 
   end subroutine rescale
 
-  subroutine shift(nn,dir,fu)
+  subroutine shift(nn,dir,fu,nfs,nfe)
     use data, only: wv,isactive,phases,iphases
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     integer(ik), intent(IN)                                    :: dir
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
+    integer(ik), optional :: nfs, nfe
 !!!!!!!!!!!!!!!!!!
     !Phase-space shift
 !!!!!!!!!!!!!!!!!!
     integer(ik) :: i,j,k,l,n
     complex(ck) :: tmp, phase
+    integer(ik) :: nnfs, nnfe
 
+    nnfs=1
+    if(present(nfs)) nnfs=nfs
+    
+    nnfe=nn(4)
+    if(present(nfe)) nnfe=nfe
+    
     n=max(nn(1),nn(2))
 
     if(STORE_PHASES) then
        !$omp parallel do private(tmp,phase)
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
+       do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
           if(isactive(i,j,k)) then
              tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
              if(dir==1) then
@@ -2193,7 +2205,7 @@ contains
        !$omp end parallel do
     else
        !$omp parallel do private(tmp, phase)
-       do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
+       do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
           if(isactive(i,j,k)) then
              tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
              phase=exp(dir*ii*(PI/real(n,rk))*(wv(1_ik,i,j,k)+&
