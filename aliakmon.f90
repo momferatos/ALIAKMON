@@ -66,7 +66,6 @@ program aliakmon
      end subroutine heffte_set_num_device
   end interface
   
-  STORE_PHASES=.true.
   tstart=0.0_rk
   dt=1.0e-9_rk
   RAND_SIZE=1

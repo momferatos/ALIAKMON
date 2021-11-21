@@ -22,7 +22,7 @@ module data
   ! ambipolar diffusion terms
   real(rks), dimension(:,:,:,:), allocatable    :: ad
   ! arrays used for phase shifting
-  complex(cks), dimension(:,:,:), allocatable :: phases,iphases   
+  complex(cks), dimension(:,:,:,:), allocatable :: phases,iphases   
   ! auxiliary arrays used as temporary storage during dealiasing
   real(rks), dimension(:,:,:,:), allocatable    :: du
   real(rks), dimension(:,:,:,:), allocatable    :: psu
@@ -75,6 +75,7 @@ module data
   !$acc declare create(qr)
   real(rks), dimension(:, :, :, :), allocatable, target ::  fqr   ! incident radiation
   real(rks), dimension(:, :, :), allocatable, target ::  fdivqr
+  real(rks), dimension(:, :, :), allocatable, target ::  fdivqr_tmp
   real(rk), dimension(:, :), allocatable :: s      ! vector pointing at the direction of the center of the angular
   !$acc declare create(s)
   real(rk), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
@@ -139,6 +140,8 @@ contains
     if(.not.allocated(fqr)) allocate(fqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:3))
     if(.not.allocated(fdivqr)) allocate(fdivqr(1:dim1(nn(1)), 1:nn(2),&
          & 1:nn(3)))
+    if(.not.allocated(fdivqr_tmp)) allocate(fdivqr_tmp(1:dim1(nn(1)), 1:nn(2),&
+         & 1:nn(3)))
     if(.not.allocated(s)) allocate(s(nsects, 1:3))
     !$acc enter data create(s(nsects, 1:3))
     if(.not.allocated(omeg)) allocate(omeg(1:nsects))
@@ -185,6 +188,7 @@ contains
     if(allocated(qr)) deallocate(qr)
     if(allocated(fqr)) deallocate(fqr)
     if(allocated(fdivqr)) deallocate(fdivqr)
+    if(allocated(fdivqr_tmp)) deallocate(fdivqr_tmp)
 !!$acc exit data delete(qr)
     if(allocated(s)) deallocate(s)
     !$acc exit data delete(s)
@@ -252,6 +256,7 @@ contains
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        fdivqr(i, j, k) = 0.0_rk
+       fdivqr_tmp(i, j, k) = 0.0_rk
     end do; end do ; end do
     !$omp end parallel do
 !!$acc update device(ga(1:n1, 1:n2, 1:n3))
@@ -800,13 +805,13 @@ contains
     end if
 
     !phases array for phase-shifting
-    if(DEALIASING/=NONE.and.STORE_PHASES) then
+    if(DEALIASING/=NONE) then
        ! forward phase factors
-       allocate(phases(dim1(n1),n2,n3))
-       phases(:,:,:) = 0.0_rk
+       allocate(phases(dim1(n1),n2,n3,1:3))
+       phases(:,:,:,:) = 0.0_rk
        ! inverse phase factors
-       allocate(iphases(dim1(n1),n2,n3))
-       iphases(:,:,:) = 0.0_rk
+       allocate(iphases(dim1(n1),n2,n3,1:3))
+       iphases(:,:,:,:) = 0.0_rk
     end if
     !only for Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
@@ -1317,27 +1322,36 @@ contains
   subroutine make_phases_array(nn,phases,iphases) 
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
-    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3)), intent(OUT) :: phases
-    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3)), intent(OUT) :: iphases
+    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:3), intent(OUT) &
+         &:: phases
+    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:3), intent(OUT) &
+         &:: iphases
     !
     ! prepares phases for Patterson & Orszag (1972) dealiasing
     !
-    integer(ik)                                  :: i,j,k,n
-
+    integer(ik)                                  :: i,j,k,l,n
+    real(rk)                                     :: hdx
+    real(rk), dimension(3)                       :: ddx
     n=maxval(nn(1:3))
+    hdx = PI / real(n, rk)
+    ddx(1) = hdx
+    ddx(2) = 2.0_rk * hdx
+    ddx(3) = 0.5_rk * hdx
 
-    do k=1,nn(3)
-       do j=1,nn(2)
-          do i=1,dim1(nn(1))
-             ! forward phase
-             phases(i,j,k)=exp(ii*(PI/real(n,rk))*(wv(1_ik,i,j,k)+&
-                  &wv(2_ik,i,j,k)+wv(3_ik,i,j,k)))
-             ! inverse phase
-             if(abs(phases(i,j,k)) > small) then
-                iphases(i,j,k)=1.0_rks/phases(i,j,k)
-             else
-                iphases(i,j,k)=0.0_rk
-             end if
+    do l=1,3
+       do k=1,nn(3)
+          do j=1,nn(2)
+             do i=1,dim1(nn(1))
+                ! forward phase
+                phases(i,j,k,l)=exp(ii*ddx(l))*(wv(1_ik,i,j,k)+&
+                     &wv(2_ik,i,j,k)+wv(3_ik,i,j,k))
+                ! inverse phase
+                if(abs(phases(i,j,k,l)) > small) then
+                   iphases(i,j,k,l)=1.0_rks/phases(i,j,k,l)
+                else
+                   iphases(i,j,k,l)=0.0_rk
+                end if
+             end do
           end do
        end do
     end do

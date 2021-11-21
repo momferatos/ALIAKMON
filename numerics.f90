@@ -358,8 +358,9 @@ contains
 
 
   subroutine right_hand_side(nn,fnl,fu)
-    use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,ad,&
-         &fsclgrads,fsclgrad,wv,arr_en_1
+    use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,&
+         &nsclf,nscll,ad,&
+         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -378,8 +379,10 @@ contains
     call compute_hydro
 
     if(PASSIVE_SCALAR) call compute_passive_scalar
-    
+
     if(MHD) call compute_mhd
+
+    if(RADIATION) call compute_radiation
 
     ! handle Patterson-Orszag deliasing
     if(DEALIASING==PATTERSON_ORSZAG) then
@@ -393,6 +396,16 @@ contains
        !$omp end parallel do
     end if
 
+    if(RADIATION) then
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          if(isactive(i,j,k)) then
+             fnl(i,j,k,ntemp)=fnl(i,j,k,ntemp)+(CP)**-1*fdivqr(i,j,k)
+          end if
+       end do ; end do ; end do
+       !$omp end parallel do
+    end if
+    
     ! truncate non-linear terms to remove aliasing errors
     call truncate(nn,fnl)
 
@@ -412,17 +425,17 @@ contains
        call zero(nn,psu)
        call zero(nn,fnls)
     end if
-    
+
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
 
     return
-    
+
   contains
-    
+
     subroutine compute_hydro
       use types
       implicit none
-      
+
       !initialize arrays to zero
       call zero(nn,fnl)
       call zero(nn,scratch)
@@ -493,22 +506,14 @@ contains
       call fourier(nn,1_ik,fnl,nu1)
 
       if(DEALIASING==PATTERSON_ORSZAG) call fourier(nn,1_ik,fnls,nu1)
-      
+
       return
 
     end subroutine compute_hydro
 
     subroutine compute_passive_scalar
       use types
-      use data, only: qr, fqr, fdivqr, ia, iba
       implicit none
-      real(rk) :: scale, tmp, tt, cv, dens, vappress, pp, dens_air, y
-      integer(ik), dimension(4) :: nnn
-      integer :: icode
-      real(8), external :: cvtp
-      real(8), external :: cptp
-      real(8), external :: psatt
-      real(8), external :: dtp
 
       !Set passive scalar components
       !$omp parallel
@@ -570,15 +575,117 @@ contains
          call fourier(nn,1_ik,fnls,nsclf,nscll)
       end if
 
-      if(RADIATION) then
-         call calcia(fu)
-         call calcqr
-         nnn(1:3) = nn(1:3)
-         nnn(4) = 3_ik
-         call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-         call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-         call divergence(nnn, fdivqr, fqr)
 
+
+      return
+
+    end subroutine compute_passive_scalar
+
+    subroutine compute_radiation
+      use data, only: qr, fqr, fdivqr, fdivqr_tmp, ia, iba
+      implicit none
+      real(rk) :: scale, tmp, tt, cv, dens, vappress, pp, dens_air, y
+      integer(ik), dimension(4) :: nnn
+      integer :: icode
+      integer(ik) :: idx
+      real(8), external :: cvtp
+      real(8), external :: cptp
+      real(8), external :: psatt
+      real(8), external :: dtp
+
+      
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = 0.0_rk
+         fdivqr_tmp(i,j,k) = 0.0_rk
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call calcia(fu)
+      call calcqr
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr, fqr)
+
+      idx=1
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
+      call calcia(scratch)
+      call calcqr
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+            
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      idx=2
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
+      call calcia(scratch)
+      call calcqr
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      idx=3
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
+      call calcia(scratch)
+      call calcqr
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+      end do; end do ;  end do
+      !$omp end parallel do
 
 !!$         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
 !!$         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -597,40 +704,11 @@ contains
 !!$         print *, 'min(c)', minval(icp), 'max(c)', maxval(icp)
 !!$         icp = 1.0_rk / (1.0e3_rk * icp)
 !!$         print *, 'min(ic)', minval(icp), 'max(ic)', maxval(icp)
-         !call fourier(nn, 1_ik, icp, nfs=1_ik, nfe=1_ik)
-
-         !$omp parallel do
-         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-            fnl(i,j,k,ntemp) = fnl(i,j,k,ntemp) + (CP ** (-1)) *&
-                 &fdivqr(i, j, k)
-         end do; end do ; end do
-         !$omp end parallel do
-
-         if(DEALIASING == PATTERSON_ORSZAG) then
-            call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-            call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik)
-            ia = 0.0
-            iba = 0.0
-            call calcia(scratch)
-            call calcqr
-            nnn(1:3) = nn(1:3)
-            nnn(4) = 3_ik
-            call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-            call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-            call divergence(nnn, fdivqr, fqr)
-            !$omp parallel do
-            do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-               fnls(i,j,k,ntemp) = fnls(i,j,k,ntemp) + (CP ** (-1)) *&
-                    &fdivqr(i, j, k)
-            end do; end do ; end do
-            !$omp end parallel do
-         end if
-
-      end if
+      !call fourier(nn, 1_ik, icp, nfs=1_ik, nfe=1_ik)
 
       return
 
-    end subroutine compute_passive_scalar
+    end subroutine compute_radiation
 
     subroutine compute_mhd
       use types
@@ -714,8 +792,8 @@ contains
       !$omp end parallel do
       return
     end subroutine compute_diffusive_terms
-    
-    
+
+
   end subroutine right_hand_side
 
   subroutine forcing_rhs(nn,i,j,k,fu,ff)
@@ -2173,64 +2251,53 @@ contains
 
   end subroutine rescale
 
-  subroutine shift(nn,dir,fu,nfs,nfe)
+  subroutine shift(nn,dir,fu,nfs,nfe,idx)
     use data, only: wv,isactive,phases,iphases
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     integer(ik), intent(IN)                                    :: dir
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
     integer(ik), optional :: nfs, nfe
+    integer(ik), optional :: idx
 !!!!!!!!!!!!!!!!!!
     !Phase-space shift
 !!!!!!!!!!!!!!!!!!
     integer(ik) :: i,j,k,l,n
     complex(ck) :: tmp, phase
     integer(ik) :: nnfs, nnfe
+    integer(ik) :: iidx
 
     nnfs=1
     if(present(nfs)) nnfs=nfs
-    
+
     nnfe=nn(4)
     if(present(nfe)) nnfe=nfe
-    
+
+    iidx=1
+    if(present(idx)) iidx=idx
+
     n=max(nn(1),nn(2))
 
-    if(STORE_PHASES) then
-       !$omp parallel do private(tmp,phase)
-       do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
-          if(isactive(i,j,k)) then
-             tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
-             if(dir==1) then
-                phase=phases(i,j,k)
-             else
-                phase=iphases(i,j,k)
-             end if
-             tmp=phase*tmp
-             fu(i,j,k,l)=real(tmp,rk)
-             fu(i+1,j,k,l)=aimag(tmp)
+
+    !$omp parallel do private(tmp,phase)
+    do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
+       if(isactive(i,j,k)) then
+          tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
+          if(dir==1) then
+             phase=phases(i,j,k,iidx)
           else
-             fu(i,j,k,l)=0.0_rk
-             fu(i+1,j,k,l)=0.0_rk
+             phase=iphases(i,j,k,iidx)
           end if
-       end do;  end do ; end do ; end do
-       !$omp end parallel do
-    else
-       !$omp parallel do private(tmp, phase)
-       do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
-          if(isactive(i,j,k)) then
-             tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
-             phase=exp(dir*ii*(PI/real(n,rk))*(wv(1_ik,i,j,k)+&
-                  &wv(2_ik,i,j,k)+wv(3_ik,i,j,k)))
-             tmp=phase*tmp
-             fu(i,j,k,l)=real(tmp,rk)
-             fu(i+1,j,k,l)=aimag(tmp)
-          else
-             fu(i,j,k,l)=0.0_rk
-             fu(i+1,j,k,l)=0.0_rk
-          end if
-       end do; end do ; end do ; end do
-       !$omp end parallel do
-    end if
+          tmp=phase*tmp
+          fu(i,j,k,l)=real(tmp,rk)
+          fu(i+1,j,k,l)=aimag(tmp)
+       else
+          fu(i,j,k,l)=0.0_rk
+          fu(i+1,j,k,l)=0.0_rk
+       end if
+    end do;  end do ; end do ; end do
+    !$omp end parallel do
+
 
     return
 

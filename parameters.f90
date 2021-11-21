@@ -273,8 +273,6 @@ module parameters
   integer(ik)            :: TRUNCATION
   ! Default dealiasing
   integer(ik)            :: DEALIASING
-  ! Phase-storing
-  logical                :: STORE_PHASES
   ! Crank-Nicholson method for dissipative terms
   logical                :: CRANK_NICHOLSON
   ! Default initial condition
