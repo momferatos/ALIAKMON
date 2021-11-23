@@ -1,4 +1,4 @@
-!!$     ___ __                                       
+ψψ!!$     ___ __                                       
 !!$ (  / _ \\ \        /                               
 !!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
 !!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
@@ -11,7 +11,6 @@
 module numerics
   use types
   use parameters
-  use data, only: zero, copy
   implicit none
   !
   ! physics & numerics module
@@ -20,7 +19,7 @@ contains
 
   subroutine msvalue(nn,fu,msv)
     use mpivars
-    use data, only: rmsarr,nu1,nu3,nb1,nb3
+    use data, only: rmsarr,nu1,nu2,nu3,nb1,nb2,nb3, copy, zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rk), dimension(1:nn(4)), intent(out)                 :: msv
@@ -76,7 +75,7 @@ contains
 
   function mean_value(nn,fu) result(meanval)
     use mpivars
-    use data, only: rmsarr,nu1,nu3,nsclf,nscll,nb1,nb3
+    use data, only: rmsarr,nu1,nu3,nsclf,nscll,nb1,nb3,copy,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rk), dimension(1:nn(4))                            :: meanval
@@ -360,7 +359,7 @@ contains
   subroutine right_hand_side(nn,fnl,fu)
     use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,&
          &nsclf,nscll,ad,&
-         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr
+         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr,copy,zero
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -427,7 +426,7 @@ contains
     end if
 
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
-
+    
     return
 
   contains
@@ -582,25 +581,24 @@ contains
     end subroutine compute_passive_scalar
 
     subroutine compute_radiation
-      use data, only: qr, fqr, fdivqr, fdivqr_tmp, ia, iba
+      use data, only: qr, fqr, fdivqr, fdivqr_tmp, ia, iba, copy
       implicit none
       real(rk) :: scale, tmp, tt, cv, dens, vappress, pp, dens_air, y
       integer(ik), dimension(4) :: nnn
       integer :: icode
-      integer(ik) :: idx
+      integer(ik) :: nidx
       real(8), external :: cvtp
       real(8), external :: cptp
       real(8), external :: psatt
       real(8), external :: dtp
 
-      
+
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          fdivqr(i,j,k) = 0.0_rk
          fdivqr_tmp(i,j,k) = 0.0_rk
       end do; end do ;  end do
       !$omp end parallel do
-
       call calcia(fu)
       call calcqr
       nnn(1:3) = nn(1:3)
@@ -609,36 +607,16 @@ contains
       call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
       call divergence(nnn, fdivqr, fqr)
 
-      idx=1
+      nidx=1
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
-      call calcia(scratch)
-      call calcqr
-      nnn(1:3) = nn(1:3)
-      nnn(4) = 3_ik
-      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-      call divergence(nnn, fdivqr_tmp, fqr)
-            
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+         fdivqr_tmp(i,j,k) = 0.0_rk
       end do; end do ;  end do
       !$omp end parallel do
-
-      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
-
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
-      end do; end do ;  end do
-      !$omp end parallel do
-
-      idx=2
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      call zero(nn,scratch)
       call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
+      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
       call calcia(scratch)
       call calcqr
       nnn(1:3) = nn(1:3)
@@ -653,7 +631,7 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
 
-      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
+      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
 
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -661,29 +639,73 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
 
-      idx=3
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=idx)
-      call calcia(scratch)
-      call calcqr
-      nnn(1:3) = nn(1:3)
-      nnn(4) = 3_ik
-      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-      call divergence(nnn, fdivqr_tmp, fqr)
+!!$      nidx=2
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr_tmp(i,j,k) = 0.0_rk
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$      call zero(nn,scratch)
+!!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+!!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
+!!$      call calcia(scratch)
+!!$      call calcqr
+!!$      nnn(1:3) = nn(1:3)
+!!$      nnn(4) = 3_ik
+!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+!!$      call divergence(nnn, fdivqr_tmp, fqr)
+!!$
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
+!!$
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      nidx=3
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr_tmp(i,j,k) = 0.0_rk
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$      call zero(nn,scratch)
+!!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
+!!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
+!!$      call calcia(scratch)
+!!$      call calcqr
+!!$      nnn(1:3) = nn(1:3)
+!!$      nnn(4) = 3_ik
+!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+!!$      call divergence(nnn, fdivqr_tmp, fqr)
+!!$
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
+!!$
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
 
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         scratch(i,j,k,1) = fdivqr_tmp(i,j,k)
-      end do; end do ;  end do
-      !$omp end parallel do
-
-      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=idx)
-
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
+         fdivqr(i,j,k) = 0.5_rk * fdivqr(i,j,k)
       end do; end do ;  end do
       !$omp end parallel do
 
@@ -888,7 +910,7 @@ contains
   subroutine lorentz_force(nn,lf,ad,fu,u)
     use types
     use mpivars
-    use data,only:scratch,psu,du,nb1,nb2,nb3,nu1,nu2,nu3
+    use data,only:scratch,psu,du,nb1,nb2,nb3,nu1,nu2,nu3,copy,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT)    :: lf
@@ -1045,7 +1067,7 @@ contains
   end subroutine lorentz_force
 
   subroutine mean_dissipation(nn,fu,emeans)
-    use data, only: scratch,fsclgrad,fsclgrads,nu1,nb1
+    use data, only: scratch,fsclgrad,fsclgrads,nu1,nu2,nu3,nb1,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
@@ -1090,7 +1112,7 @@ contains
        
     end if
 
-    emeans(:)=visc(:)*emeans(:)
+    emeans(:)=visc*emeans(:)
 
     call zero(nn,scratch)
     
@@ -1100,7 +1122,7 @@ contains
 
 
   function mean_kinetic_helicity_dissipation(nn,fu) result(mkhdis)
-    use data, only: scratch,rmsarr,rks1
+    use data, only: scratch,rmsarr,rks1,nu1,nu3,zero
     implicit none
     real(rk)                                                :: mkhdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1271,8 +1293,8 @@ contains
   end subroutine divergence
 
   subroutine gradient(nn,fg,fu,nfs,nfe)
-    use parameters, only: nsclf,nscll
-    use data, only: wv,isactive
+    use parameters
+    use data, only: wv,isactive, nu1, nu2, nu3, nsclf,nscll, zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),nu1:nu3), intent(OUT) :: fg
@@ -1353,7 +1375,7 @@ contains
 
   function mean_magnetic_helicity(nn,fu) result(mmh)
     use types
-    use data, only: rks1,nb1
+    use data, only: rks1,nb1,nu1,nu2,nu3, zero
     implicit none
     real(rk)                                                :: mmh
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1396,7 +1418,7 @@ contains
 
   function mean_magnetic_helicity_dissipation(nn,fu) result(mmhdis)
     use types
-    use data, only: u,rmsarr,rks1,nb1,nu1,nu2,nu3
+    use data, only: u,rmsarr,rks1,nb1,nu1,nu2,nu3,copy,zero
     implicit none
     real(rk)                                                :: mmhdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1448,7 +1470,7 @@ contains
   function ambipolar_diffusion_dissipation(nn,fu) result(addis)
     use types
     use mpivars
-    use data, only: rmsarr,u,scratch,nb1,nb2,nb3
+    use data, only: rmsarr,u,scratch,nb1,nb2,nb3,copy,zero
     implicit none
     real(rk)                                                :: addis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1500,7 +1522,7 @@ contains
 
   function mean_cross_helicity_dissipation(nn,fu) result(mchdis)
     use types
-    use data, only: rmsarr,rks1,nu1,nu3,nb1,nb3
+    use data, only: rmsarr,rks1,nu1,nu2,nu3,nb1,nb3,zero
     implicit none
     real(rk)                                  :: mchdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1555,7 +1577,7 @@ contains
 
   function mean_cross_helicity(nn,fu) result(mcross_hel)
     use types
-    use data, only: rks1,rmsarr,nu1,nu2,nu3,nb1,nb3
+    use data, only: rks1,rmsarr,nu1,nu2,nu3,nb1,nb3,zero
     implicit none
     real(rk)                         :: mcross_hel
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1606,7 +1628,7 @@ contains
 
   function mean_kinetic_helicity(nn,fu) result(mkin_hel)
     use types
-    use data, only: u,rmsarr,rks1,nu1
+    use data, only: u,rmsarr,rks1,nu1,nu2,copy,zero
     implicit none
     real(rk)                                   :: mkin_hel
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1679,7 +1701,7 @@ contains
   end subroutine inner_product
 
   subroutine dissipation(nn,e,nfout,fu)
-    use data, only: wv,u,rks1, rmsarr,isactive,nu1,nu2,nu3
+    use data, only: wv,u,rks1, rmsarr,isactive,nu1,nu2,nu3,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT)              :: e
@@ -2119,7 +2141,7 @@ contains
 
 
   function incompressibility(nn,fu,nf) result(meandivv)
-    use data, only: wv,scratch,nu1
+    use data, only: wv,scratch,nu1,zero
     use mpivars
     implicit none
     real(rk)                                  :: meandivv
@@ -2186,7 +2208,7 @@ contains
 
 
   subroutine rescale(nn,fu)
-    use data, only: u, nu1,nu3,nsclf,nscll,nb1,nb3
+    use data, only: u, nu1,nu3,nsclf,nscll,nb1,nb3,copy,zero
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -2252,7 +2274,7 @@ contains
   end subroutine rescale
 
   subroutine shift(nn,dir,fu,nfs,nfe,idx)
-    use data, only: wv,isactive,phases,iphases
+    use data, only: wv, phases, iphases, isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     integer(ik), intent(IN)                                    :: dir
@@ -2266,7 +2288,9 @@ contains
     complex(ck) :: tmp, phase
     integer(ik) :: nnfs, nnfe
     integer(ik) :: iidx
-
+    real(rk)                                     :: hdx
+    real(rk), dimension(3)                       :: ddx
+    
     nnfs=1
     if(present(nfs)) nnfs=nfs
 
@@ -2278,6 +2302,10 @@ contains
 
     n=max(nn(1),nn(2))
 
+    hdx = PI / real(n, rk)
+    ddx(1) = hdx
+    ddx(2) = 2.0_rk * hdx
+    ddx(3) = 0.5_rk * hdx
 
     !$omp parallel do private(tmp,phase)
     do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
@@ -2341,7 +2369,7 @@ contains
 
   subroutine cfl_condition(nn,dt)
     use types
-    use data, only: u,fu,rmsarr,scratch,nu1,nu3,nb1,nb3
+    use data, only: u,fu,rmsarr,scratch,nu1,nu3,nb1,nb3,copy,zero
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -2469,7 +2497,7 @@ contains
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, nn, ghostleft, ghostright,&
          &temp, ia, iba, ntemp, scratch, sgn, s, copy, left, right,&
-         &is_wq, omeg
+         &is_wq, omeg,copy,zero,ga,qr
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
@@ -2521,14 +2549,14 @@ contains
     surf = dx ** 2
     vol = dx ** 3
     ! copy temperature
+    call zero(nn, scratch)
     call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
     call fourier(nn, -1_ik, scratch, nfs=ntemp, nfe=ntemp)
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        temp(i, j, k) = scratch(i, j, k, ntemp)
     end do; end do ; end do
     call zero(nn, scratch)
-    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)), &
-    !$acc& ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
+    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
 
     ! iteration loop      
     iterloop:do nit=1,niterdo
@@ -2543,8 +2571,8 @@ contains
        err = 0.0_rk
        !$acc parallel private(ii, faces_step(1:6), sumin, &
        !$acc& sumout, dotprd, sourcep, tt, absorb, y, jj, fac, &
-       !$acc& nom, denom, err) reduction(max:maxerr) &
-       !$acc& num_gangs(nsects) vector_length(n1)
+       !$acc& nom, denom, err) reduction(max:maxerr) 
+       !!$acc& num_gangs(nsects) vector_length(n1)
        do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
           ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
           ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
@@ -2556,8 +2584,11 @@ contains
        !$acc end loop
 
        !$acc loop seq
-       do sd=1,8 ! sweep the domain in 8 directions, one from each corner
-          !$acc loop independent gang 
+       ! sweep the domain in 8 directions, one from each corneρ
+       sweeploop: do sd=1,8
+          err = 0.0
+          maxerr = 0.0
+          !$acc loop independent gang
           do ns=1,nsects             
              ! sweep...
              if(is_wq(sd, ns)) then
@@ -2615,12 +2646,15 @@ contains
                          tt = max(300.0_rk, min(2500.0_rk, real(temp(i, j, k),&
                               & rk)))
                          absorb = 0.0_rk
-                         !$acc loop seq
-                         do jj=1,4
-                            absorb=absorb + A_H2O(jj) * &
-                                 &exp(-((tt - B_H2O(jj)) / C_H2O(jj)) ** 2)
-                         end do
-                         !$acc end loop
+                         tt=1.0D3/tt
+                         absorb=-0.23093D0+tt*(-1.12390D0+tt*(9.41530D0+tt*&
+                              &(-2.99880D0+tt*(0.51382D0+tt*(-1.86840D-5)))))
+!!$                         !$acc loop seq
+!!$                         do jj=1,4
+!!$                            absorb=absorb + A_H2O(jj) * &
+!!$                                 &exp(-((tt - B_H2O(jj)) / C_H2O(jj)) ** 2)
+!!$                         end do
+!!$                         !$acc end loop
 
                          y = (temp(i, j, k) - TEMPMIN) / (TEMPMAX - TEMPMIN)
                          y = max(0.0_rk, min(y, 1.0_rk))
@@ -2630,13 +2664,12 @@ contains
 
                          denom = fac + sumout ! denominator of eq. (17.62) 
                          ia(i, j, k, ns) =  nom / denom ! update radiative intensity
-                         !                    call cell_step_scheme(ns, i, j, k)
                       end do
                    end do
                 end do
              end if
-          end do
-       end do
+          end do          
+       end do sweeploop
        !$acc end loop
        ! calculate maximum error and its position for each MPI process
        maxerr = 0.0
@@ -2672,9 +2705,9 @@ contains
           left(i, j, ns) = ia(i, j, 1_ik, ns)
           right(i, j, ns) = ia(i, j, nn(3), ns)
        end do; end do ; end do
-
        !$acc end parallel
 
+       
 !!$          !reduce maximum error across processes
 !!$          sbuf(1) = maxerr
 !!$          call mpi_allreduce(sbuf, rbuf, 1_i4b, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, mpierr)
@@ -2687,12 +2720,18 @@ contains
             &MPI_MAX, MPI_COMM_WORLD, mpierr);
        maxerr = rbuf(1)
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
-       if(maxerr < fvtol) then
+       if(maxerr < FVTOL) then
           exit iterloop  
        end if
-
+       
     end do iterloop
 
+    !$acc parallel
+    call calcqr
+    !$acc end parallel
+    
+    !$acc update self(ga(1:nn(1),1:nn(2),1:nn(3)), &
+    !$acc& qr(1:nn(1),1:nn(2),1:nn(3),1:3))
 !!$
 !!$    ! find the process in which the maximum error occurs
 !!$    sbuf2(1,1) = maxerr
@@ -2849,13 +2888,14 @@ contains
     use mpi
     use mpivars
     implicit none
+    !$acc routine seq
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! calculates radiative heat flux and incindent radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
     real(rk) :: maxga
 
-    !$acc update self(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
+!    !$acc update self(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
     !radiative heat flux and incindent radiation at the interior of the domain
     !!$omp parallel do 
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
@@ -2869,12 +2909,12 @@ contains
        end do
     end do; end do; end do
     !!$omp end parallel do
-
-    sbuf(1) = maxval(ga)
-    call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
-         &MPI_MAX, MPI_COMM_WORLD, mpierr);
-    maxga = rbuf(1)
-    if(mpirank == 0) print '(a,e15.5)', 'max(G) = ', maxga
+!!$
+!!$    sbuf(1) = maxval(ga)
+!!$    call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
+!!$         &MPI_MAX, MPI_COMM_WORLD, mpierr);
+!!$    maxga = rbuf(1)
+!!$    if(mpirank == 0) print '(a,e15.5)', 'max(G) = ', maxga
     return
 
   end subroutine calcqr

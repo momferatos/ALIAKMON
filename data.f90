@@ -22,7 +22,7 @@ module data
   ! ambipolar diffusion terms
   real(rks), dimension(:,:,:,:), allocatable    :: ad
   ! arrays used for phase shifting
-  complex(cks), dimension(:,:,:,:), allocatable :: phases,iphases   
+  complex(cks), dimension(:,:,:,:), allocatable :: phases, iphases   
   ! auxiliary arrays used as temporary storage during dealiasing
   real(rks), dimension(:,:,:,:), allocatable    :: du
   real(rks), dimension(:,:,:,:), allocatable    :: psu
@@ -807,10 +807,10 @@ contains
     !phases array for phase-shifting
     if(DEALIASING/=NONE) then
        ! forward phase factors
-       allocate(phases(dim1(n1),n2,n3,1:3))
+       allocate(phases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
        phases(:,:,:,:) = 0.0_rk
        ! inverse phase factors
-       allocate(iphases(dim1(n1),n2,n3,1:3))
+       allocate(iphases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
        iphases(:,:,:,:) = 0.0_rk
     end if
     !only for Patterson-Orszag dealiasing
@@ -1331,7 +1331,7 @@ contains
     !
     integer(ik)                                  :: i,j,k,l,n
     real(rk)                                     :: hdx
-    real(rk), dimension(3)                       :: ddx
+    real(rk), dimension(3)                       :: ddx, wvvec
     n=maxval(nn(1:3))
     hdx = PI / real(n, rk)
     ddx(1) = hdx
@@ -1342,15 +1342,17 @@ contains
        do k=1,nn(3)
           do j=1,nn(2)
              do i=1,dim1(nn(1))
+                wvvec(1) = wv(1_ik,i,j,k)
+                wvvec(2) = wv(2_ik,i,j,k)
+                wvvec(3) = wv(3_ik,i,j,k)
                 ! forward phase
-                phases(i,j,k,l)=exp(ii*ddx(l))*(wv(1_ik,i,j,k)+&
-                     &wv(2_ik,i,j,k)+wv(3_ik,i,j,k))
+                phases(i,j,k,l)=exp(ii*ddx(l)*sum(wvvec))
                 ! inverse phase
-                if(abs(phases(i,j,k,l)) > small) then
+!                if(abs(phases(i,j,k,l)) > small) then
                    iphases(i,j,k,l)=1.0_rks/phases(i,j,k,l)
-                else
-                   iphases(i,j,k,l)=0.0_rk
-                end if
+!                else
+!                   iphases(i,j,k,l)=0.0_rk
+!                end if
              end do
           end do
        end do
