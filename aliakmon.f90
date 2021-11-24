@@ -287,7 +287,7 @@ program aliakmon
           &maxc
      !stop
      nhdf5file=0_ik
-     call output_files(0_ik)
+     !call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
 
      nvortfile=0
@@ -393,6 +393,7 @@ program aliakmon
 
      if(int(floor(time * slicefrate), ik) == nvortfile) then
         call output_slices(nvortfile, time)
+        call output_spectra(0_ik)
         nvortfile = nvortfile + 1
      end if
 
@@ -720,7 +721,7 @@ contains
     character(len=1024)     :: fname, comment
     integer(ik) :: l, m, nj, nf
     character(len=64), dimension(:), allocatable :: datanames
-
+    
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
     if(MHD) nfields = nfields + 1

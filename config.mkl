@@ -1,6 +1,6 @@
 #!/bin/bash
 export BACKEND='mkl'
-export ACCELFLAGS='-acc=multicore,noautopar,verystrict'
+export ACCELFLAGS='-noacc'
 export CUDALDFLAGS=''
 export MKLFLAGS='-Mmkl -D _MKL_'
 export MKLLDFLAGS='-lhefftemklfortran'

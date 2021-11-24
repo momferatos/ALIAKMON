@@ -798,7 +798,7 @@ contains
     call zero(nn,rks1)
 
     !only for ambipolar diffusion or hall effect
-    if(MHD.and.AMB_DIFF.or.HALL) then
+    if(MHD) then
        ! ambipolar diffusion or Hall effect terms
        allocate(ad(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nfields))
        call zero(nn,ad)
