@@ -377,6 +377,7 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
+     if(RADIATION.and..not.RADIATION_COUPLING) call calcia(nn,fu)
      
      !call energy_test(nn,u,fu,rhs)     
      ! Write maxima to file

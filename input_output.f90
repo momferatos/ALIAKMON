@@ -18,6 +18,7 @@ module input_output
 contains
 
   subroutine read_namelist_file
+    use parameters
     implicit none
     integer(ik)                  :: n
     integer(ik)                  :: aliakmon_nml
@@ -29,7 +30,8 @@ contains
     namelist /force/           FORCED, VARIABLE_FORCING,KFORCING
     namelist /passivescalar/     PASSIVE_SCALAR, DIFFUSIVE, PR, HEATING,&
          &FORCED_PASSIVE_SCALAR,NUMSCLS
-    namelist /radiation/         RADIATION, EQSECTS, TEMPMIN, TEMPMAX, &
+    namelist /radiation/         RADIATION, RADIATION_COUPLING, &
+         &EQSECTS, TEMPMIN, TEMPMAX, &
          &NSECTS, FVTOL, NITERDO
     namelist /magnetohydro/      MHD, MAGNETIC_PR,RESISTIVE,FORCED_MHD,BETA,&
          &AMB_DIFF, AD_COEFF,HALL, HALL_COEFF

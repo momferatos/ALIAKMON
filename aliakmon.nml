@@ -66,6 +66,8 @@ NUMSCLS=1,			! Number of passive scalar fields
 
 &radiation
 RADIATION=.false.,		! Turn on thermal radiation calculations
+RADIATION_COUPLING=.false.	! Two-way coupling between temperature and
+				! radiation
 EQSECTS=1,			! Angular subdivision method:
 				! 0: Naive (unequal angular control volumes)
 				! 1: Exactly equal angular control volumes

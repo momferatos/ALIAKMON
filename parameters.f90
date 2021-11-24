@@ -243,6 +243,7 @@ module parameters
   logical                :: FORCED_MHD
   ! Logical variable for radiation
   logical                :: RADIATION
+  logical                :: RADIATION_COUPLING
   integer(ik)            :: EQSECTS
   integer(ik)            :: nsects
   !$acc declare create(nsects)

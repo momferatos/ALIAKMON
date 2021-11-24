@@ -381,7 +381,7 @@ contains
 
     if(MHD) call compute_mhd
 
-    if(RADIATION) call compute_radiation
+    if(RADIATION.and.RADIATION_COUPLING) call compute_radiation
 
     ! handle Patterson-Orszag deliasing
     if(DEALIASING==PATTERSON_ORSZAG) then
@@ -395,7 +395,7 @@ contains
        !$omp end parallel do
     end if
 
-    if(RADIATION) then
+    if(RADIATION.and.RADIATION_COUPLING) then
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
           if(isactive(i,j,k)) then
@@ -599,7 +599,7 @@ contains
          fdivqr_tmp(i,j,k) = 0.0_rk
       end do; end do ;  end do
       !$omp end parallel do
-      call calcia(fu)
+      call calcia(nn,fu)
       call calcqr
       nnn(1:3) = nn(1:3)
       nnn(4) = 3_ik
@@ -617,7 +617,7 @@ contains
       call zero(nn,scratch)
       call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
       call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
-      call calcia(scratch)
+      call calcia(nn,scratch)
       call calcqr
       nnn(1:3) = nn(1:3)
       nnn(4) = 3_ik
@@ -649,7 +649,7 @@ contains
 !!$      call zero(nn,scratch)
 !!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
 !!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
-!!$      call calcia(scratch)
+!!$      call calcia(nn,scratch)
 !!$      call calcqr
 !!$      nnn(1:3) = nn(1:3)
 !!$      nnn(4) = 3_ik
@@ -681,7 +681,7 @@ contains
 !!$      call zero(nn,scratch)
 !!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
 !!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
-!!$      call calcia(scratch)
+!!$      call calcia(nn,scratch)
 !!$      call calcqr
 !!$      nnn(1:3) = nn(1:3)
 !!$      nnn(4) = 3_ik
@@ -2492,15 +2492,16 @@ contains
 
   end function absorb
 
-  subroutine calcia(fu)
+  subroutine calcia(nn,fu)
     use parameters, only: n1, nsects, niterdo, fvtol, LBOX, STEFB, PI
     use data, only: istart, iend, istep, jstart, jend, jstep, &
-         &kstart, kend, kstep, nn, ghostleft, ghostright,&
+         &kstart, kend, kstep, ghostleft, ghostright,&
          &temp, ia, iba, ntemp, scratch, sgn, s, copy, left, right,&
          &is_wq, omeg,copy,zero,ga,qr
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:nn(4)), intent(in)&
          &:: fu
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

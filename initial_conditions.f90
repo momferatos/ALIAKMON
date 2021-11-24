@@ -192,7 +192,7 @@ contains
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
    
-    if(RADIATION) call calcia(fu)
+    if(RADIATION) call calcia(nn,fu)
 
     return
 
@@ -399,9 +399,9 @@ contains
     !Set-up stochastic coefficients
     !call random_number(a)
     !call random_number(b)
-    a=0.0_rk
-    b=0.0_rk
-    c=0.0_rk-a-b
+    a=0.5_rk
+    b=-0.3_rk
+    c=1.0_rk-a-b
     !Calculate large-scale ABC flow
     do k=1,nn(3)
        z=(lkstart+k-1)*dz
