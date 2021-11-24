@@ -287,7 +287,7 @@ program aliakmon
           &maxc
      !stop
      nhdf5file=0_ik
-     !call output_files(0_ik)
+     call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
 
      nvortfile=0

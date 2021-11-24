@@ -164,7 +164,7 @@ module parameters
   ! Constants for choice of initial conditions
   integer(ik), parameter :: ZERO_INITCOND = 0,STOCHASTIC_INITCOND_FLAT = 1
   integer(ik), parameter :: STOCHASTIC_INITCOND_WITH_SPECTRUM = 2
-  integer(ik), parameter :: ORSZAG_TANG_VORTEX = 3, ABC = 4, TAYLOR_GREEN_VORTEX = 5
+  integer(ik), parameter :: ORSZAG_TANG_VORTEX = 3, ABC = 4, TAYLOR_GREEN_VORTEX = 5, RADSPHERE=6
   ! Constants for choice of time integration method
   integer(ik), parameter :: MEULER = 0, MRUNGE_KUTTA2 = 1,MRUNGE_KUTTA4 = 2
   ! Constants for choice of truncation method

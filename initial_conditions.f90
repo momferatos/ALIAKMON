@@ -154,6 +154,8 @@ contains
        call abc_flow(nn,1_ik,3_ik,fu)
     case(taylor_green_vortex)
        call taylor_green(nn,fu)
+    case(radsphere)
+       call rad_sphere(nn,fu)
     end select
 
     !Perform truncation
@@ -365,6 +367,74 @@ contains
     return
 
   end subroutine taylor_green
+
+  subroutine rad_sphere(nn,u)
+    use hdf5_aliakmon, only: write_hdf5_file
+    use types
+    use data, only: nu1,nu2,nu3
+    use mpivars
+    implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)),intent(OUT)              :: u
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !Arnol'd-Beltrami-Childress initial condition for wave-vectors with
+    !radius k=k1-k2 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    integer(ik)                                            :: i,j,k,l
+    real(rk)                                               :: a,b,c
+    real(rk)                                               :: dx,dy,dz
+    real(rk)                                               :: x,y,z
+    real(rk), dimension(3)                                 :: dist, xx, center
+
+    center = [PI, PI, PI]
+    !Set fields to zero
+    call zero(nn,u)
+
+    !Calculate steps
+    dx=LBOX/real(n1-1,rk)
+    dy=LBOX/real(gn2-1,rk)
+    dz=LBOX/real(gn3-1,rk)
+
+    !Set-up stochastic coefficients
+    !call random_number(a)
+    !call random_number(b)
+    a=0.0_rk
+    b=0.0_rk
+    c=0.0_rk-a-b
+    !Calculate large-scale ABC flow
+    do k=1,nn(3)
+       z=(lkstart+k-1)*dz
+       do j=1,nn(2)
+          y=(ljstart+j-1)*dy
+          do i=1,nn(1)
+             x=(i-1)*dx
+             !Calculate field
+             u(i,j,k,nu1)=a*sin(x)*cos(y)*cos(z)
+             u(i,j,k,nu2)=b*sin(y)*cos(x)*cos(z)
+             u(i,j,k,nu3)=c*sin(z)*cos(y)*cos(x)
+             if(PASSIVE_SCALAR) then
+                do l=nsclf,nscll
+                   xx(1)=x
+                   xx(2)=y
+                   xx(3)=z
+                   dist=xx(1:3) - center(1:3)
+                   if(sqrt(dot_product(dist,dist)) < PI / 4.0_rk) then
+                      u(i,j,k,l)=TEMPMAX
+                   else
+                      u(i,j,k,l)=TEMPMIN
+                   end if
+                end do
+             end if
+          end do
+       end do
+    end do
+    
+    call fourier(nn,1_ik,u)
+
+    return
+
+  end subroutine rad_sphere
 
   subroutine orszag_tang(nn,u)
     use types
