@@ -711,17 +711,19 @@ contains
   end subroutine post_processing_mode
 
   subroutine output_slices(nfile, time)
+    use mpivars
     use hdf5_aliakmon
     implicit none
     integer(ik), intent(IN) :: nfile
     real(rk), intent(IN)    :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     character(len=1024)     :: fname, comment
-    integer(ik) :: l, m
+    integer(ik) :: l, m, nj, nf
     character(len=64), dimension(:), allocatable :: datanames
 
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
+    if(MHD) nfields = nfields + 1
 
     allocate(datanames(1:nfields))
     if(.not.allocated(slice)) allocate(slice(1:nfields,1:nn(2),1:nn(3)))
@@ -736,6 +738,10 @@ contains
           m = l - (3 + numscls) + 1 
           write(datanames(l),'(a,i3.3)') 'sg_', m
        end do
+    end if
+
+    if(MHD) then
+       datanames(nfields) = 'j'
     end if
 
 
@@ -754,6 +760,17 @@ contains
     end if
     write(fname,'(a,i5.5,a)') 'slice-', nfile, '.h5'
 
+    if(MHD) then
+       call curl(nn,rks1,fu,nb1)
+       call fourier(nn,-1_ik,rks1,nfs=nb1,nfe=nb3)
+    end if
+    
+    !$omp parallel do
+    do l=1,nfields ; do k=1,nn(3) ; do j=1,nn(2) 
+       slice(l,j,k) = 0.0
+    end do; end do ; end do
+    !$omp end parallel do
+    
     i=1
     !$omp parallel do
     do k=1,nn(3) ; do j=1,nn(2) 
@@ -781,11 +798,27 @@ contains
        end do
     end if
 
+    if(PASSIVE_SCALAR) then
+       nj = 3+numscls+numscls
+    else
+       nj = 3
+    end if
+
+    if(MHD) then
+       !$omp parallel do 
+       do k=1,nn(3) ; do j=1,nn(2)
+          slice(nj,j,k)=sqrt(rks1(i,j,k,nb1)**2+rks1(i,j,k,nb2)**2+&
+               &rks1(i,j,k,nb3)**2)
+       end do; end do
+       !$omp end parallel do
+    end if
+
     call write_hdf5_file(nn,nfields,slice,datanames,time,nfile)
 
     call zero(nn,rmsarr)
     call zero(nn,scratch)
     if(PASSIVE_SCALAR) call zero(nn,fsclgrads)
+    if(MHD) call zero(nn,rks1)
 
     deallocate(datanames)
 

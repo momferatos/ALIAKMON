@@ -482,7 +482,7 @@ contains
     data_is_vector(:) = .false.
     ndatanames = 0
     !$omp parallel do
-    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+    do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        h5_vector_data(l,i,j,k)=u(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
@@ -520,17 +520,18 @@ contains
     end if
 
 
-!!$    !write mhd
-!!$    if(MHD) then
-!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-!!$       call write_hdf5_scalar_dataset('/b1',h5_scalar_data,nn)
-!!$
-!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-!!$       call write_hdf5_scalar_dataset('/b2',h5_scalar_data,nn)
-!!$
-!!$       h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))=u(1:nn(1),1:nn(2),1:nn(3),nb1)
-!!$       call write_hdf5_scalar_dataset('/b3',h5_scalar_data,nn)
-!!$    end if
+    !write mhd
+    if(MHD) then
+       !$omp parallel do
+       do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          h5_vector_data(l,i,j,k)=u(i,j,k,l)
+       end do; end do ; end do ; end do
+       !$omp end parallel do
+       call write_hdf5_vector_dataset('/b',h5_vector_data,nn)
+       ndatanames = ndatanames + 1
+       datanames(ndatanames) = 'b'
+       data_is_vector(ndatanames) = .true.
+    end if
 
     ! Deallocate data buffer.
     !
@@ -557,7 +558,7 @@ contains
     call h5close_f(error)
 
 
-    
+
 !!$    datanames(nu2)='u2'
 !!$    datanames(nu3)='u3'
 !!$    if(PASSIVE_SCALAR) then
@@ -581,7 +582,7 @@ contains
     implicit none
     integer(ik), intent(IN), dimension(1:4)                :: nn
     integer(ik), intent(IN)                                :: nfields
-    real(rks), dimension(1:nfields,1:nn(2), 1:nn(3)), intent(IN) :: slice
+    real(rks), dimension(1:nfields,1:nn(2),1:nn(3)), intent(IN) :: slice
     character(len=64), dimension(1:nfields) :: datanames
     real(rk), intent(IN)                                   :: time
     integer(ik), intent(IN)                                :: nfile
