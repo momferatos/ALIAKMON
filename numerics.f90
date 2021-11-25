@@ -11,12 +11,71 @@
 module numerics
   use types
   use parameters
+  use data, only: shift
   implicit none
   !
   ! physics & numerics module
   !
 contains
 
+  subroutine shift(nn,dir,fu,nfs,nfe,idx)
+    use data, only: isactive, phases, iphases
+    implicit none
+    integer(ik), dimension(1:4), intent(in)                   :: nn
+    integer(ik), intent(IN)                                    :: dir
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
+    integer(ik), optional :: nfs, nfe
+    integer(ik), optional :: idx
+!!!!!!!!!!!!!!!!!!
+    !Phase-space shift
+!!!!!!!!!!!!!!!!!!
+    integer(ik) :: i,j,k,l,n
+    complex(ck) :: tmp
+    integer(ik) :: nnfs, nnfe
+    integer(ik) :: iidx
+    real(rk)                                     :: hdx
+    real(rk), dimension(3)                       :: ddx
+    complex(ck)                                  :: phase, iphase
+    nnfs=1
+    if(present(nfs)) nnfs=nfs
+
+    nnfe=nn(4)
+    if(present(nfe)) nnfe=nfe
+
+    iidx=1
+    if(present(idx)) iidx=idx
+
+    n=max(nn(1),nn(2))
+
+    hdx = PI / real(n, rk)
+    ddx(1) = hdx
+    ddx(2) = 2.0_rk * hdx
+    ddx(3) = 0.5_rk * hdx
+
+    !$omp parallel do private(tmp,phase)
+    do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
+       if(isactive(i,j,k)) then
+          tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
+          if(dir==1) then
+             phase=phases(i,j,k,iidx)
+          else
+             phase=iphases(i,j,k,iidx)
+          end if
+          tmp=phase*tmp
+          fu(i,j,k,l)=real(tmp,rk)
+          fu(i+1,j,k,l)=aimag(tmp)
+       else
+          fu(i,j,k,l)=0.0_rk
+          fu(i+1,j,k,l)=0.0_rk
+       end if
+    end do;  end do ; end do ; end do
+    !$omp end parallel do
+
+
+    return
+
+  end subroutine shift
+  
   subroutine msvalue(nn,fu,msv)
     use mpivars
     use data, only: rmsarr,nu1,nu2,nu3,nb1,nb2,nb3, copy, zero
@@ -592,7 +651,7 @@ contains
       real(8), external :: psatt
       real(8), external :: dtp
 
-
+      call zero(nn,scratch)
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          fdivqr(i,j,k) = 0.0_rk
@@ -600,7 +659,7 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
       call calcia(nn,fu)
-      call calcqr
+
       nnn(1:3) = nn(1:3)
       nnn(4) = 3_ik
       call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
@@ -616,9 +675,9 @@ contains
       !$omp end parallel do
       call zero(nn,scratch)
       call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
+      call shift(nn, 1_ik, scratch,idx=nidx)
       call calcia(nn,scratch)
-      call calcqr
+
       nnn(1:3) = nn(1:3)
       nnn(4) = 3_ik
       call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
@@ -631,14 +690,14 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
 
-      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
+      call shift(nn, -1_ik, scratch,idx=nidx)
 
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,1)
       end do; end do ;  end do
       !$omp end parallel do
-
+!!$
 !!$      nidx=2
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!$      !$omp parallel do
@@ -650,7 +709,7 @@ contains
 !!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
 !!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
 !!$      call calcia(nn,scratch)
-!!$      call calcqr
+
 !!$      nnn(1:3) = nn(1:3)
 !!$      nnn(4) = 3_ik
 !!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
@@ -682,7 +741,7 @@ contains
 !!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
 !!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
 !!$      call calcia(nn,scratch)
-!!$      call calcqr
+!!$
 !!$      nnn(1:3) = nn(1:3)
 !!$      nnn(4) = 3_ik
 !!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
@@ -709,6 +768,8 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
 
+      call zero(nn,scratch)
+      
 !!$         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
 !!$         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
 !!$            tt = u(i, j, k, ntemp)
@@ -833,7 +894,17 @@ contains
     integer(ik)              :: iii,l
 
     if(.not.FORCED) then
-       ff(:)=cmplx(0.0_rk,0_rk,ck)
+       ff(nu1:nu3)=cmplx(0.0_rk,0_rk,ck)
+       return
+    end if
+
+    if(PASSIVE_SCALAR.and..not.FORCED_PASSIVE_SCALAR) then
+       ff(nsclf:nscll)=cmplx(0.0_rk,0_rk,ck)
+       return
+    end if
+
+    if(MHD.and..not.FORCED_MHD) then
+       ff(nb1:nb3)=cmplx(0.0_rk,0_rk,ck)
        return
     end if
 
@@ -1953,9 +2024,9 @@ contains
     diss=rbuf(2)
 #endif
     if(area==0._rk) area=1.0_rk
-    L=2.0_rk*PI*(area**(-1))*L
+    L=(area**(-1))*L
     if(diss==0.0_rk) diss=1.0_rk
-    lambda=2.0_rk*PI*sqrt(area/diss)
+    lambda=sqrt(area/diss)
     return
 
   end subroutine integral_length_scale
@@ -2273,64 +2344,6 @@ contains
 
   end subroutine rescale
 
-  subroutine shift(nn,dir,fu,nfs,nfe,idx)
-    use data, only: wv, phases, iphases, isactive
-    implicit none
-    integer(ik), dimension(1:4), intent(in)                   :: nn
-    integer(ik), intent(IN)                                    :: dir
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
-    integer(ik), optional :: nfs, nfe
-    integer(ik), optional :: idx
-!!!!!!!!!!!!!!!!!!
-    !Phase-space shift
-!!!!!!!!!!!!!!!!!!
-    integer(ik) :: i,j,k,l,n
-    complex(ck) :: tmp, phase
-    integer(ik) :: nnfs, nnfe
-    integer(ik) :: iidx
-    real(rk)                                     :: hdx
-    real(rk), dimension(3)                       :: ddx
-    
-    nnfs=1
-    if(present(nfs)) nnfs=nfs
-
-    nnfe=nn(4)
-    if(present(nfe)) nnfe=nfe
-
-    iidx=1
-    if(present(idx)) iidx=idx
-
-    n=max(nn(1),nn(2))
-
-    hdx = PI / real(n, rk)
-    ddx(1) = hdx
-    ddx(2) = 2.0_rk * hdx
-    ddx(3) = 0.5_rk * hdx
-
-    !$omp parallel do private(tmp,phase)
-    do l=nnfs,nnfe ; do k=1,nn(3) ; do j=1,nn(2) ;  do i=1,dim1(nn(1))-1,2
-       if(isactive(i,j,k)) then
-          tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
-          if(dir==1) then
-             phase=phases(i,j,k,iidx)
-          else
-             phase=iphases(i,j,k,iidx)
-          end if
-          tmp=phase*tmp
-          fu(i,j,k,l)=real(tmp,rk)
-          fu(i+1,j,k,l)=aimag(tmp)
-       else
-          fu(i,j,k,l)=0.0_rk
-          fu(i+1,j,k,l)=0.0_rk
-       end if
-    end do;  end do ; end do ; end do
-    !$omp end parallel do
-
-
-    return
-
-  end subroutine shift
-
   subroutine fourier(nn,dir,u,nfs,nfe,trunc)
     use mpivars
 #ifdef _MPI_
@@ -2572,8 +2585,8 @@ contains
        err = 0.0_rk
        !$acc parallel private(ii, faces_step(1:6), sumin, &
        !$acc& sumout, dotprd, sourcep, tt, absorb, y, jj, fac, &
-       !$acc& nom, denom, err) reduction(max:maxerr) 
-       !!$acc& num_gangs(nsects) vector_length(n1)
+       !$acc& nom, denom, err) reduction(max:maxerr) & 
+       !$acc& num_gangs(nsects) vector_length(n1)
        do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
           ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
           ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
@@ -2633,7 +2646,7 @@ contains
                          sumout = 0.0 ! sum of outgoing intensities
                          !$acc loop seq
                          do nface=1,6 ! loop over finite volume faces
-                            dotprd = dot_product(s(ns, :), norm(nface, :)) 
+                            dotprd = dot_product(s(ns, 1:3), norm(nface, 1:3)) 
                             if(dotprd < 0.0) then ! s is incoming
                                sumin = sumin + faces_step(nface) * (-dotprd) * surf
                             else ! s is outgoing
@@ -2720,6 +2733,7 @@ contains
        call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
             &MPI_MAX, MPI_COMM_WORLD, mpierr);
        maxerr = rbuf(1)
+
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
        if(maxerr < FVTOL) then
           exit iterloop  
@@ -2727,7 +2741,7 @@ contains
        
     end do iterloop
 
-    !$acc update self(ia(1:nn(1),1:nn(2),1:nn(3),1:nsects))
+    !$acc update self(ia(1:nn(1),1:nn(2),0:nn(3)+1,1:nsects))
     
     call calcqr
     

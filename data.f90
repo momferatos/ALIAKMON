@@ -22,7 +22,7 @@ module data
   ! ambipolar diffusion terms
   real(rks), dimension(:,:,:,:), allocatable    :: ad
   ! arrays used for phase shifting
-  complex(cks), dimension(:,:,:,:), allocatable :: phases, iphases   
+  complex(cks), dimension(:,:,:,:), allocatable :: phases, iphases
   ! auxiliary arrays used as temporary storage during dealiasing
   real(rks), dimension(:,:,:,:), allocatable    :: du
   real(rks), dimension(:,:,:,:), allocatable    :: psu
@@ -291,7 +291,7 @@ contains
 
     ! perform subdivision of the unit sphere in equal-area angular control volumes        
     call sectors
-    !$acc update device(s(1:nsects, 1:3), omeg(1:nsects))
+    !$acc update device(s(1:nsects,1:3), omeg(1:nsects))
 
     isl = 1
     iel = nn(1)
@@ -320,8 +320,8 @@ contains
     do ns=1,nsects
        do sd=1,8
           ! direction cosines of s
-          shat = s(ns, :) / sqrt(dot_product(s(ns, :), s(ns, :))) 
-          is_wq(sd, ns) = all(sgn(sd, :) * shat(:) >= 0.0)
+          shat = s(ns, 1:3) / sqrt(dot_product(s(ns, 1:3), s(ns, 1:3))) 
+          is_wq(sd, ns) = all(sgn(sd, 1:3) * shat(1:3) >= 0.0)
        end do
     end do
     !$acc update device(is_wq(1:8, 1:nsects))
@@ -732,6 +732,11 @@ contains
     allocate(isactive(1:dim1(nn(1)),1:nn(2),1:nn(3)))
     isactive(:,:,:) = .false.
 
+    if(RADIATION) then
+       call allocate_fvdom
+       call init_fvdom
+    end if
+    
     ! allocate secondary arrays
     ! used as scratch
     allocate(scratch(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
@@ -805,12 +810,11 @@ contains
     end if
 
     !phases array for phase-shifting
-    if(DEALIASING/=NONE) then
-       ! forward phase factors
+    if(DEALIASING/=NONE.or.(RADIATION.and.RADIATION_COUPLING)) then
+       ! forward and inverse phase factors
        allocate(phases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
-       phases(:,:,:,:) = 0.0_rk
-       ! inverse phase factors
        allocate(iphases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
+       phases(:,:,:,:) = 0.0_rk
        iphases(:,:,:,:) = 0.0_rk
     end if
     !only for Patterson-Orszag dealiasing
@@ -915,11 +919,6 @@ contains
           isactive(i+1,j,k)=.true.  
        end if
     end do; end do ; end do
-
-    if(RADIATION) then
-       call allocate_fvdom
-       call init_fvdom
-    end if
 
     return
 
@@ -1332,6 +1331,7 @@ contains
     integer(ik)                                  :: i,j,k,l,n
     real(rk)                                     :: hdx
     real(rk), dimension(3)                       :: ddx, wvvec
+    complex(ck) :: phase, iphase
     n=maxval(nn(1:3))
     hdx = PI / real(n, rk)
     ddx(1) = hdx
@@ -1346,13 +1346,15 @@ contains
                 wvvec(2) = wv(2_ik,i,j,k)
                 wvvec(3) = wv(3_ik,i,j,k)
                 ! forward phase
-                phases(i,j,k,l)=exp(ii*ddx(l)*sum(wvvec))
+                phase=exp(ii*ddx(l)*sum(wvvec))
                 ! inverse phase
 !                if(abs(phases(i,j,k,l)) > small) then
-                   iphases(i,j,k,l)=1.0_rks/phases(i,j,k,l)
+                iphase=1.0_rks/phases(i,j,k,l)
 !                else
 !                   iphases(i,j,k,l)=0.0_rk
-!                end if
+                   !                end if
+                phases(i,j,k,l)=phase
+                iphases(i,j,k,l)=iphase
              end do
           end do
        end do
@@ -1362,4 +1364,6 @@ contains
 
   end subroutine make_phases_array
 
+
+  
 end module data

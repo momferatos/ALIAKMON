@@ -496,10 +496,8 @@ contains
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files
-    
-    if(RADIATION) then
-       call calcqr
-    end if
+
+    if(.not.OUTPUTFILES) return
     
     call copy(nn,u,fu)
 

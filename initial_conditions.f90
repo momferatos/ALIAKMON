@@ -386,8 +386,10 @@ contains
     real(rk)                                               :: dx,dy,dz
     real(rk)                                               :: x,y,z
     real(rk), dimension(3)                                 :: dist, xx, center
+    real(rk)                                               :: dst, sigma, fac
 
     center = [PI, PI, PI]
+    sigma = PI / 4.0_rk
     !Set fields to zero
     call zero(nn,u)
 
@@ -419,17 +421,16 @@ contains
                    xx(2)=y
                    xx(3)=z
                    dist=xx(1:3) - center(1:3)
-                   if(sqrt(dot_product(dist,dist)) < PI / 4.0_rk) then
-                      u(i,j,k,l)=TEMPMAX
-                   else
-                      u(i,j,k,l)=TEMPMIN
-                   end if
+                   dst=sqrt(dot_product(dist(1:3),dist(1:3)))
+                   fac = (sigma*sqrt(2.0_rk*PI))**-1
+                   u(i,j,k,l)=TEMPMIN+(TEMPMAX-TEMPMIN)*fac*exp(-(dst**2&
+                        &/(2._rk*sigma**2)))
                 end do
              end if
           end do
        end do
     end do
-    
+
     call fourier(nn,1_ik,u)
 
     return

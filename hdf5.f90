@@ -499,7 +499,6 @@ contains
     end if
 
     if(RADIATION) then
-       call calcqr
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           h5_scalar_data(i,j,k)=ga(i, j, k)
@@ -523,8 +522,8 @@ contains
     !write mhd
     if(MHD) then
        !$omp parallel do
-       do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          h5_vector_data(l,i,j,k)=u(i,j,k,l)
+       do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          h5_vector_data(l,i,j,k)=u(i,j,k,nb1+l-1)
        end do; end do ; end do ; end do
        !$omp end parallel do
        call write_hdf5_vector_dataset('/b',h5_vector_data,nn)
@@ -641,7 +640,7 @@ contains
     end do
 
     if(RADIATION) then
-       call calcqr
+
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)
           h5_slice_data(j,k) = ga(1,j,k)
