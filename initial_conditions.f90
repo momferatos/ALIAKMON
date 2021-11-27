@@ -118,6 +118,7 @@ contains
 
   subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
+    use data, only:temp
     use mpivars
     use numerics, only: calcia
     implicit none
@@ -128,7 +129,6 @@ contains
     !Initial conditions for the velocity, magnetic and scalar fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                             :: i, j, k, l, ns
-    real(rk)                                                :: temp, ib
     !Set initial conditions for particles
 !!$    if(PARTICLES) then
 !!$       call lset_initial_conditions(np,x,vp)
@@ -191,9 +191,16 @@ contains
 
     !Inverse Fourier transforms
     call fourier(nn,-1_ik,u)
-   
-    if(RADIATION) call calcia(nn,fu)
-
+    
+    if(RADIATION) then
+       !$omp parallel do
+       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          temp(i,j,k)=u(i,j,k,ntemp)
+       end do; end do ; end do
+       !$omp end parallel do
+       call calcia
+    end if
+    
     return
 
   end subroutine set_initial_conditions
@@ -385,11 +392,11 @@ contains
     real(rk)                                               :: a,b,c
     real(rk)                                               :: dx,dy,dz
     real(rk)                                               :: x,y,z
-    real(rk), dimension(3)                                 :: dist, xx, center
-    real(rk)                                               :: dst, sigma, fac
+    real(rk), dimension(1:3)                               :: dist, xx, center
+    real(rk)                                               :: dst, rad, fac
 
-    center = [PI, PI, PI]
-    sigma = PI / 4.0_rk
+    center(1:3) = PI
+    rad = PI / 4.0_rk
     !Set fields to zero
     call zero(nn,u)
 
@@ -415,17 +422,18 @@ contains
              u(i,j,k,nu1)=a*sin(x)*cos(y)*cos(z)
              u(i,j,k,nu2)=b*sin(y)*cos(x)*cos(z)
              u(i,j,k,nu3)=c*sin(z)*cos(y)*cos(x)
-             if(PASSIVE_SCALAR) then
-                do l=nsclf,nscll
-                   xx(1)=x
-                   xx(2)=y
-                   xx(3)=z
-                   dist=xx(1:3) - center(1:3)
-                   dst=sqrt(dot_product(dist(1:3),dist(1:3)))
-                   fac = (sigma*sqrt(2.0_rk*PI))**-1
-                   u(i,j,k,l)=TEMPMIN+(TEMPMAX-TEMPMIN)*fac*exp(-(dst**2&
-                        &/(2._rk*sigma**2)))
-                end do
+             xx(1)=x
+             xx(2)=y
+             xx(3)=z
+             dist=xx(1:3)-center(1:3)
+             dst=sqrt(dot_product(dist(1:3),dist(1:3)))
+             fac = (rad*sqrt(2.0_rk*PI))**-1
+!!$             u(i,j,k,ntemp)=fac*exp(-(dst**8&
+!!$                  &/(2._rk*rad**2)))
+             if(dst<rad) then
+                u(i,j,k,ntemp)=1.0_rks
+             else
+                u(i,j,k,ntemp)=0.0_rks
              end if
           end do
        end do

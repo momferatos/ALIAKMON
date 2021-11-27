@@ -424,8 +424,8 @@ contains
   end subroutine write_hdf5_slice_dataset
 
   subroutine write_hdf5_compute_file(nn,u,time,nfile)
-    use data, only: ga
-    use numerics, only: calcqr
+    use data, only: ga, qr
+    use numerics, only: calcia
     implicit none
     integer(ik), intent(IN), dimension(1:4)                  :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:nn(4)), intent(IN) :: u
@@ -499,6 +499,7 @@ contains
     end if
 
     if(RADIATION) then
+       
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           h5_scalar_data(i,j,k)=ga(i, j, k)
@@ -510,7 +511,7 @@ contains
        !$omp parallel do
        do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           h5_vector_data(l,i,j,k)=qr(i,j,k,l)
-       end do; end do ; end do ; end do
+       end do ; end do ; end do ; end do
        !$omp end parallel do
        call write_hdf5_vector_dataset('/q', h5_vector_data, nn)
        ndatanames = ndatanames + 1
@@ -641,17 +642,18 @@ contains
 
     if(RADIATION) then
 
+       i=nn(1)/2
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)
-          h5_slice_data(j,k) = ga(1,j,k)
+          h5_slice_data(j,k) = ga(i,j,k)
        end do; end do
        !$omp end parallel do
        
        call write_hdf5_slice_dataset('/G',h5_slice_data, nn)
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)
-          h5_slice_data(j,k) = sqrt(dot_product(qr(1, j, k, 1:3),&
-               qr(1, j, k, 1:3)))
+          h5_slice_data(j,k) = sqrt(dot_product(qr(i, j, k, 1:3),&
+               qr(i, j, k, 1:3)))
        end do; end do
        !$omp end parallel do
        

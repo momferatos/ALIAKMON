@@ -65,7 +65,7 @@ program aliakmon
        integer(c_int), value :: numd
      end subroutine heffte_set_num_device
   end interface
-  
+
   tstart=0.0_rk
   dt=1.0e-9_rk
   RAND_SIZE=1
@@ -337,7 +337,7 @@ program aliakmon
   ! main time loop
   timeloop:do while((TIMESTEPS==0.and.time-tstart<=TMAX).or.&
        &(TIMESTEPS.ne.0.and.k<=TIMESTEPS))
-     
+
      ! Print progress to stdout
      call print_progress(k,time,&
           &tstart,t1)
@@ -377,8 +377,18 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
-     if(RADIATION.and..not.RADIATION_COUPLING) call calcia(nn,fu)
-     
+     if(RADIATION.and..not.RADIATION_COUPLING) then
+        call copy(nn,u,fu)
+        call fourier(nn,-1_ik,u,nfs=ntemp,nfe=ntemp)
+        !$omp parallel do
+        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+           temp(i,j,k)=u(i,j,k,ntemp)
+        end do; end do ; end do
+        !$omp end parallel do
+        call calcia
+     end if
+
+
      !call energy_test(nn,u,fu,rhs)     
      ! Write maxima to file
      write(maxima_dat,'(6e17.8)') time,maxu,maxb,MAXVORT, MAXJ, MAXLF
@@ -403,7 +413,7 @@ program aliakmon
         call output_files(nhdf5file)
         nhdf5file = nhdf5file + 1
      end if
-          
+
   end do timeloop
 
   ! Print estimated total time information
@@ -498,7 +508,7 @@ contains
     !Output fields in files
 
     if(.not.OUTPUTFILES) return
-    
+
     call copy(nn,u,fu)
 
     call fourier(nn,-1_ik,u)
@@ -720,7 +730,7 @@ contains
     character(len=1024)     :: fname, comment
     integer(ik) :: l, m, nj, nf
     character(len=64), dimension(:), allocatable :: datanames
-    
+
     nfields = 2
     if(PASSIVE_SCALAR) nfields = nfields + 2 * numscls
     if(MHD) nfields = nfields + 1
@@ -748,7 +758,7 @@ contains
 
     call dissipation(nn,scratch,nu1,fu)
     call curl(nn,rmsarr,fu,nu1)
-    call fourier(nn,-1_ik,rmsarr,nfs=nu1,nfe=nu3)
+    call fourier(nn,-1_ik,rmsarr)
     call copy(nn,u,fu)
     call fourier(nn,-1_ik,u)
     if(PASSIVE_SCALAR) then
@@ -764,14 +774,14 @@ contains
        call curl(nn,rks1,fu,nb1)
        call fourier(nn,-1_ik,rks1,nfs=nb1,nfe=nb3)
     end if
-    
+
     !$omp parallel do
     do l=1,nfields ; do k=1,nn(3) ; do j=1,nn(2) 
        slice(l,j,k) = 0.0
     end do; end do ; end do
     !$omp end parallel do
-    
-    i=1
+
+    i=nn(1)/2
     !$omp parallel do
     do k=1,nn(3) ; do j=1,nn(2) 
        slice(1,j,k) = sqrt(rmsarr(i,j,k,nu1)**2 + &

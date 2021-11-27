@@ -36,6 +36,7 @@ module data
   real(rks), dimension(:,:,:,:), allocatable    :: arr_en_2
   real(rks), dimension(:,:,:,:), allocatable    :: arr_en_3
   real(rks), dimension(:,:,:,:), allocatable    :: scratch
+  real(rks), dimension(:,:,:,:), allocatable    :: scratch2
   real(rks), dimension(:,:,:,:), allocatable    :: fnls
   ! auxiliary arrays for the passive scalar gradients
   real(rks), dimension(:,:,:,:,:), allocatable, target  :: fsclgrads
@@ -127,7 +128,7 @@ contains
     end if
 
     !allocate memory
-    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
+    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), 0:nn(3)+1, 1:nsects))
     !$acc enter data create(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
     if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
     !$acc enter data create(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
@@ -165,7 +166,7 @@ contains
 
     if(.not.allocated(is_wq)) allocate(is_wq(1:8, 1:nsects))
     !$acc enter data create(is_wq(1:8, 1:nsects))
-    
+
     return
 
   end subroutine allocate_fvdom
@@ -213,7 +214,7 @@ contains
 
     if(allocated(is_wq)) deallocate(is_wq)
     !$acc exit data delete(is_wq)
-    
+
     return
 
   end subroutine deallocate_fvdom
@@ -229,12 +230,12 @@ contains
     integer(ik) :: isl, iel, jsl, jel, ksl, kel
     real(rk), dimension(3) :: shat
     integer(ik) :: sd
-    
+
     !nsects = 80
 
     ! initialize radiative intensities to zero
     !$omp parallel do 
-    do l=1,nsects ; do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
+    do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ia(i, j, k, l) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
@@ -246,7 +247,7 @@ contains
     end do; end do ; end do ; end do
     !$omp end parallel do
     !$acc update device(iba(1:n1, 1:n2, 1:nn(3), 1:nsects))
-    
+
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0_rk
@@ -267,7 +268,7 @@ contains
     end do; end do ; end do; end do
     !$omp end parallel do
 
-        !$omp parallel do 
+    !$omp parallel do 
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        fqr(i, j, k, l) = 0.0_rk
     end do; end do ; end do; end do
@@ -296,24 +297,33 @@ contains
     isl = 1
     iel = nn(1)
 
-    istart = (/isl,  isl,  isl,  isl,  iel, iel, iel, iel/)  ! starts of the i-sweep
-    iend   = (/iel, iel, iel, iel, isl,  isl,  isl,  isl /)  ! ends of the i-sweep
-    istep  = (/1,  1,  1,  1, -1, -1, -1, -1 /)  ! steps of the i-sweep
+    istart(1:8) = (/isl,  isl,  isl,  isl,  iel, iel, iel, iel/)  ! starts of the i-sweep
+    iend(1:8) = (/iel, iel, iel, iel, isl,  isl,  isl,  isl /)  ! ends of the i-sweep
+    istep(1:8) = (/1,  1,  1,  1, -1, -1, -1, -1 /)  ! steps of the i-sweep
 
     jsl = 1
     jel = nn(2)
 
-    jstart = (/jsl,  jsl,  jel, jel, jsl,  jsl,  jel, jel/)  ! starts of the j-sweep
-    jend   = (/jel, jel, jsl,  jsl,  jel, jel, jsl,  jsl /)  ! ends of the j-sweep
-    jstep  = (/1,  1, -1, -1,  1,  1, -1, -1 /)  ! steps of the j-sweep
+    jstart(1:8) = (/jsl,  jsl,  jel, jel, jsl,  jsl,  jel, jel/)  ! starts of the j-sweep
+    jend(1:8) = (/jel, jel, jsl,  jsl,  jel, jel, jsl,  jsl /)  ! ends of the j-sweep
+    jstep(1:8) = (/1,  1, -1, -1,  1,  1, -1, -1 /)  ! steps of the j-sweep
 
     ksl = 1
     kel = nn(3)
 
-    kstart = (/ksl,  kel, ksl,  kel, ksl,  kel, ksl,  kel/)  ! starts of the k-sweep
-    kend   = (/kel, ksl,  kel, ksl,  kel, ksl,  kel, ksl /)  ! ends of the k-sweep
-    kstep  = (/1, -1,  1, -1,  1, -1,  1, -1 /)  ! steps of the k-sweep
+    kstart(1:8) = (/ksl,  kel, ksl,  kel, ksl,  kel, ksl,  kel/)  ! starts of the k-sweep
+    kend(1:8) = (/kel, ksl,  kel, ksl,  kel, ksl,  kel, ksl /)  ! ends of the k-sweep
+    kstep(1:8) = (/1, -1,  1, -1,  1, -1,  1, -1 /)  ! steps of the k-sweep
 
+    sgn(1, 1:3) = (/  1,  1,  1 /)
+    sgn(2, 1:3) = (/  1,  1, -1 /)
+    sgn(3, 1:3) = (/  1, -1,  1 /)
+    sgn(4, 1:3) = (/  1, -1, -1 /)
+    sgn(5, 1:3) = (/ -1,  1,  1 /)
+    sgn(6, 1:3) = (/ -1,  1, -1 /)
+    sgn(7, 1:3) = (/ -1, -1,  1 /)
+    sgn(8, 1:3) = (/ -1, -1, -1 /)
+    
     !$acc update device(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
 
@@ -325,7 +335,7 @@ contains
        end do
     end do
     !$acc update device(is_wq(1:8, 1:nsects))
-    
+
     return
 
   end subroutine init_fvdom
@@ -387,12 +397,14 @@ contains
           s(ns, 2) = 0.25 * (cos(theta1) - cos(theta2)) * (-2.0 * phi1 + &
                & 2.0 * phi2 + sin(2 * phi1) - sin(2 * phi2))
 
-          s(ns, 3) = -0.25 * (theta1 - theta2) * (cos(2 * phi1) - &
-               &cos(2 * phi2))
+          s(ns, 3) = -0.25 * (theta1 - theta2) * (cos(2.0 * phi1) - &
+               &cos(2.0 * phi2))
 
        end do
     end do
 
+    nsects = ns
+    print *, ns
     ! write vectors to file for checks
     open(789, file = 's.dat', form = 'formatted')
     do ns=1,nsects
@@ -538,8 +550,8 @@ contains
     deallocate(a)
 
     ! calculate direction vectors
-    s(1, :) = V_R * (/0.0, 0.0, 1.0/) ! north pole vector
-    s(2, :) = V_R * (/0.0, 0.0, -1.0/) ! south pole vector
+    s(1, 1:3) = V_R * (/0.0, 0.0, 1.0/) ! north pole vector
+    s(2, 1:3) = V_R * (/0.0, 0.0, -1.0/) ! south pole vector
     ! for the rest of the direction vectors, subdivide spherical
     ! coordinates theta and phi
     delta_phi = (PI - 2.0 * phi_c) / real(n, 8) ! theta increment
@@ -670,7 +682,7 @@ contains
     !
     ! allocates and initializes all arrays
     ! 
-    integer(ik) :: nmax,i,j,k,n
+    integer(ik) :: nmax,i,j,k,l,n
     real(rk)    :: kk
     logical     :: trunc_crit
 
@@ -710,7 +722,7 @@ contains
     !$acc update device(nn(1:4))
     if(nsects == 0) nsects = nn(1)
     !$acc update device(nsects)
-    
+
     ! viscosities, scalar diffusivities, magnetic diffusivities
     allocate(visc(1:nn(4)))
     visc(:)=0.0_rk
@@ -733,10 +745,11 @@ contains
     isactive(:,:,:) = .false.
 
     if(RADIATION) then
+       allocate(scratch2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
        call allocate_fvdom
        call init_fvdom
     end if
-    
+
     ! allocate secondary arrays
     ! used as scratch
     allocate(scratch(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
@@ -814,8 +827,10 @@ contains
        ! forward and inverse phase factors
        allocate(phases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
        allocate(iphases(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
-       phases(:,:,:,:) = 0.0_rk
-       iphases(:,:,:,:) = 0.0_rk
+       do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))-1
+          phases(i,j,k,l) = 0.0_rk
+          iphases(i,j,k,l) = 0.0_rk
+       end do;  end do ;  end do ;  end do
     end if
     !only for Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
@@ -919,6 +934,12 @@ contains
           isactive(i+1,j,k)=.true.  
        end if
     end do; end do ; end do
+
+    !phases array for phase-shifting
+    if(DEALIASING/=NONE.or.(RADIATION.and.RADIATION_COUPLING)) then
+       ! forward and inverse phase factors
+       call make_phases_array
+    end if
 
     return
 
@@ -1318,13 +1339,8 @@ contains
 
   end subroutine wave_vectors
 
-  subroutine make_phases_array(nn,phases,iphases) 
+  subroutine make_phases_array
     implicit none
-    integer(ik), dimension(1:4), intent(in) :: nn
-    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:3), intent(OUT) &
-         &:: phases
-    complex(cks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:3), intent(OUT) &
-         &:: iphases
     !
     ! prepares phases for Patterson & Orszag (1972) dealiasing
     !
@@ -1348,11 +1364,11 @@ contains
                 ! forward phase
                 phase=exp(ii*ddx(l)*sum(wvvec))
                 ! inverse phase
-!                if(abs(phases(i,j,k,l)) > small) then
-                iphase=1.0_rks/phases(i,j,k,l)
-!                else
-!                   iphases(i,j,k,l)=0.0_rk
-                   !                end if
+                if(abs(phase) > small) then
+                   iphase=1.0_rks/phase
+                else
+                   iphases(i,j,k,l)=0.0_rk
+                end if
                 phases(i,j,k,l)=phase
                 iphases(i,j,k,l)=iphase
              end do
@@ -1365,5 +1381,5 @@ contains
   end subroutine make_phases_array
 
 
-  
+
 end module data

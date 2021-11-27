@@ -13,7 +13,7 @@
 !
 
 &general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=128,		! number of collocation points in each axis
+n=64,		! number of collocation points in each axis
 		! should be a power of two for maximum performance
 		! a scaling study on ARIS could consider n=64,128,256,512 and
 		! perhaps 1024
@@ -65,6 +65,8 @@ NUMSCLS=1,			! Number of passive scalar fields
 
 &radiation
 RADIATION=.false.,		! Turn on thermal radiation calculations
+RADIATION_COUPLING=.false.	! Activate two-way temperature/radiation
+				! coupling 
 EQSECTS=1,			! Angular subdivision method:
 				! 0: Naive (unequal angular control volumes)
 				! 1: Exactly equal angular control volumes

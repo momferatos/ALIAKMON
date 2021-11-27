@@ -2,7 +2,7 @@ MPIFC = mpifort
 MPICC = mpicc
 MPICXX = mpic++
 
-DEBUGFLAGS = -cpp -g -O0 -Mbounds # -Ktrap=denorm,divz,inexact,inv,ovf,unf
+DEBUGFLAGS = -cpp -g -Mbounds # -Ktrap=denorm,divz,inexact,inv,ovf,unf
 OPTFLAGS=-fast -fastsse 
 BUILDFLAGS = $(OPTFLAGS)
 

@@ -34,7 +34,7 @@ with h5py.File(fname, 'r') as h5file:
         cmap = cmap_blackbody
     else:
         cmap = cmap_blueblack
-        field = np.log(np.where(field < minval, minval, field))
+        #field = np.log(np.where(field < minval, minval, field))
     plt.figure()
     plt.axes([0,0,1,1]) # Make the plot occupy the whole canvas
     plt.axis('off')
