@@ -428,13 +428,13 @@ contains
              dist=xx(1:3)-center(1:3)
              dst=sqrt(dot_product(dist(1:3),dist(1:3)))
              fac = (rad*sqrt(2.0_rk*PI))**-1
-!!$             u(i,j,k,ntemp)=fac*exp(-(dst**8&
-!!$                  &/(2._rk*rad**2)))
-             if(dst<rad) then
-                u(i,j,k,ntemp)=1.0_rks
-             else
-                u(i,j,k,ntemp)=0.0_rks
-             end if
+             u(i,j,k,ntemp)=fac*exp(-(dst**8&
+                  &/(2._rk*rad**2)))
+!!$             if(dst<rad) then
+!!$                u(i,j,k,ntemp)=1.0_rks
+!!$             else
+!!$                u(i,j,k,ntemp)=0.0_rks
+!!$             end if
           end do
        end do
     end do

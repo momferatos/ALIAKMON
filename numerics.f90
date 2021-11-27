@@ -2947,8 +2947,8 @@ contains
     faces_step(2) = ia(per(i - 1), j, k, ns)
     faces_step(3) = ia(i, per(j + 1), k, ns)
     faces_step(4) = ia(i, per(j - 1), k, ns)
-    faces_step(5) = ia(i, j, per(k + 1), ns)
-    faces_step(6) = ia(i, j, per(k - 1), ns)
+    faces_step(5) = ia(i, j, k + 1, ns)
+    faces_step(6) = ia(i, j, k - 1, ns)
 
     return
 
