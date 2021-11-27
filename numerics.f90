@@ -2590,11 +2590,9 @@ contains
           do ns=1,nsects             
              ! sweep...
              if(is_wq(sd,ns)) then
-                !$acc loop seq
+                !$acc loop seq collapse(3)
                 do k=kstart(sd),kend(sd),kstep(sd)
-                   !$acc loop seq
                    do j=jstart(sd),jend(sd),jstep(sd)
-                      !$acc loop seq
                       do i=istart(sd),iend(sd),istep(sd)
                          ! update the cell's radiative intensity
                          ! according to the step scheme
@@ -2612,22 +2610,14 @@ contains
        ierr = 0
        jerr = 0
        kerr = 0
-       !$acc loop independent gang vector private(err) reduction(max: maxerr)
+       !$acc loop independent gang vector private(err) reduction(max: maxerr) &
+       !$acc& collapse(4)
        do ns=1,nsects
-          !$acc loop seq
           do k=1,nn(3)
-             !$acc loop seq
              do j=1,nn(2)
-                !$acc loop seq
                 do i=1,nn(1)
                    err = abs(ia(i, j, k, ns) - iba(i, j, k, ns))
-                   if(err > maxerr) then
-                      maxerr = err
-                      !ierr = i
-                      !jerr = j
-                      !kerr = k
-                      !nserr = ns
-                   end if
+                   if(err > maxerr) maxerr = err
                 end do
              end do
           end do
