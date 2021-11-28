@@ -120,7 +120,7 @@ contains
 
     if(MHD) then
        tmp=msv(nb1)+msv(nb2)+msv(nb3)
-       msv(nb1:nu3)=tmp
+       msv(nb1:nb3)=tmp
     end if
 
     call zero(nn,rmsarr)
@@ -415,7 +415,7 @@ contains
   subroutine right_hand_side(nn,fnl,fu)
     use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,&
          &nsclf,nscll,ad,&
-         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr,copy,zero
+         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr,copy,zero,scratch2
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -435,7 +435,13 @@ contains
 
     if(PASSIVE_SCALAR) call compute_passive_scalar
 
-    if(MHD) call compute_mhd
+    if(MHD) then
+       call compute_mhd
+       !Get the Lorentz force
+       call zero(nn,scratch2)
+       call lorentz_force(nn,scratch2,ad,fu)
+    end if
+    
 
     if(RADIATION.and.RADIATION_COUPLING) call compute_radiation
 
@@ -445,7 +451,8 @@ contains
        !$omp parallel do
        do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
           if(isactive(i,j,k)) then
-             fnl(i,j,k,l)=0.5_rk*(fnl(i,j,k,l)+fnls(i,j,k,l))
+             fnl(i,j,k,l)=0.5_rk*(fnl(i,j,k,l)+fnls(i,j,k,l))+&
+                  &scratch2(i,j,k,l)
           end if
        end do; end do ; end do ; end do
        !$omp end parallel do
@@ -531,9 +538,12 @@ contains
          maxvel=max(maxvel,real(sqrt(u(i,j,k,nu1)**2+u(i,j,k,nu2)**2+u(i,j,k,nu3)**2),rk))
          maxvort=max(maxvort,real(sqrt(scratch(i,j,k,nu1)**2+scratch(i,j,k,nu2)**2+scratch(i,j,k,nu3)**2),rk))
          !rhs= u x omega
-         fnl(i,j,k,nu1)= u(i,j,k,nu2)*scratch(i,j,k,nu3) - u(i,j,k,nu3)*scratch(i,j,k,nu2)
-         fnl(i,j,k,nu2)= u(i,j,k,nu3)*scratch(i,j,k,nu1) - u(i,j,k,nu1)*scratch(i,j,k,nu3)
-         fnl(i,j,k,nu3)= u(i,j,k,nu1)*scratch(i,j,k,nu2) - u(i,j,k,nu2)*scratch(i,j,k,nu1)
+         fnl(i,j,k,nu1)= u(i,j,k,nu2)*scratch(i,j,k,nu3) - &
+              &u(i,j,k,nu3)*scratch(i,j,k,nu2)
+         fnl(i,j,k,nu2)= u(i,j,k,nu3)*scratch(i,j,k,nu1) - &
+              &u(i,j,k,nu1)*scratch(i,j,k,nu3)
+         fnl(i,j,k,nu3)= u(i,j,k,nu1)*scratch(i,j,k,nu2) - &
+              &u(i,j,k,nu2)*scratch(i,j,k,nu1)
       end do; end do ; end do   
       !$omp end parallel do
 
@@ -819,7 +829,7 @@ contains
       call copy(nn,u,fu)
       call fourier(nn,-1_ik,u,nfs=nu1,nfe=nu3)
       call fourier(nn,-1_ik,u,nfs=nb1,nfe=nb3)
-      !compute j x b
+      !compute u x b
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          ! rhs = u x b
@@ -854,14 +864,7 @@ contains
          call curl(nn,fnls,du,nb1)
       end if
 
-      !Get the Lorentz force
-      call lorentz_force(nn,arr_en_1,ad,fu,u)
-      !Add-up to get the final terms
-      !$omp parallel do
-      do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-         fnl(i,j,k,l)=fnl(i,j,k,l)+arr_en_1(i,j,k,l)
-      end do; end do ; end do ; end do
-      !$omp end parallel do
+
       if(AMB_DIFF) then 
          !$omp parallel do
          do l=nb1,nb3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
@@ -910,21 +913,7 @@ contains
 !!!!!!!!!!!!!!!!!
     logical                  :: condition
     integer(ik)              :: iii,l
-
-    if(.not.FORCED) then
-       ff(nu1:nu3)=cmplx(0.0_rk,0_rk,ck)
-       return
-    end if
-
-    if(PASSIVE_SCALAR.and..not.FORCED_PASSIVE_SCALAR) then
-       ff(nsclf:nscll)=cmplx(0.0_rk,0_rk,ck)
-       return
-    end if
-
-    if(MHD.and..not.FORCED_MHD) then
-       ff(nb1:nb3)=cmplx(0.0_rk,0_rk,ck)
-       return
-    end if
+  
 
     iii=(i-1)/2+1
     !Forcing condition in Fourier space
@@ -992,20 +981,32 @@ contains
 
     end if
 
+    
+    if(.not.FORCED) then
+       ff(nu1:nu3)=cmplx(0.0_rk,0_rk,ck)
+    end if
+
+    if(PASSIVE_SCALAR.and..not.FORCED_PASSIVE_SCALAR) then
+       ff(nsclf:nscll)=cmplx(0.0_rk,0_rk,ck)
+    end if
+
+    if(MHD.and..not.FORCED_MHD) then
+       ff(nb1:nb3)=cmplx(0.0_rk,0_rk,ck)
+    end if
+    
     return
 
   end subroutine forcing_rhs
 
-  subroutine lorentz_force(nn,lf,ad,fu,u)
+  subroutine lorentz_force(nn,lf,ad,fu)
     use types
     use mpivars
-    use data,only:scratch,psu,du,nb1,nb2,nb3,nu1,nu2,nu3,copy,zero
+    use data,only:u,scratch,psu,du,nb1,nb2,nb3,nu1,nu2,nu3,copy,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT)    :: lf
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT)    :: ad
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)     :: fu
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)  :: u
 !!!!!!!!!!!!!!!!!!!!!!!!
     !Calculate Lorentz force
 !!!!!!!!!!!!!!!!!!!!!!!!
@@ -1021,14 +1022,10 @@ contains
 
     !Copy magnetic field
     call copy(nn,u,fu)
-    !Get magnetic field in physical space
-    call fourier(nn,-1_ik,u,nfs=nb1,nfe=nb3)
 
     !Calculate current density
     call curl(nn,scratch,fu,nb1)
 
-    !Get current density in physical space
-    call fourier(nn,-1_ik,scratch,nfs=nb1,nfe=nb3)
 
     !Patterson-Orszag dealiasing
     if(DEALIASING==PATTERSON_ORSZAG) then
@@ -1050,6 +1047,11 @@ contains
     if(AMB_DIFF.or.HALL) then
 
     end if
+
+    !Get current density in physical space
+    call fourier(nn,-1_ik,scratch,nfs=nb1,nfe=nb3)
+    !Get magnetic field in physical space
+    call fourier(nn,-1_ik,u,nfs=nb1,nfe=nb3)
 
     maxj=0.0_rk
     maxlf=0.0_rk
@@ -1119,30 +1121,29 @@ contains
     call fourier(nn,1_ik,lf,nfs=nu1,nfe=nu3)
 
     if(AMB_DIFF) then
-       call fourier(nn,1_ik,ad,nfs=nu1,nfe=nu3)
+       call fourier(nn,1_ik,ad,nfs=nb1,nfe=nb3)
     end if
 
 
     !Same for the phase-shifted arrays
     if(DEALIASING==PATTERSON_ORSZAG) then
        call fourier(nn,1_ik,ad,nfs=nu1,nfe=nu3)
-       call shift(nn,-1_ik,ad)
+       call shift(nn,-1_ik,ad,nfs=nu1,nfe=nu3)
        if(AMB_DIFF) then
           call fourier(nn,1_ik,psu,nu1,nu3)
-          call shift(nn,-1_ik,psu)
        end if
        !Get the total (average) terms
        !$omp parallel do
        do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          lf(i,j,k,l) = 0.5_rk*(lf(i,j,k,l) + ad(i,j,k,l))
+          lf(i,j,k,l) = 0.5*(lf(i,j,k,l) + ad(i,j,k,l))
           if(AMB_DIFF) then
              ad(i,j,k,l)=0.5_rk*(ad(i,j,k,l)+psu(i,j,k,l))
           end if
        end do; end do ; end do ; end do
     end if
 
-    !Truncate the Lorentz force
-    call truncate(nn,lf)
+!!$    !Truncate the Lorentz force
+!!$    call truncate(nn,lf)
 
     !Truncate the ambipolar diffusion terms
     if(AMB_DIFF.or.HALL) then
@@ -1211,7 +1212,7 @@ contains
 
 
   function mean_kinetic_helicity_dissipation(nn,fu) result(mkhdis)
-    use data, only: scratch,rmsarr,rks1,nu1,nu3,zero
+    use data, only: scratch,scratch2,rks1,nu1,nu3,zero
     implicit none
     real(rk)                                                :: mkhdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1226,33 +1227,28 @@ contains
 
 
     !Get vorticity
-    call curl(nn,rmsarr,fu,nu1)
+    call curl(nn,scratch2,fu,nu1)
     !Get curl of vorticity
-    call curl(nn,rks1,rmsarr,nu1)
+    call curl(nn,rks1,scratch2,nu1)
     !Inverse Fourier transform
-    call fourier(nn,-1_ik,rmsarr)
+    call fourier(nn,-1_ik,scratch2)
 
     call fourier(nn,-1_ik,rks1)
 
     !Perform inner product
-    call inner_product(nn,scratch,nu1,rmsarr,rks1,nu1)
+    call inner_product(nn,scratch,nu1,scratch2,rks1,nu1)
     !Forward Fourier transform
     call fourier(nn,1_ik,scratch)
     !Truncate
     call truncate(nn,scratch)
     !Calculate mean value
-    call zero(nn,scratch)
-    !$omp parallel do
-    do l=nu2,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       scratch(i,j,k,l)=0.0_rk
-    end do ; end do ; end do ; end do
-    !$omp end parallel do
+
     tmp=mean_value(nn,scratch)
 
     mkhdis=2.0_rk*visc(nu1)*tmp(nu1)
 
     call zero(nn,scratch)
-    call zero(nn,rmsarr)
+    call zero(nn,scratch2)
     call zero(nn,rks1)
     
     return
@@ -1447,10 +1443,10 @@ contains
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+&
                &wv(3_ik,i,j,k)**2
-       if(isactive(i,j,k)) then
-          fa(i,j,k,nf)=-ksq*scratch(i,j,k,nf)
-          fa(i,j,k,nf+1)=-ksq*scratch(i,j,k,nf+1)
-          fa(i,j,k,nf+2)=-ksq*scratch(i,j,k,nf+2)
+       if(isactive(i,j,k).and.ksq>small) then
+          fa(i,j,k,nf)=ksq**-1*scratch(i,j,k,nf)
+          fa(i,j,k,nf+1)=ksq**-1*scratch(i,j,k,nf+1)
+          fa(i,j,k,nf+2)=ksq**-1*scratch(i,j,k,nf+2)
        else
           fa(i,j,k,nf:nf+2)=0.0_rk
        end if
@@ -1464,7 +1460,7 @@ contains
 
   function mean_magnetic_helicity(nn,fu) result(mmh)
     use types
-    use data, only: rks1,nb1,nu1,nu2,nu3, zero
+    use data, only: scratch,scratch2,nb1,nu1,nu2,nu3, zero, u, copy
     implicit none
     real(rk)                                                :: mmh
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1473,31 +1469,36 @@ contains
     !Calculate mean magnetic helicity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                              :: i,j,k,l
-    real(rk), dimension(1:nn(4))                                   :: tmp
-
+    real(rk), dimension(1:nn(4))                             :: tmp
+    real(rk)                                                 :: fac
     !Get vector potential of the magnetic field
-    call vector_potential(nn,rks1,fu,nb1)
+    call vector_potential(nn,scratch2,fu,nb1)
     !Inverse Fourier transforms
-    call fourier(nn,-1_ik,rks1)
+    call fourier(nn,-1_ik,scratch2,nb1,nb3)
+    call copy(nn,u,fu)
+    call fourier(nn,-1_ik,u,nb1,nb3)
     !Perform inner product
-    call inner_product(nn,rks1,nu1,rks1,&
-         &fu,nb1)
+    call inner_product(nn,scratch,nu1,scratch2,&
+         &u,nb1)
     !Forward Fourier transform
-    call fourier(nn,1_ik,rks1,nu1,nu1)
+    call fourier(nn,1_ik,scratch,nu1,nu1)
     !Truncate
-    call truncate(nn,rks1,nu1,nu1)
+    call truncate(nn,scratch,nu1,nu1)
+
     !$omp parallel do
     do l=nu2,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       rks1(i,j,k,l)=0.0_rk
-    end do ; end do ; end do ; end do
+       scratch(i,j,k,l)=0.0_rk
+    end do ; end do ; end do ;  end do
     !$omp end parallel do
     !Calculate mean value
-    tmp=mean_value(nn,rks1)
-    !FIX!!!
-    mmh=0.5_rk*tmp(nu1)
+    tmp=mean_value(nn,scratch)
+
+    mmh=tmp(nu1)
 
     !Set auxiliary arrays back to zero
-    call zero(nn,rks1)
+    call zero(nn,u)
+    call zero(nn,scratch)
+    call zero(nn,scratch2)
 
 
     return
@@ -1507,7 +1508,7 @@ contains
 
   function mean_magnetic_helicity_dissipation(nn,fu) result(mmhdis)
     use types
-    use data, only: u,rmsarr,rks1,nb1,nu1,nu2,nu3,copy,zero
+    use data, only: u,rmsarr,scratch,nb1,nu1,nu2,nu3,copy,zero
     implicit none
     real(rk)                                                :: mmhdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1528,27 +1529,27 @@ contains
     call fourier(nn,-1_ik,rmsarr,nb1)
 
     !Perform inner product
-    call inner_product(nn,rks1,nu1,u,rmsarr,nb1)
+    call inner_product(nn,scratch,nu1,u,rmsarr,nb1)
 
     !Forward Fourier transform
-    call fourier(nn,1_ik,rks1,nu1,nu1)
+    call fourier(nn,1_ik,scratch,nu1,nu1)
 
     !Truncate
-    call truncate(nn,rks1)
+    call truncate(nn,scratch)
 
     !$omp parallel do
     do l=nu2,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       rks1(i,j,k,l)=0.0_rk
+       scratch(i,j,k,l)=0.0_rk
     end do ; end do ; end do ;  end do
     !$omp end parallel do
     !Calculate mean value
-    tmp=mean_value(nn,rks1)
+    tmp=mean_value(nn,scratch)
 
     mmhdis = visc(nb1)*tmp(nu1)
 
     !Set auxiliary arrays back to zero
     call zero(nn,rmsarr)
-    call zero(nn,rks1)
+    call zero(nn,scratch)
 
     return
 
@@ -1611,7 +1612,7 @@ contains
 
   function mean_cross_helicity_dissipation(nn,fu) result(mchdis)
     use types
-    use data, only: rmsarr,rks1,nu1,nu2,nu3,nb1,nb3,zero
+    use data, only: scratch,scratch2,nu1,nu2,nu3,nb1,nb3,zero
     implicit none
     real(rk)                                  :: mchdis
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1623,42 +1624,42 @@ contains
     integer(ik) :: i,j,k,l
 
     !Get vorticity
-    call curl(nn,rmsarr,fu,nu1)
+    call curl(nn,scratch,fu,nu1)
     !Get current density
-    call curl(nn,rks1,fu,nb1)
+    call curl(nn,scratch2,fu,nb1)
 
     !Inverse Fourier transforms
-    call fourier(nn,-1_ik,rmsarr,nu1,nu3)
-    call fourier(nn,-1_ik,rks1,nb1,nb3)
+    call fourier(nn,-1_ik,scratch,nu1,nu3)
+    call fourier(nn,-1_ik,scratch2,nb1,nb3)
 
     !$omp parallel do
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       rmsarr(i,j,k,nb1:nb3)=rmsarr(i,j,k,nu1:nu3)
+       scratch(i,j,k,nb1:nb3)=scratch(i,j,k,nu1:nu3)
     end do; end do ; end do
     !$omp end parallel do
 
     !Perform inner product
-    call inner_product(nn,rks1,nu1,rmsarr,rks1,nb1)
+    call inner_product(nn,scratch2,nu1,scratch,scratch2,nb1)
 
     !Forward Fourier transform
-    call fourier(nn,1_ik,rks1)
+    call fourier(nn,1_ik,scratch2)
 
     !Truncate
-    call truncate(nn,rks1)
+    call truncate(nn,scratch2)
 
     !$omp parallel do
     do l=nu2,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       rks1(i,j,k,l)=0.0_rk
+       scratch2(i,j,k,l)=0.0_rk
     end do; end do ; end do ;  end do
     !$omp end parallel do
     !Calculate mean value
-    tmp=mean_value(nn,rks1)
+    tmp=mean_value(nn,scratch2)
 
     mchdis = (visc(nu1) + visc(nb1))*tmp(1)
 
     !Set auxiliary arrays back to zero
-    call zero(nn,rmsarr)
-    call zero(nn,rks1)
+    call zero(nn,scratch)
+    call zero(nn,scratch2)
 
     return
 
@@ -1666,7 +1667,7 @@ contains
 
   function mean_cross_helicity(nn,fu) result(mcross_hel)
     use types
-    use data, only: rks1,rmsarr,nu1,nu2,nu3,nb1,nb3,zero
+    use data, only: scratch2,scratch,nu1,nu2,nu3,nb1,nb3,zero
     implicit none
     real(rk)                         :: mcross_hel
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1680,36 +1681,36 @@ contains
     !Copy to auxiliary arrays
     !$omp parallel do
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       rmsarr(i,j,k,nb1:nb3)=fu(i,j,k,nu1:nu3)
-       rks1(i,j,k,nb1:nb3)=fu(i,j,k,nb1:nb3)
+       scratch(i,j,k,nb1:nb3)=fu(i,j,k,nu1:nu3)
+       scratch2(i,j,k,nb1:nb3)=fu(i,j,k,nb1:nb3)
     end do; end do ; end do
     !$omp end parallel do
 
 
     !Inverse Fourier transforms
-    call fourier(nn,-1_ik,rmsarr,nb1)
-    call fourier(nn,-1_ik,rks1,nb1)
+    call fourier(nn,-1_ik,scratch,nb1,nb3)
+    call fourier(nn,-1_ik,scratch2,nb1,nb3)
 
     mcross_hel=0.0_rk
 
     !Perform inner product
-    call inner_product(nn,rks1,nu1,rmsarr,rks1,nb1)
+    call inner_product(nn,scratch2,nu1,scratch,scratch2,nb1)
     !Forward Fourier transform
-    call fourier(nn,1_ik,rks1,nu1,nu1)
+    call fourier(nn,1_ik,scratch2,nu1,nu1)
     !Truncate
-    call truncate(nn,rks1,nu1,nu1)
+    call truncate(nn,scratch2,nu1,nu1)
     !$omp parallel do
     do l=nu2,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       rks1(i,j,k,l)=0.0_rk
+       scratch2(i,j,k,l)=0.0_rk
     end do ; end do ; end do ;  end do
     !$omp end parallel do
     !Calculate mean value
-    tmp=mean_value(nn,rks1)
+    tmp=mean_value(nn,scratch2)
     mcross_hel=0.5_rk*tmp(nu1)
 
     !Set auxiliary arrays back to zero
-    call zero(nn,rmsarr)
-    call zero(nn,rks1)
+    call zero(nn,scratch)
+    call zero(nn,scratch2)
 
     return
 
@@ -1717,7 +1718,7 @@ contains
 
   function mean_kinetic_helicity(nn,fu) result(mkin_hel)
     use types
-    use data, only: u,rmsarr,rks1,nu1,nu2,copy,zero
+    use data, only: u,scratch,scratch2,nu1,nu2,copy,zero
     implicit none
     real(rk)                                   :: mkin_hel
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -1727,39 +1728,42 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(rk), dimension(:), allocatable :: tmp
     integer(ik) :: i,j,k,l
-    
+    real(rk) :: fac
+
+    !Set auxiliary arrays to zero
+    call zero(nn,scratch)
+    call zero(nn,scratch2)
+
     if(.not.allocated(tmp)) allocate(tmp(1:nn(4)))
     !Get velocity field
     call copy(nn,u,fu)
 
     !Get vorticity
-    call curl(nn,rks1,fu,nu1)
+    call curl(nn,scratch2,fu,nu1)
 
     !Inverse Fourier transforms
-    call fourier(nn,-1_ik,u,nu1,nu1)
-    call fourier(nn,-1_ik,rks1,nu1,nu1)
+    call fourier(nn,-1_ik,u,nu1,nu3)
+    call fourier(nn,-1_ik,scratch2,nu1,nu3)
 
     !Perform inner product
-    call inner_product(nn,rmsarr,nu1,u,rks1,nu1)
-
+    call inner_product(nn,scratch,nu1,u,scratch2,nu1)
+!!$
     !Forward Fourier transform
-    call fourier(nn,1_ik,rmsarr,nu1,nu1)
+    call fourier(nn,1_ik,scratch,nu1,nu1)
 
     !Truncate
-    call truncate(nn,rmsarr,nu1,nu1)
+    call truncate(nn,scratch,nu1,nu1)
 
-    !$omp parallel do
-    do l=nu2,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       rmsarr(i,j,k,l)=0.0_rk
-    end do ; end do ; end do ; end do
-    !$omp end parallel do
     !Calculate mean value
-    tmp=mean_value(nn,rmsarr)
-    mkin_hel=0.5_rk*tmp(nu1)
+    tmp=mean_value(nn,scratch)
 
+    mkin_hel=0.5_rk*tmp(nu1)
+    
     !Set auxiliary arrays backto zero
-    call zero(nn,rmsarr)
-    call zero(nn,rks1)
+    deallocate(tmp)
+    call zero(nn,scratch)
+    call zero(nn,scratch2)
+    call zero(nn,u)
 
     return
 
@@ -1767,6 +1771,7 @@ contains
 
   subroutine inner_product(nn,cross_hel,nfout,u,b,nfin)
     use types
+    use data, only: zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: cross_hel
@@ -1777,12 +1782,13 @@ contains
     !Calculate the inner product of two vector fields
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i,j,k
-    
+
     !$omp parallel do
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-    cross_hel(i,j,k,nfout) = u(i,j,k,nfin)*b(i,j,k,nfin)+u(i,j,k,nfin+1)*b(i,j,k,nfin+1)+&
-         &u(i,j,k,nfin+2)*b(i,j,k,nfin+2)
-    end do ; end do ; end do
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       cross_hel(i,j,k,nfout) = u(i,j,k,nfin)*b(i,j,k,nfin)+&
+            &u(i,j,k,nfin+1)*b(i,j,k,nfin+1)+&
+            &u(i,j,k,nfin+2)*b(i,j,k,nfin+2)
+    end do; end do ; end do
     !$omp end parallel do
 
     return

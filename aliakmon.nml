@@ -13,7 +13,7 @@
 !
 
 &general	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-n=32,		! number of collocation points in each axis
+n=64,		! number of collocation points in each axis
 		! should be a power of two for maximum performance
 		! a scaling study on ARIS could consider n=64,128,256,512 and
 		! perhaps 1024
@@ -23,7 +23,8 @@ TMAX=100.0,	! maximum time limit
 CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
 KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
-STOP_AT_DISSPEAK=.true. ! Stop at the dissipation peak?
+STOP_AT_DISSPEAK=.true., ! Stop at the dissipation peak?
+VALIDATION=.true.,
 &end
 
 !
@@ -74,7 +75,7 @@ EQSECTS=1,			! Angular subdivision method:
 				!    volumes
 TEMPMAX=2000.,			! Maximum temperature (K) < 2500.0
 TEMPMIN=1000.,			! Minimum temperature (K) > 300.0
-NSECTS=128,			! Number of angular control volumes. If
+NSECTS=0,			! Number of angular control volumes. If
 				! NSECTS = 0 then NSECTS=n (from namelist
 				! general)
 FVTOL=1.0e-6,			! Tolerance for the step scheme
@@ -87,9 +88,9 @@ NITERDO=1000,			! Maximum number of iterations for the step
 !
 
 &magnetohydro
-MHD=.false.,		 ! Include the induction equation?
+MHD=.true.,		 ! Include the induction equation?
 MAGNETIC_PR=1.0,	 ! Magnetic Prandtl number
-RESISTIVE=.true.,	 ! Include the resistive term?
+RESISTIVE=.false.,	 ! Include the resistive term?
 FORCED_MHD=.false.,	 ! Force the induction equation?
 BETA=1.0,		 ! Ratio of rms velocity to rms magnetic field in the initial conditions
 AMB_DIFF=.false.,	 ! Include the ambipolar diffusion term in the induction equation?
@@ -129,7 +130,7 @@ FFT_DECOMPOSITION=0,    ! FFT subdivision: 0: across slabs, 1: across pencils
 !
 
 &initialconditions
-INITCOND=3,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
+INITCOND=6,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
 			! spectrum, 3: Orszag-Tang vortex variation, 4: Arnold-Beltrami-Childress flow, 5: Taylor-Green vortex
 KINITCOND=2.5,		! Exponential cutoff wavenumber for the initial conditions
 SEEDRANDOM=.false.,	! Seed the random number generator?

@@ -85,6 +85,7 @@ module parameters
   real(rk), parameter    :: PI=3.14159265358979323846264338327950&
        &2884197169399375105820974944592307816406286208998628034825&
        &342117068_rk
+  logical                :: VALID
   real(rk), parameter    :: CP=4.0e3_rk
   real(rk), parameter    :: PRESS=1.01325e5
   real(rk)               :: TEMPMIN

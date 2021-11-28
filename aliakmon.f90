@@ -377,6 +377,7 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
+     if(VALID) call dissipation_test !call energy_test(nn,u,fu,rhs)
      if(RADIATION.and..not.RADIATION_COUPLING) then
         call copy(nn,u,fu)
         call fourier(nn,-1_ik,u,nfs=ntemp,nfe=ntemp)

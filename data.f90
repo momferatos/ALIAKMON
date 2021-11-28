@@ -744,8 +744,8 @@ contains
     allocate(isactive(1:dim1(nn(1)),1:nn(2),1:nn(3)))
     isactive(:,:,:) = .false.
 
+    allocate(scratch2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
     if(RADIATION) then
-       allocate(scratch2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
        call allocate_fvdom
        call init_fvdom
     end if
@@ -760,12 +760,12 @@ contains
     call zero(nn,rmsarr)
 
     ! used for invariants validation only 
-    if(MHD) then
+    if(MHD.or.VALID) then
        allocate(arr_en_1(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
        call zero(nn,arr_en_1)
     end if
 
-    if(PASSIVE_SCALAR) then
+    if(PASSIVE_SCALAR.or.VALID) then
        allocate(arr_en_2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
        call zero(nn,arr_en_2)
 

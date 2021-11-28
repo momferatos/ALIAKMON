@@ -25,7 +25,7 @@ contains
     
     !Read the input namelist file
     namelist /general/           n,TIMESTEPS, TMAX, CFL, RE, KMAXETA,&
-         &STOP_AT_DISSPEAK
+         &STOP_AT_DISSPEAK,VALID
     namelist /hydro/             VISCOUS,BURGERS
     namelist /force/           FORCED, VARIABLE_FORCING,KFORCING
     namelist /passivescalar/     PASSIVE_SCALAR, DIFFUSIVE, PR, HEATING,&

@@ -19,8 +19,7 @@ module validation
   !
   ! validation routines 
   !
-  integer(ik) :: icheck=1
-
+  
 contains
 
   subroutine dissipation_test
@@ -31,23 +30,20 @@ contains
     !
     !check dissipation rates, useful for validation
     !
-    real(rk), save :: e1,e2,e3,mkh1,mkh2,mkh3,mmh1,mmh2,mmh3,mch1,mch2
-    real(rk), save :: mch3,vdis1,odis1,addis1,einj
     real(rk)       :: de,dedt,ken,men,ten,mkh,mch
     real(rk)       :: err,tdis
     real(rk)       :: dmkh,dmkhdt,mkherr,dmmh,dmmhdt,mmherr
     real(rk)       :: dmch,dmchdt,mcherr
     real(rk), dimension(1:nn(4)) :: nrgs, dissips
-
+    real(rk), save :: e1,e2,e3,mkh1,mkh2,mkh3,mmh1,mmh2,mmh3,mch1,mch2
+    real(rk), save :: mch3,vdis1,odis1,addis1,einj
+    integer(ik), save :: icheck=1
+    
     !calculate energies
     call msvalue(nn,fu,nrgs)
     ken=0.5*nrgs(nu1)
-    men=0.5*nrgs(nb1)
-    mkh=mean_kinetic_helicity(nn,fu)
-
-    !Magnetohydrodynamics
     if(MHD) then
-       men=0.5*men
+       men=0.5*nrgs(nb1)
        !calculate mean magnetic helicity
        mmh=mean_magnetic_helicity(nn,fu)
        !calculate mean cross-helicity
@@ -55,6 +51,9 @@ contains
     else
        men=0.0_rk
     end if
+    
+    mkh=mean_kinetic_helicity(nn,fu)
+    
     !calculate total energy
     ten=ken+men
 
