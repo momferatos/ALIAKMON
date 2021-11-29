@@ -3,7 +3,7 @@ MPICC = mpicc
 MPICXX = mpic++
 
 DEBUGFLAGS = -cpp -g -Mbounds # -Ktrap=denorm,divz,inexact,inv,ovf,unf
-OPTFLAGS=-fast -fastsse 
+OPTFLAGS=-fast -fastsse -tp=native 
 BUILDFLAGS = $(OPTFLAGS)
 
 OMPFLAGS= -D _OPENMP_ -mp=multicore

@@ -1,0 +1,1 @@
+LIBSROOT=$HOME/libs CPP=cpp CFLAGS="-fPIC -m64 -tp=native" CXXFLAGS="-fPIC -m64 -tp=native" FCFLAGS="-fPIC -m64 -tp=native" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --enable-unsupported --prefix=$LIBSROOT/hdf5 --with-zlib=/usr/lib64
