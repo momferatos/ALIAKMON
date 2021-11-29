@@ -75,12 +75,15 @@ void heffte_init_slabs(long n1, long n2, long n3,
     heffte::split_world(real_indexes,    proc_grid);
   std::vector<heffte::box3d<>> complex_boxes1 =
     heffte::split_world(complex_indexes, proc_grid);
+
+  heffte::rank_remap rank_remap;
   
   std::vector<heffte::box3d<>> real_boxes  =
-    heffte::make_slabs(real_indexes,num_ranks,0,1,real_boxes1,order);
+    heffte::make_slabs(real_indexes,num_ranks,0,1,real_boxes1,order,rank_remap);
   
   std::vector<heffte::box3d<>> complex_boxes  =
-    heffte::make_slabs(complex_indexes,num_ranks,0,1,complex_boxes1,order);
+    heffte::make_slabs(complex_indexes,num_ranks,0,1,complex_boxes1,order,
+		       rank_remap);
     
   // pick the box corresponding to this rank
   heffte::box3d<> const inbox  = real_boxes[me];
@@ -152,14 +155,16 @@ void heffte_init_pencils(long n1, long n2, long n3,
     heffte::split_world(real_indexes,    proc_grid_tmp);
   std::vector<heffte::box3d<>> complex_boxes1 =
     heffte::split_world(complex_indexes, proc_grid_tmp);
-  
+
+  heffte::rank_remap rank_remap;
+    
   std::vector<heffte::box3d<>> real_boxes  =
     heffte::make_pencils(real_indexes,proc_grid,pencil_direction,
-			 real_boxes1,order);
+			 real_boxes1,order,rank_remap);
   
   std::vector<heffte::box3d<>> complex_boxes  =
     heffte::make_pencils(complex_indexes,proc_grid,pencil_direction,
-			 complex_boxes1,order);
+			 complex_boxes1,order,rank_remap);
   
   // pick the box corresponding to this rank
   heffte::box3d<> const inbox  = real_boxes[me];
