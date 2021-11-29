@@ -24,7 +24,7 @@ CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
 KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
 STOP_AT_DISSPEAK=.true., ! Stop at the dissipation peak?
-VALIDATION=.true.,
+VALID=.true.,
 &end
 
 !
@@ -32,7 +32,7 @@ VALIDATION=.true.,
 !
 
 &hydro
-VISCOUS=.true.,! Include the viscous terms?
+VISCOUS=.false.,! Include the viscous terms?
 BURGERS=.false.,! Include the pressure term?
 &end
 
@@ -65,7 +65,7 @@ NUMSCLS=1,			! Number of passive scalar fields
 !
 
 &radiation
-RADIATION=.true.,		! Turn on thermal radiation calculations
+RADIATION=.false.,		! Turn on thermal radiation calculations
 RADIATION_COUPLING=.false.	! Activate two-way temperature/radiation
 				! coupling 
 EQSECTS=1,			! Angular subdivision method:
@@ -130,7 +130,7 @@ FFT_DECOMPOSITION=0,    ! FFT subdivision: 0: across slabs, 1: across pencils
 !
 
 &initialconditions
-INITCOND=6,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
+INITCOND=4,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with flat spectrum, 2: Stochastic with non-flat
 			! spectrum, 3: Orszag-Tang vortex variation, 4: Arnold-Beltrami-Childress flow, 5: Taylor-Green vortex
 KINITCOND=2.5,		! Exponential cutoff wavenumber for the initial conditions
 SEEDRANDOM=.false.,	! Seed the random number generator?
