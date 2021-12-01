@@ -461,7 +461,7 @@ contains
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
           if(isactive(i,j,k)) then
-             fnl(i,j,k,ntemp)=fnl(i,j,k,ntemp)+(CP)**-1*fdivqr(i,j,k)
+             fnl(i,j,k,ntemp)=fnl(i,j,k,ntemp)+(CP)**(-1)*fdivqr(i,j,k)
           end if
        end do ; end do ; end do
        !$omp end parallel do
@@ -1443,9 +1443,9 @@ contains
        ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+&
                &wv(3_ik,i,j,k)**2
        if(isactive(i,j,k).and.ksq>small) then
-          fa(i,j,k,nf)=ksq**-1*scratch(i,j,k,nf)
-          fa(i,j,k,nf+1)=ksq**-1*scratch(i,j,k,nf+1)
-          fa(i,j,k,nf+2)=ksq**-1*scratch(i,j,k,nf+2)
+          fa(i,j,k,nf)=ksq**(-1)*scratch(i,j,k,nf)
+          fa(i,j,k,nf+1)=ksq**(-1)*scratch(i,j,k,nf+1)
+          fa(i,j,k,nf+2)=ksq**(-1)*scratch(i,j,k,nf+2)
        else
           fa(i,j,k,nf:nf+2)=0.0_rk
        end if

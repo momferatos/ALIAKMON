@@ -4,7 +4,7 @@ MPICXX = mpic++
 
 DEBUGFLAGS = -fpp -g 
 OPTFLAGS=
-BUILDFLAGS =
+BUILDFLAGS = -std=f2018 -O0 -Wunused
 
 OMPFLAGS= -D _OPENMP_ -fopenmp
 MPIFLAGS= -D _MPI_
@@ -18,12 +18,13 @@ FCFLAGS = -cpp $(MKLFLAGS) $(FFTWFLAGS) $(BUILDFLAGS) $(PARFLAGS)
 
 HEFFTEROOT=$(LIBSROOT)/heffte-gnu
 INCLUDE= -I $(HDF5ROOT)/include -I $(HEFFTEROOT)/include
+HDF5ROOT=$(HDF5_DIR)
 
 LIB= -L $(MKLROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(SZIPROOT)/lib
 
-LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte $(MKLLDFLAGS) -lstdc++ -lz -lsz
+LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte -lhefftestockfortran -lstdc++ -lz -lsz
 
-OBJS=parameters.o IAPWS9521D.o data.o heffte_init.o fft_heffte.o numerics.o hdf5.o validation.o initial_conditions.o input_output.o  aliakmon.o	
+OBJS=parameters.o data.o heffte_init.o fft_heffte.o numerics.o hdf5.o validation.o initial_conditions.o input_output.o  aliakmon.o	
 
 all: aliakmon
 
