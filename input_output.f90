@@ -30,7 +30,7 @@ contains
     namelist /force/           FORCED, VARIABLE_FORCING,KFORCING
     namelist /passivescalar/     PASSIVE_SCALAR, DIFFUSIVE, PR, HEATING,&
          &FORCED_PASSIVE_SCALAR,NUMSCLS
-    namelist /radiation/         RADIATION, RADIATION_COUPLING, &
+    namelist /rad/         RADIATION, RADIATION_COUPLING, &
          &EQSECTS, TEMPMIN, TEMPMAX, &
          &NSECTS, FVTOL, NITERDO
     namelist /magnetohydro/      MHD, MAGNETIC_PR,RESISTIVE,FORCED_MHD,BETA,&
@@ -51,7 +51,7 @@ contains
     read(aliakmon_nml,nml=hydro)
     read(aliakmon_nml,nml=force)
     read(aliakmon_nml,nml=passivescalar)
-    read(aliakmon_nml,nml=radiation)
+    read(aliakmon_nml,nml=rad)
     read(aliakmon_nml,nml=magnetohydro)
     read(aliakmon_nml,nml=particle)
     read(aliakmon_nml,nml=numerics)

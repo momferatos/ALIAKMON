@@ -1,12 +1,12 @@
-MPIFC = mpifort
-MPICC = mpicc
-MPICXX = mpic++
+MPIFC = mpiifort
+MPICC = mpiicc
+MPICXX = mpiicpc
 
 DEBUGFLAGS = -fpp -g 
-OPTFLAGS=
-BUILDFLAGS =
+OPTFLAGS=-Ofast -xHOST
+BUILDFLAGS = $(OPTFLAGS)
 
-OMPFLAGS= -D _OPENMP_ -fopenmp
+OMPFLAGS= -D _OPENMP_ -qopenmp
 MPIFLAGS= -D _MPI_
 PARFLAGS= $(MPIFLAGS) $(OMPFLAGS)
 
@@ -16,10 +16,10 @@ CXXFLAGS = -std=c++11 $(MKLFLAGS) $(FFTWFLAGS) $(BUILDFLAGS) $(PARFLAGS)
 FCFLAGS = -cpp $(MKLFLAGS) $(FFTWFLAGS) $(BUILDFLAGS) $(PARFLAGS)
 
 
-HEFFTEROOT=$(LIBSROOT)/heffte-gnu
+HEFFTEROOT=$(LIBSROOT)/heffte-intel
 INCLUDE= -I $(HDF5ROOT)/include -I $(HEFFTEROOT)/include
 
-LIB= -L $(MKLROOT)/lib -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(SZIPROOT)/lib
+LIB= -L $(HDF5ROOT)/lib -L $(HEFFTEROOT)/lib -L $(SZIPROOT)/lib
 
 LDFLAGS =-lpthread -lm -ldl -lhdf5_hl -lhdf5hl_fortran -lhdf5_fortran -lhdf5 -lheffte $(MKLLDFLAGS) -lstdc++ -lz -lsz
 

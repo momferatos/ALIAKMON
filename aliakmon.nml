@@ -64,7 +64,7 @@ NUMSCLS=1,			! Number of passive scalar fields
 ! Namelist radiation: Thermal radiation parameters
 !
 
-&radiation
+&rad
 RADIATION=.false.,		! Turn on thermal radiation calculations
 RADIATION_COUPLING=.false.	! Activate two-way temperature/radiation
 				! coupling 

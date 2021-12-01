@@ -11,7 +11,6 @@
 module numerics
   use types
   use parameters
-  use data, only: shift
   implicit none
   !
   ! physics & numerics module

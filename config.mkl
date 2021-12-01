@@ -1,8 +1,8 @@
 #!/bin/bash
 export BACKEND='mkl'
-export ACCELFLAGS='-noacc'
+export ACCELFLAGS=''
 export CUDALDFLAGS=''
-export MKLFLAGS='-Mmkl -D _MKL_'
+export MKLFLAGS='-D _MKL_'
 export MKLLDFLAGS='-lhefftemklfortran'
 export FFTWFLAGS=''
 # put '-D _DOUBLE_' here to build with double precision floats
