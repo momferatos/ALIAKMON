@@ -4,7 +4,7 @@ MPICXX = mpic++
 
 DEBUGFLAGS = -fpp -g 
 OPTFLAGS=
-BUILDFLAGS = -std=f2018 -O0 -Wunused
+BUILDFLAGS = -std=f2018 -g -Wunused
 
 OMPFLAGS= -D _OPENMP_ -fopenmp
 MPIFLAGS= -D _MPI_

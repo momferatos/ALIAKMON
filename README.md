@@ -6,126 +6,132 @@
 !!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
 !!$                            |_|
 !!$  
-!!$   Copyright (c) 2009-2020 George Momferatos
+!!$   Copyright (c) 2009-2022 George Momferatos
 
-1) Set environment variables:
+In the following, $ALIAKMON_ROOT is the directory containing ALIAKMON's
+source code
 
-# change these lines accordingly
-NVCOMPILERS=/home/giorgos/opt/nvidia/hpc_sdk; export NVCOMPILERS
+For building ALIAKMON, the NVHPC SDK is recommended:
+
+https://developer.nvidia.com/hpc-sdk
+
+#---------------------------------------------------------------
+# Set environment variables - edit these lines accordingly
+#---------------------------------------------------------------
+
+NVVERSION=21.9
+
+NVCOMPILERS=$HOME/opt/nvidia/hpc_sdk; export NVCOMPILERS
 NVARCH=`uname -s`_`uname -m`; export NVARCH
-# FFTW3., HDF5, and heFFTE 2.1 are supposed to go here:
-export LIBSROOT=/home/giorgos/libs
+
+# FFTW3., HDF5, and heFFTE are supposed to go here:
+export LIBSROOT=$HOME/libs
+
 
 MPISUBPATH=/openmpi4/openmpi-4.0.5
 
-MANPATH=$MANPATH:$NVCOMPILERS/$NVARCH/21.5/compilers/man; export MANPATH
-PATH=$NVCOMPILERS/$NVARCH/21.5/compilers/bin:$PATH; export PATH
+MANPATH=$MANPATH:$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/man; export MANPATH
+PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/bin:$PATH; export PATH
 
-export PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/$MPISUBPATH/bin/:$PATH
+export PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/comm_libs/$MPISUBPATH/bin/:$PATH
 
-export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/21.5/compilers/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/21.5/comm_libs/$MPISUBPATH/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/compilers/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$NVCOMPILERS/$NVARCH/$NVVERSION/comm_libs/$MPISUBPATH/lib/:$LD_LIBRARY_PATH
 
-
-export LD_LIBRARY_PATH=$LIBSROOT/hdf5/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$LIBSROOT/heffte/lib/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$LIBSROOT/fftw/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LIBSROOT/hdf5-NVHPC/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LIBSROOT/heffte-NVHPC/lib/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$LIBSROOT/fftw-NVHPC/lib/:$LD_LIBRARY_PATH
 
 export UCX_MEMTYPE_CACHE=n
 
-# Architecture
-export ARCH=haswell
+#---------------------------------------------------------------
+# Build FFTW
+#---------------------------------------------------------------
 
-2) Build FFTW 3.3.9:
-
-CFLAGS="-fast -fastsse -tp=$ARCH -Mipa=fast" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-mpi --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/hdf5
+chdir into FFTw source directory
+sh $ALIAKMON_ROOT/configure_fftw.sh
 make
 make check
 make install
 
-3) Build HDF5 1.12.0
+#---------------------------------------------------------------
+# Build HDF5
+#---------------------------------------------------------------
 
-CPP=cpp CFLAGS="-fPIC -m64 -tp=$ARCH" CXXFLAGS="-fPIC -m64 -tp=$ARCH" FCFLAGS="-fPIC -m64 -tp=$ARCH" CC=mpicc CXX=mpic++ FC=mpif90 ./configure --enable-threadsafe --enable-fortran --enable-parallel --enable-unsupported --prefix=$LIBSROOT/hdf5 --with-zlib=/usr/lib64
+chdir into HDF5 source directory
+sh $ALIAKMON_ROOT/configure_hdf5.sh
 make
-make test
+make check
 make install
 
-4) Build HeFFTe 2.1 (https://bitbucket.org/icl/heffte/)
+#---------------------------------------------------------------
+# Build heFFTe
+#---------------------------------------------------------------
 
+git clone https://bitbucket.org/icl/heffte
+cd heffte
 mdkir build
 cd build
-sh ../build.sh
-
-contents of build.sh:
-
-------------------------------
-export LDFLAGS='-lrt -lpthread'
-cmake \
-    -D CMAKE_C_COMPILER=`which pgcc` \
-    -D CMAKE_CXX_COMPILER=`which pgc++`\
-    -D MPI_CXX_COMPILER=`which mpic++` \
-    -D CMAKE_CXX_FLAGS='-gpu=cc75 -gpu=cuda11.3 -acc'\
-    -D MPI_C_COMPILER=`which mpicc` \
-    -D CMAKE_BUILD_TYPE=Release \
-    -D BUILD_SHARED_LIBS=ON     \
-    -D CMAKE_INSTALL_PREFIX=$LIBSROOT/heffte/ \
-    -D Heffte_ENABLE_FFTW=ON \
-    -D FFTW_ROOT=/home/giorgos/libs/fftw/ \
-    -D Heffte_ENABLE_CUDA=ON \
-    -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.3/ \
-    -D Heffte_ENABLE_FORTRAN=ON \
-    -D CUDA_NVCC_FLAGS='-ccbin nvc++ --gpu-architecture compute_75 --gpu-code compute_75' \
-    -D Heffte_DISABLE_GPU_AWARE_MPI=OFF \
-    ../heffte
-------------------------------
-
+(First edit the file $ALIAKMON_ROOT/heffte_cmake.sh)
+sh $ALIAKMON_ROOT/heffte_cmake.sh
 make
-make test 
-
-
-the following tests fail for me, without impact on my code:
-
-3 - heffte_reshape3d_np7 (Failed)
-4 - heffte_reshape3d_np12 (Failed)
-9 - heffte_fft3d_np8 (Failed)
-10 - heffte_fft3d_np12 (Failed)
-16 - heffte_fft3d_r2c_np8 (Failed)
-17 - heffte_fft3d_r2c_np12 (Failed)
-
+make test (Some tests fail simply because of the unavailability of enough MPI slots)
 make install
 
-5) build ALIAKMON-GPU with HeFFTe cuFFT backend (CPU + GPU)
+#---------------------------------------------------------------
+# build ALIAKMON-GPU with the HeFFTe cuFFT backend (CPU + GPU)
+#---------------------------------------------------------------
 
-cd aliakmon
-source config.heffte.cufft
+cd $ALIAKMON_ROOT
+source config.cufft
 make clean 
-make 
+make all
 
-6) build ALIAKMON with heFFTe FFTW backend (100% CPU)
+#---------------------------------------------------------------
+# build ALIAKMON with the heFFTe FFTW backend (CPU)
+#---------------------------------------------------------------
 
 cd aliakmon
-source config.heffte.fftw
+source config.fftw
 make clean 
-make
+make all
 
-7) buld ALIAKMON with Intel MKL (no heFFTe, so decomposition in pencils is
-not available)
+#---------------------------------------------------------------
+# build ALIAKMON with the heFFTe MKL backend (CPU)
+#---------------------------------------------------------------
 
-build Intel MKL FFTW interface
 cd aliakmon
-edit config.mkl to point to your MKL FFTW interface build
 source config.mkl
-make clean -f Makefile.mkl
-make -f Makefile.mkl
+make clean 
+make all
 
-8) run ALIAKMON
+#---------------------------------------------------------------
+# build ALIAKMON with the heFFTe STOCK backend
+#---------------------------------------------------------------
 
-cd aliakmon/
+cd aliakmon
+source config.stock
+make clean 
+make all
+
+#---------------------------------------------------------------
+# run ALIAKMON
+#---------------------------------------------------------------
+
+cd $ALIAKMON_ROOT
 mkdir test_case
 cp aliakmon.nml test_case
 cd test_case
 edit aliakon.nml (see comments inside the file)
-mpirun -x OMP_NUM_THREADS=n -x UCX_MEMTYPE_CACHE=n -np n ../aliakmon.{cufft,fftw,mkl}.exe
+mpirun -x OMP_NUM_THREADS=nthreads -x UCX_MEMTYPE_CACHE=n -np nprocs ../aliakmon.{cufft,fftw,mkl,stock}.exe
 
-9) As a check, open the .vtk or .xmf files with paraview. 
+#---------------------------------------------------------------
+# check results
+#---------------------------------------------------------------
+
+python $ALIAKMON_ROOT/python/plot.py $ALIAKMON_ROOT/test_case/slice.??????.py {'e','w', etc.} (see .py file for details)
+
+or
+
+open the .vtk or .xmf files with paraview. 
 
