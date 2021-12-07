@@ -405,16 +405,14 @@ program aliakmon
 
      if(int(floor(time * slicefrate), ik) == nvortfile) then
         call output_slices(nvortfile, time)
-        call output_spectra(0_ik)
         nvortfile = nvortfile + 1
      end if
 
      if(int(floor(time * hdf5frate), ik) == &
           &nhdf5file .and. hdf5frate /= 0.0_rk) then
         call output_files(nhdf5file)
-        nhdf5file = nhdf5file + 1
+        if(.not.HDF5_OVERWRITE) nhdf5file = nhdf5file + 1
      end if
-
   end do timeloop
 
   ! Print estimated total time information

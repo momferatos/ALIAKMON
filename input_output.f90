@@ -41,7 +41,7 @@ contains
          &CRANK_NICHOLSON, FFT_DECOMPOSITION
     namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM
     namelist /inputoutput/       OUTPUTFILES,INPUT_FIELD,INPUT_FIELD_FILENAME,&
-         &NFILESTART,hdf5frate,slicefrate,COMPRESSION_LEVEL
+         &NFILESTART,hdf5frate,slicefrate,COMPRESSION_LEVEL, HDF5_OVERWRITE
 
 
     !open namelist input file

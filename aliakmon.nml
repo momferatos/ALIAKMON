@@ -148,6 +148,7 @@ NFILESTART=0,					! Number of first output file
 hdf5frate=10.,					! Framerate of output HDF5 files
 slicefrate=30.0,				! Framerate of output VTK slices
 COMPRESSION_LEVEL=0,				! HDF5 gzip compressio level (0-9)
+HDF5_OVERWRITE=.true.,				! Overwite HDF5 output file?
 &end
 
 

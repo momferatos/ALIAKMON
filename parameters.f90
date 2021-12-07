@@ -297,6 +297,7 @@ module parameters
   real(rk)               :: slicefrate
   ! HDF5 gzip Compression level
   integer                :: COMPRESSION_LEVEL=0
+  logical                :: HDF5_OVERWRITE
   ! Maximum vorticity, maximum current density, maximum Lorentz force
   real(rk)               :: MAXVORT, MAXJ, MAXLF, MAXVEL, MAXB
   ! Maximum passive scalar gradient
