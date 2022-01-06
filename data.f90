@@ -1339,6 +1339,19 @@ contains
 
   end subroutine wave_vectors
 
+  function tr_wv_idx(idx,n) result(tr_idx)
+    integer(ik), intent(in) :: tr_idx,n
+    integer(ik) :: idx
+    
+    if(idx>=0) then
+       tr_idx=idx+1
+    else if(idx<0) then
+       tr_idx=n-abs(idx)
+    end if
+        
+    return
+  end function tr_wv_idx
+  
   subroutine make_phases_array
     implicit none
     !

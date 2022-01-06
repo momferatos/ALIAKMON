@@ -191,7 +191,34 @@ contains
 
   end function mean_value
 
+  subroutine apply_free_slip_bcs(nn, fu)
+    use data, only: tr_wv_idx
+    implicit none
+    integer(ik), dimension(1:4), intent(in)                   :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    integer(ik) :: i,j,k,l,jplus,jminus
+    real(rk) ::  tmp1, tmp2
+    
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2)/2-1 ; do i=1,nn(1)
+       jplus=tr_wv_idx(j,nn(2))
+       jminus=tr_wv_idx(-j,nn(2))
+       if(l==2) then
+          tmp1 = 0.5_rk*(fu(i,jplus,k,l)-fu(i,jminus,k,l))
+          tmp2 = 0.5_rk*(fu(i,jminus,k,l)-fu(i,jplus,k,l))
+          fu(i,jplus,k,l) = tmp1
+          fu(i,jminus,k,l) = tmp2
+       else
+          tmp1 = 0.5_rk*(fu(i,jplus,k,l)+fu(i,jminus,k,l))
+          tmp2 = 0.5_rk*(fu(i,jminus,k,l)+fu(i,jplus,k,l))
+          fu(i,jplus,k,l) = tmp1
+          fu(i,jminus,k,l) = tmp2
+       end if
+    end do ; end do ; end do ; end do
 
+    return
+    
+  end subroutine apply_free_slip_bcs
+  
   subroutine project(nn,fu)
     use data, only:wv,nu1,nb1,isactive
     implicit none
@@ -427,6 +454,8 @@ contains
     complex(ck), dimension(:),allocatable :: ff, fvisc
     real(rk) :: ksq
 
+    call apply_free_slip_bcs(nn, fu)
+    
     if(.not.allocated(fvisc)) allocate(fvisc(1:nn(4)))
     if(.not.allocated(ff)) allocate(ff(1:nn(4)))
 
