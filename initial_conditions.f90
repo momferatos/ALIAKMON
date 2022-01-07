@@ -120,7 +120,7 @@ contains
     !use lagrangian, only: lset_initial_conditions
     use data, only:temp
     use mpivars
-    use numerics, only: calcia
+    use numerics, only: calcia, apply_free_slip_bcs
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
@@ -156,11 +156,15 @@ contains
        call taylor_green(nn,fu)
     case(radsphere)
        call rad_sphere(nn,fu)
+    case(freeslip)
+       call free_slip(nn,fu)
     end select
 
     !Perform truncation
     call truncate(nn,fu)
 
+    
+    
     !Enforce incompressibility / zero magnetic field divergence
     call project(nn,fu)
 
@@ -445,6 +449,44 @@ contains
 
   end subroutine rad_sphere
 
+  subroutine free_slip(nn,u)
+    use numerics, only: apply_free_slip_bcs
+    use types
+    use data, only: nu1,nu2,nu3
+    use mpivars
+    implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)),intent(OUT)              :: u
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(ik) :: i,j,k,l
+    real(rk) :: x, y, z
+    real(rk) :: dx, dy, dz
+!    call abc_flow(nn,1_ik,3_ik,u)
+
+    !Calculate steps
+    dx=LBOX/real(n1-1,rk)
+    dy=LBOX/real(gn2-1,rk)
+    dz=LBOX/real(gn3-1,rk)
+
+    do k=1,nn(3)
+       z=(lkstart+k-1)*dz
+       do j=1,nn(2)
+          y=(ljstart+j-1)*dy
+          do i=1,nn(1)
+             x=(i-1)*dx
+             u(i,j,k,1_ik)=-cos(y) + sin(z) !cos(x)*cos(y)  
+             u(i,j,k,2_ik)=sin(y) !sin(x)*sin(y) 
+             u(i,j,k,3_ik)=0.0
+          end do
+       end do
+    end do
+
+    call fourier(nn,1_ik,u)
+    
+    return
+
+  end subroutine free_slip
+  
   subroutine orszag_tang(nn,u)
     use types
     use data, only: nu1,nu2,nu3,rks1
@@ -499,7 +541,7 @@ contains
 
     call zero(nn,rks1)
     call fourier(nn,1_ik,u)
-
+    
     return
 
   end subroutine orszag_tang
