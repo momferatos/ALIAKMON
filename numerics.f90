@@ -474,7 +474,7 @@ contains
     
 
     if(RADIATION.and.RADIATION_COUPLING) call compute_radiation
-
+    
     ! handle Patterson-Orszag deliasing
     if(DEALIASING==PATTERSON_ORSZAG) then
        call shift(nn,-1_ik,fnls)
@@ -865,9 +865,12 @@ contains
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          ! rhs = u x b
-         scratch(i,j,k,nb1) = u(i,j,k,nu2)*u(i,j,k,nb3) - u(i,j,k,nu3)*u(i,j,k,nb2)
-         scratch(i,j,k,nb2) = u(i,j,k,nu3)*u(i,j,k,nb1) - u(i,j,k,nu1)*u(i,j,k,nb3)
-         scratch(i,j,k,nb3) = u(i,j,k,nu1)*u(i,j,k,nb2) - u(i,j,k,nu2)*u(i,j,k,nb1)
+         scratch(i,j,k,nb1) = u(i,j,k,nu2)*u(i,j,k,nb3) - &
+              &u(i,j,k,nu3)*u(i,j,k,nb2)
+         scratch(i,j,k,nb2) = u(i,j,k,nu3)*u(i,j,k,nb1) - &
+              &u(i,j,k,nu1)*u(i,j,k,nb3)
+         scratch(i,j,k,nb3) = u(i,j,k,nu1)*u(i,j,k,nb2) - &
+              &u(i,j,k,nu2)*u(i,j,k,nb1)
       end do; end do ;  end do
       !$omp end parallel do
 
@@ -886,9 +889,12 @@ contains
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
             ! rhs = (u x b)
-            du(i,j,k,nb1) = psu(i,j,k,nu2)*psu(i,j,k,nb3) - psu(i,j,k,nu3)*psu(i,j,k,nb2)
-            du(i,j,k,nb2) = psu(i,j,k,nu3)*psu(i,j,k,nb1) - psu(i,j,k,nu1)*psu(i,j,k,nb3)
-            du(i,j,k,nb3) = psu(i,j,k,nu1)*psu(i,j,k,nb2) - psu(i,j,k,nu2)*psu(i,j,k,nb1)
+            du(i,j,k,nb1) = psu(i,j,k,nu2)*psu(i,j,k,nb3) - &
+                 &psu(i,j,k,nu3)*psu(i,j,k,nb2)
+            du(i,j,k,nb2) = psu(i,j,k,nu3)*psu(i,j,k,nb1) - &
+                 &psu(i,j,k,nu1)*psu(i,j,k,nb3)
+            du(i,j,k,nb3) = psu(i,j,k,nu1)*psu(i,j,k,nb2) - &
+                 &psu(i,j,k,nu2)*psu(i,j,k,nb1)
          end do; end do ; end do
          !$omp end parallel do
          call fourier(nn,1_ik,du,nfs=nb1,nfe=nb3)

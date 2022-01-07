@@ -458,31 +458,32 @@ contains
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)),intent(OUT)              :: u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik) :: i,j,k,l
+    integer(ik) :: i,j,k,l,kk
     real(rk) :: x, y, z
     real(rk) :: dx, dy, dz
-!    call abc_flow(nn,1_ik,3_ik,u)
+    !    call abc_flow(nn,1_ik,3_ik,u)
 
     !Calculate steps
     dx=LBOX/real(n1-1,rk)
     dy=LBOX/real(gn2-1,rk)
     dz=LBOX/real(gn3-1,rk)
-
-    do k=1,nn(3)
-       z=(lkstart+k-1)*dz
-       do j=1,nn(2)
-          y=(ljstart+j-1)*dy
-          do i=1,nn(1)
-             x=(i-1)*dx
-             u(i,j,k,1_ik)=-cos(y) + sin(z) !cos(x)*cos(y)  
-             u(i,j,k,2_ik)=sin(y) !sin(x)*sin(y) 
-             u(i,j,k,3_ik)=0.0
+    do kk=1,1
+       do k=1,nn(3)
+          z=(lkstart+k-1)*dz
+          do j=1,nn(2)
+             y=(ljstart+j-1)*dy
+             do i=1,nn(1)
+                x=(i-1)*dx
+                u(i,j,k,1_ik)=-cos(kk*y) + sin(kk*z) !  
+                u(i,j,k,2_ik)= sin(kk*y) ! 
+                u(i,j,k,3_ik)= sin(kk*y)
+             end do
           end do
        end do
     end do
 
     call fourier(nn,1_ik,u)
-    
+
     return
 
   end subroutine free_slip
