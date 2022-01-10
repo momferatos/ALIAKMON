@@ -36,9 +36,9 @@ contains
     dy=LBOX/real(nn(2)-1_ik,rk)
     dz=LBOX/real(nn(3)-1_ik,rk)
 
-    ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)),1_rk)
-    jj=max(min(int(ceiling(x(2)/dx),ik),nn(2)),1_rk)
-    kk=max(min(int(ceiling(x(3)/dx),ik),nn(3)),1_ik)
+    ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)-1),1_rk)
+    jj=max(min(int(ceiling(x(2)/dx),ik),nn(2)-1),1_rk)
+    kk=max(min(int(ceiling(x(3)/dx),ik),nn(3)-1),1_ik)
 
     xd=x(1)-(ii-1)*dx
     yd=x(2)-(jj-1)*dy
@@ -75,14 +75,15 @@ contains
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
     real(rk), intent(in) :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(rk) :: radius, halfbox, qr_proj
+    real(rk) :: radius, halfbox, quarterbox, qr_proj
     real(rk), dimension(3) :: center, point, qr_vec, shat
     integer(ik) :: ns
     real(rk) :: eps=1.0e-3
     real(rk) :: val
     
     halfbox=LBOX/2.0_rk
-    radius=halfbox-eps
+    quarterbox=LBOX/4.0
+    radius=halfbox
     center=halfbox
 
     val=0.0_rk
@@ -305,11 +306,14 @@ contains
 
   end subroutine apply_free_slip_bcs
   
-  subroutine project(nn,fu)
-    use data, only:wv,nu1,nb1,isactive
+  subroutine project(nn,fu,press)
+    use mpi
+    use mpivars
+    use data, only:wv,nu1,nb1,isactive,scratch,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3)), intent(OUT)                  :: press
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !project velocity/magnetic field to solenoidal subspace
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -351,6 +355,7 @@ contains
                            &ii*wv(3_ik,i,j,k)*cmplx(fu(i,j,k,nu+2),fu(i+1,j,k,nu+2),ck)
                       p=tmp1/ksq
                    end if
+                   if(RADIATION) press(i,j,k)=DENS*p
                    !Pressure gradient
                    fpgrad(1)=ii*wv(1_ik,i,j,k)*p
                    fpgrad(2)=ii*wv(2_ik,i,j,k)*p
@@ -369,6 +374,14 @@ contains
     end do
     !$omp end parallel do
 
+    if(RADIATION) then
+       scratch(:,:,:,1)=press(:,:,:)
+       call fourier(nn,-1_ik,scratch,nfs=1_ik,nfe=1_ik)
+       press(:,:,:)=scratch(:,:,:,1)
+       !$acc update device(press(1:dim1(nn(1)),1:nn(2),1:nn(3)))
+       call zero(nn,scratch)
+    end if
+    
     return
 
   end subroutine project
@@ -527,7 +540,7 @@ contains
   subroutine right_hand_side(nn,fnl,fu)
     use data, only: isactive,u,du,psu,scratch,fnls,nu1,nu2,nu3,nb1,nb2,nb3,&
          &nsclf,nscll,ad,&
-         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr,copy,zero,scratch2
+         &fsclgrads,fsclgrad,wv,arr_en_1,fdivqr,copy,zero,scratch2,press
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
@@ -588,7 +601,7 @@ contains
     
     
     ! project to zero divergence
-    if(.not.BURGERS) call project(nn,fnl)
+    if(.not.BURGERS) call project(nn,fnl,press)
     if(INITCOND == freeslip) call apply_free_slip_bcs(nn,fu)
     ! compute diffusive terms
     call compute_diffusive_terms
@@ -919,7 +932,7 @@ contains
 !!$            tt = u(i, j, k, ntemp)
 !!$            y = (tt - TEMPMIN) / (TEMPMAX - TEMPMIN)
 !!$            y = max(0.0_rk, min(real(y, rk), 1.0_rk))
-!!$            pp = 1.0e-6 * PRESS
+!!$            pp = 1.0e-6 * PATM
 !!$            dens = DTp( tt, pp, dens, icode )
 !!$            dens_air = 1.1455_rk
 !!$            dens = y * dens + (1 - y) * dens_air
@@ -2611,12 +2624,12 @@ contains
 
   end subroutine cfl_condition
 
-  pure function absorb(temp, y, mode)
+  pure function absorb(temp, y, p, mode)
     use types
     implicit none
     !$acc routine seq
     real(rk) :: absorb
-    real(rk), intent(IN) :: temp, y
+    real(rk), intent(IN) :: temp, y, p
     integer(ik), intent(in), optional :: mode
     !     H2O, CO2, CO according to:
     !
@@ -2654,7 +2667,7 @@ contains
        end do
     end if
 
-    absorb = PRESS * y * absorb
+    absorb = (PATM + p) * y * absorb
 
     return
 
@@ -2972,7 +2985,7 @@ contains
   end subroutine calcqr
   
   subroutine cell_step_scheme(ns, i, j, k)
-    use data, only: nn, ia, s, omeg, temp
+    use data, only: nn, ia, s, omeg, temp, press
     use parameters, only: PI, STEFB, LBOX
     implicit none
     !$acc routine seq
@@ -2988,7 +3001,7 @@ contains
     real(8), dimension(6) :: surf ! surf(nface) finite volume face surface area
     real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
     integer(8) :: nface
-    real(8) :: vol, y, T
+    real(8) :: vol, y, T, p
 
     ! set normal unit vectors for each face of the spatial control volume
     norm(1, 1:3) = (/  1.0,  0.0,  0.0 /)
@@ -3027,7 +3040,8 @@ contains
     T=temp(i,j,k)
     y = (t - TEMPMIN) / (TEMPMAX - TEMPMIN)
     y = max(0.0_rk, min(1.0_rk, real(y, rk)))
-    fac = absorb(T, y,1_ik) * &
+    p = press(i,j,k)
+    fac = absorb(T, y, p, 1_ik) * &
          &vol * omeg(ns) ! auxiliary factor
 
     nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)

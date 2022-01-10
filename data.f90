@@ -13,6 +13,9 @@ module data
   implicit none
   ! data and initialization
   ! primary arrays
+  ! pressure
+  real(rks), dimension(:,:,:),   allocatable    :: press
+  !$acc declare create(press)
   ! fields in real space
   real(rks), dimension(:,:,:,:), allocatable    :: u
   ! fields in Fourier space
@@ -745,6 +748,10 @@ contains
     isactive(:,:,:) = .false.
 
     allocate(scratch2(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)))
+    allocate(press(1:dim1(nn(1)),1:nn(2),1:nn(3)))
+    !$acc enter data create(press(1:dim1(nn(1)),1:nn(2),1:nn(3)))
+    press(:,:,:)=0.0_rk
+    !$acc update device(press(1:dim1(nn(1)),1:nn(2),1:nn(3)))
     if(RADIATION) then
        call allocate_fvdom
        call init_fvdom

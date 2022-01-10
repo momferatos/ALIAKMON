@@ -87,7 +87,8 @@ module parameters
        &342117068_rk
   logical                :: VALID
   real(rk), parameter    :: CP=4.0e3_rk
-  real(rk), parameter    :: PRESS=1.01325e5
+  real(rk), parameter    :: PATM=1.01325e5
+  real(rk), parameter    :: DENS=1.225
   real(rk)               :: TEMPMIN
   !$acc declare create(TEMPMIN)
   real(rk)               :: TEMPMAX

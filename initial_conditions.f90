@@ -118,7 +118,7 @@ contains
 
   subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
-    use data, only:temp
+    use data, only:temp,press
     use mpivars
     use numerics, only: calcia, apply_free_slip_bcs
     implicit none
@@ -166,7 +166,7 @@ contains
     
     
     !Enforce incompressibility / zero magnetic field divergence
-    call project(nn,fu)
+    call project(nn,fu,press)
 
     !Rescale to unit rms
     call rescale(nn,fu)
@@ -212,7 +212,7 @@ contains
 
   subroutine abc_flow(nn,k1,k2,u)
     use types
-    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,scratch
+    use data, only: nu1,nu2,nu3,nb1,nb2,nb3,nsclf,nscll,scratch,press
     use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
@@ -301,7 +301,7 @@ contains
     !Set-up stochastic small-scale component
     call random_field(nn,scratch,2.0_rk)
     !Enforce incompressibility / zero magnetic field divergence
-    call project(nn,scratch)
+    call project(nn,scratch,press)
     !rescale to unit rms
     call rescale(nn,scratch)
     !truncate
@@ -400,7 +400,7 @@ contains
     real(rk)                                               :: dst, rad, fac
 
     center(1:3) = PI
-    rad = PI / 4.0_rk
+    rad = PI / 16.0_rk
     !Set fields to zero
     call zero(nn,u)
 
