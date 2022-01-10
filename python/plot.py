@@ -30,7 +30,7 @@ with h5py.File(fname, 'r') as h5file:
         print(f'error: key {h5key} not found')
         sys.exit(1)
     field = np.array(h5file[h5key])
-    if 'scl' in h5key or h5key == 'G':
+    if 'scl' in h5key:
         cmap = cmap_blackbody
     else:
         cmap = cmap_blueblack

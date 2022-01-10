@@ -191,7 +191,36 @@ contains
 
   end function mean_value
 
+  subroutine apply_free_slip_bcs(nn, fu)
+    use data, only: scratch,copy,tr_wv_idx
+    implicit none
+    integer(ik), dimension(1:4), intent(in)                   :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    integer(ik) :: i,j,k,l,jplus,jminus
+    real(rk) ::  tmp1, tmp2
 
+    call copy(nn,scratch,fu)
+
+    do l=1,nn(4) ; do k=1,nn(3) ; do j=0,nn(2)/2 ; do i=1,dim1(nn(1))
+       jplus=tr_wv_idx(j,nn(2))
+       jminus=tr_wv_idx(-j,nn(2))
+       if(l==2) then
+          tmp1 = 0.5_rk*(scratch(i,jplus,k,l)-scratch(i,jminus,k,l))
+          tmp2 = 0.5_rk*(scratch(i,jminus,k,l)-scratch(i,jplus,k,l))
+          fu(i,jplus,k,l) = tmp1
+          fu(i,jminus,k,l) = tmp2
+       else
+          tmp1 = 0.5_rk*(scratch(i,jplus,k,l)+scratch(i,jminus,k,l))
+          tmp2 = 0.5_rk*(scratch(i,jminus,k,l)+scratch(i,jplus,k,l))
+          fu(i,jplus,k,l) = tmp1
+          fu(i,jminus,k,l) = tmp2
+       end if
+    end do; end do ; end do ; end do
+
+    return
+
+  end subroutine apply_free_slip_bcs
+  
   subroutine project(nn,fu)
     use data, only:wv,nu1,nb1,isactive
     implicit none
@@ -427,6 +456,8 @@ contains
     complex(ck), dimension(:),allocatable :: ff, fvisc
     real(rk) :: ksq
 
+    
+    
     if(.not.allocated(fvisc)) allocate(fvisc(1:nn(4)))
     if(.not.allocated(ff)) allocate(ff(1:nn(4)))
 
@@ -443,7 +474,7 @@ contains
     
 
     if(RADIATION.and.RADIATION_COUPLING) call compute_radiation
-
+    
     ! handle Patterson-Orszag deliasing
     if(DEALIASING==PATTERSON_ORSZAG) then
        call shift(nn,-1_ik,fnls)
@@ -470,9 +501,11 @@ contains
     ! truncate non-linear terms to remove aliasing errors
     call truncate(nn,fnl)
 
+    
+    
     ! project to zero divergence
     if(.not.BURGERS) call project(nn,fnl)
-
+    if(INITCOND == freeslip) call apply_free_slip_bcs(nn,fu)
     ! compute diffusive terms
     call compute_diffusive_terms
 
@@ -832,9 +865,12 @@ contains
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          ! rhs = u x b
-         scratch(i,j,k,nb1) = u(i,j,k,nu2)*u(i,j,k,nb3) - u(i,j,k,nu3)*u(i,j,k,nb2)
-         scratch(i,j,k,nb2) = u(i,j,k,nu3)*u(i,j,k,nb1) - u(i,j,k,nu1)*u(i,j,k,nb3)
-         scratch(i,j,k,nb3) = u(i,j,k,nu1)*u(i,j,k,nb2) - u(i,j,k,nu2)*u(i,j,k,nb1)
+         scratch(i,j,k,nb1) = u(i,j,k,nu2)*u(i,j,k,nb3) - &
+              &u(i,j,k,nu3)*u(i,j,k,nb2)
+         scratch(i,j,k,nb2) = u(i,j,k,nu3)*u(i,j,k,nb1) - &
+              &u(i,j,k,nu1)*u(i,j,k,nb3)
+         scratch(i,j,k,nb3) = u(i,j,k,nu1)*u(i,j,k,nb2) - &
+              &u(i,j,k,nu2)*u(i,j,k,nb1)
       end do; end do ;  end do
       !$omp end parallel do
 
@@ -853,9 +889,12 @@ contains
          !$omp parallel do
          do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
             ! rhs = (u x b)
-            du(i,j,k,nb1) = psu(i,j,k,nu2)*psu(i,j,k,nb3) - psu(i,j,k,nu3)*psu(i,j,k,nb2)
-            du(i,j,k,nb2) = psu(i,j,k,nu3)*psu(i,j,k,nb1) - psu(i,j,k,nu1)*psu(i,j,k,nb3)
-            du(i,j,k,nb3) = psu(i,j,k,nu1)*psu(i,j,k,nb2) - psu(i,j,k,nu2)*psu(i,j,k,nb1)
+            du(i,j,k,nb1) = psu(i,j,k,nu2)*psu(i,j,k,nb3) - &
+                 &psu(i,j,k,nu3)*psu(i,j,k,nb2)
+            du(i,j,k,nb2) = psu(i,j,k,nu3)*psu(i,j,k,nb1) - &
+                 &psu(i,j,k,nu1)*psu(i,j,k,nb3)
+            du(i,j,k,nb3) = psu(i,j,k,nu1)*psu(i,j,k,nb2) - &
+                 &psu(i,j,k,nu2)*psu(i,j,k,nb1)
          end do; end do ; end do
          !$omp end parallel do
          call fourier(nn,1_ik,du,nfs=nb1,nfe=nb3)
