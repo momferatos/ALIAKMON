@@ -1,1 +1,1 @@
-LIBSROOT=$HOME/libs ARCH=native CFLAGS="-fast -fastsse -tp=$ARCH -Mipa=fast -fPIC" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-mpi --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/fftw-NVHPC
+LIBSROOT=$HOME/libs ARCH=native CFLAGS="-fast -fastsse -tp=native -Mipa=fast -fPIC" CXX=pgcpp CC=pgcc F77=pgf77 ./configure --enable-single --enable-mpi --enable-openmp --enable-fortran --enable-threads --prefix=$LIBSROOT/fftw-NVHPC

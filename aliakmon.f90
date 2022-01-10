@@ -377,6 +377,8 @@ program aliakmon
      call cfl_condition(nn,dt)
      ! Advance in time
      call timestep(nn,fu,dt)
+     call integrate_qr(nn,qr,time)
+     
      if(VALID) call dissipation_test !call energy_test(nn,u,fu,rhs)
      if(RADIATION.and..not.RADIATION_COUPLING) then
         call copy(nn,u,fu)

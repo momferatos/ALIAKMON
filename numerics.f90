@@ -17,6 +17,90 @@ module numerics
   !
 contains
 
+  subroutine interpolate_qr(nn, qr, qr_out, x)
+    implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
+    real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
+    real(rk), dimension(3), intent(out) :: qr_out
+    real(rk), dimension(3), intent(in) :: x
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(ik) :: ii, jj, kk
+    real(rks) :: dx, dy, dz
+    real(rks) :: xd, yd, zd
+    real(rks), dimension(3) :: c000, c100, c010, c110, c001, c101, c011, c111
+    real(rks), dimension(3) :: c00, c01, c10, c11
+    real(rks), dimension(3) :: c0, c1
+    real(rks), dimension(3) :: c
+    
+    dx=LBOX/real(nn(1)-1_ik,rk)
+    dy=LBOX/real(nn(2)-1_ik,rk)
+    dz=LBOX/real(nn(3)-1_ik,rk)
+
+    ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)),1_rk)
+    jj=max(min(int(ceiling(x(2)/dx),ik),nn(2)),1_rk)
+    kk=max(min(int(ceiling(x(3)/dx),ik),nn(3)),1_ik)
+
+    xd=x(1)-(ii-1)*dx
+    yd=x(2)-(jj-1)*dy
+    zd=x(3)-(kk-1)*dz 
+
+    c000=qr(ii  ,jj  ,kk  ,1:3)
+    c100=qr(ii+1,jj  ,kk  ,1:3)
+    c010=qr(ii  ,jj+1,kk  ,1:3)
+    c110=qr(ii+1,jj+1,kk  ,1:3)
+    c001=qr(ii  ,jj  ,kk+1,1:3)
+    c101=qr(ii+1,jj  ,kk+1,1:3)
+    c011=qr(ii  ,jj+1,kk+1,1:3)
+    c111=qr(ii+1,jj+1,kk+1,1:3)
+    
+    c00=c000*(1-xd)+c100*xd
+    c01=c001*(1-xd)+c101*xd
+    c10=c010*(1-xd)+c110*xd
+    c11=c011*(1-xd)+c111*xd
+    
+    c0=c00*(1-yd)+c10*yd
+    c1=c01*(1-yd)+c11*yd
+
+    c=c0*(1-zd)+c1*zd
+
+    qr_out=c
+    
+    return
+  end subroutine interpolate_qr
+
+  subroutine integrate_qr(nn,qr,time)
+    use data, only: nsects, s
+    implicit none
+    integer(ik), dimension(1:4), intent(in) :: nn
+    real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
+    real(rk), intent(in) :: time
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    real(rk) :: radius, halfbox, qr_proj
+    real(rk), dimension(3) :: center, point, qr_vec, shat
+    integer(ik) :: ns
+    real(rk) :: eps=1.0e-3
+    real(rk) :: val
+    
+    halfbox=LBOX/2.0_rk
+    radius=halfbox-eps
+    center=halfbox
+
+    val=0.0_rk
+    do ns=1,nsects
+       shat=s(ns,1:3)/dot_product(s(ns,1:3),s(ns,1:3))
+       point(1:3)=center(1:3)+radius*shat(1:3)
+       call interpolate_qr(nn,qr,qr_vec,point)
+       qr_proj=dot_product(qr_vec,s(ns,1:3))
+       val=val+qr_proj
+    end do
+
+    write(432,*) time, val*radius**2
+    
+    return
+    
+  end subroutine integrate_qr
+  
+
   subroutine shift(nn,dir,fu,nfs,nfe,idx)
     use data, only: isactive, phases, iphases
     implicit none
