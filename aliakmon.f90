@@ -410,8 +410,12 @@ program aliakmon
 
      if(int(floor(time * hdf5frate), ik) == &
           &nhdf5file .and. hdf5frate /= 0.0_rk) then
-        call output_files(nhdf5file)
-        if(.not.HDF5_OVERWRITE) nhdf5file = nhdf5file + 1
+        if(HDF5_OVERWRITE) then
+           call output_files(777777_ik)
+        else   
+           call output_files(nhdf5file)
+        end if
+        nhdf5file = nhdf5file + 1
      end if
   end do timeloop
 
