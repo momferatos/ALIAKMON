@@ -34,12 +34,12 @@ contains
     real(rks), dimension(3) :: c
     
     dx=LBOX/real(nn(1)-1_ik,rk)
-    dy=LBOX/real(nn(2)-1_ik,rk)
-    dz=LBOX/real(nn(3)-1_ik,rk)
+    dy=LBOX/real(gn2-1_ik,rk)
+    dz=LBOX/real(gn3-1_ik,rk)
 
     ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)-1),1_rk)
-    jj=max(min(int(ceiling(x(2)/dx),ik),gn2-1),1_rk)
-    kk=max(min(int(ceiling(x(3)/dx),ik),gn3-1),1_ik)
+    jj=max(min(int(ceiling(x(2)/dy),ik),gn2-1),1_rk)
+    kk=max(min(int(ceiling(x(3)/dz),ik),gn3-1),1_ik)
 
     if(jj<ljstart.or.jj>=ljstart+ljsize) then
        qr_out=0.0_rk
