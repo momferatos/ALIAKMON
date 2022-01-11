@@ -70,6 +70,8 @@ contains
 
   subroutine integrate_qr(nn,qr,time)
     use data, only: nsects, s, ga
+    use mpi
+    use mpivars
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
@@ -97,7 +99,13 @@ contains
     end do
 
     red=(sum(ga)/vol)/CLIGHT
-    write(432,*) time, val*radius**2, red
+    sbuf(1)=val
+    sbuf(2)=red
+    call mpi_reduce(sbuf,rbuf,2_i4b,MPIRK,MPI_SUM,MPIROOT,MPI_COMM_WORLD,mpierr)
+    val=rbuf(1)
+    red=rbuf(2)
+    if(mpirank==MPIROOT) write(432,*) time, val*radius**2, red
+    
     flush(432)
     
     return
