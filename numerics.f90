@@ -26,13 +26,14 @@ contains
     real(rk), dimension(3), intent(in) :: x
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: ii, jj, kk
+    integer(ik) :: jstart, jend, kstart, kend
     real(rks) :: dx, dy, dz
     real(rks) :: xd, yd, zd
     real(rks), dimension(3) :: c000, c100, c010, c110, c001, c101, c011, c111
     real(rks), dimension(3) :: c00, c01, c10, c11
     real(rks), dimension(3) :: c0, c1
     real(rks), dimension(3) :: c
-    
+
     dx=LBOX/real(nn(1)-1_ik,rk)
     dy=LBOX/real(gn2-1_ik,rk)
     dz=LBOX/real(gn3-1_ik,rk)
@@ -41,16 +42,20 @@ contains
     jj=max(min(int(ceiling(x(2)/dy),ik),gn2-1),1_rk)
     kk=max(min(int(ceiling(x(3)/dz),ik),gn3-1),1_ik)
 
-    if(jj<ljstart.or.jj>=ljstart+ljsize) then
+    jstart=ljstart+1
+    jend=ljstart+ljsize
+    if(jj<jstart.or.jj>jend) then
        qr_out=0.0_rk
        return
     end if
 
-    if(kk<lkstart.or.kk>=lkstart+lksize) then
+    kstart=lkstart+1
+    kend=lkstart+lksize
+    if(kk<kstart.or.kk>kend) then
        qr_out=0.0_rk
        return
     end if
-    
+
     xd=x(1)-(ii-1)*dx
     yd=x(2)-(jj-1)*dy
     zd=x(3)-(kk-1)*dz 
@@ -63,19 +68,19 @@ contains
     c101=qr(ii+1,jj  ,kk+1,1:3)
     c011=qr(ii  ,jj+1,kk+1,1:3)
     c111=qr(ii+1,jj+1,kk+1,1:3)
-    
+
     c00=c000*(1-xd)+c100*xd
     c01=c001*(1-xd)+c101*xd
     c10=c010*(1-xd)+c110*xd
     c11=c011*(1-xd)+c111*xd
-    
+
     c0=c00*(1-yd)+c10*yd
     c1=c01*(1-yd)+c11*yd
 
     c=c0*(1-zd)+c1*zd
 
     qr_out=c
-    
+
     return
   end subroutine interpolate_qr
 

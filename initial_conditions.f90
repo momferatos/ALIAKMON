@@ -403,7 +403,7 @@ contains
     real(rk)                                               :: dst, rad, fac
 
     center(1:3) = PI
-    rad = PI / 16.0_rk
+    rad = PI / 4.0_rk
     !Set fields to zero
     call zero(nn,u)
 
