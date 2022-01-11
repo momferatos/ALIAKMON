@@ -18,6 +18,7 @@ module numerics
 contains
 
   subroutine interpolate_qr(nn, qr, qr_out, x)
+    use mpivars, only: ljstart, ljsize, lkstart, lksize
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
@@ -37,9 +38,19 @@ contains
     dz=LBOX/real(nn(3)-1_ik,rk)
 
     ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)-1),1_rk)
-    jj=max(min(int(ceiling(x(2)/dx),ik),nn(2)-1),1_rk)
-    kk=max(min(int(ceiling(x(3)/dx),ik),nn(3)-1),1_ik)
+    jj=max(min(int(ceiling(x(2)/dx),ik),gn2-1),1_rk)
+    kk=max(min(int(ceiling(x(3)/dx),ik),gn3-1),1_ik)
 
+    if(jj<ljstart.or.jj>=ljstart+ljsize) then
+       qr_out=0.0_rk
+       return
+    end if
+
+    if(kk<lkstart.or.kk>=lkstart+lksize) then
+       qr_out=0.0_rk
+       return
+    end if
+    
     xd=x(1)-(ii-1)*dx
     yd=x(2)-(jj-1)*dy
     zd=x(3)-(kk-1)*dz 
