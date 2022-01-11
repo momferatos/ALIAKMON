@@ -149,8 +149,9 @@ contains
        !Stochastic initial conditions based on the Orszag-Tang vortex
        call orszag_tang(nn,fu)
     case(abc)
-       !Stochastic initial conditions based on the Arnold-Beltrami-Childress flow
-       !Set-up large-scale component based on the ABC flow
+       ! Stochastic initial conditions based on the
+       ! Arnold-Beltrami-Childress flow
+       ! Set-up large-scale component based on the ABC flow
        call abc_flow(nn,1_ik,3_ik,fu)
     case(taylor_green_vortex)
        call taylor_green(nn,fu)
@@ -231,7 +232,9 @@ contains
     integer(ik), dimension(k1:k2, 1:nn(4))                   :: ii
     real(rk), dimension(1:3)                                 :: aa,r
     integer(ik)                                            :: nu,l
+    real(rk)                                               :: ABC_RAND
 
+    ABC_RAND=1.0e-1_rk
 
     !Arrays of indices used to mix the xyz components
     !for the velocity field
@@ -300,17 +303,17 @@ contains
 
     !Set-up stochastic small-scale component
     call random_field(nn,scratch,2.0_rk)
-    !Enforce incompressibility / zero magnetic field divergence
-    call project(nn,scratch,press)
-    !rescale to unit rms
+!!$    !Enforce incompressibility / zero magnetic field divergence
+!!$    call project(nn,scratch,press)
+!!$    !rescale to unit rms
     call rescale(nn,scratch)
-    !truncate
-    call truncate(nn, scratch)
+!!$    !truncate
+!!$    call truncate(nn, scratch)
     
     !$omp parallel do
     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        !Add components
-       u(i,j,k,l)=u(i,j,k,l)+scratch(i,j,k,l)
+       u(i,j,k,l)=u(i,j,k,l)+ABC_RAND*scratch(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
 

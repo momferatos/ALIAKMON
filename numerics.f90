@@ -69,13 +69,13 @@ contains
   end subroutine interpolate_qr
 
   subroutine integrate_qr(nn,qr,time)
-    use data, only: nsects, s
+    use data, only: nsects, s, ga
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
     real(rk), intent(in) :: time
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(rk) :: radius, halfbox, quarterbox, qr_proj
+    real(rk) :: radius, halfbox, quarterbox, qr_proj, red, vol
     real(rk), dimension(3) :: center, point, qr_vec, shat
     integer(ik) :: ns
     real(rk) :: eps=1.0e-3
@@ -85,6 +85,7 @@ contains
     quarterbox=LBOX/4.0
     radius=halfbox
     center=halfbox
+    vol=LBOX**3
 
     val=0.0_rk
     do ns=1,nsects
@@ -95,7 +96,9 @@ contains
        val=val+qr_proj
     end do
 
-    write(432,*) time, val*radius**2
+    red=(sum(ga)/vol)/CLIGHT
+    write(432,*) time, val*radius**2, red
+    flush(432)
     
     return
     
@@ -2974,7 +2977,7 @@ contains
           tqr(1:3) = tqr(1:3) + (ia(i, j, k, ns) * s(ns,1:3))
           !G = sum ia * omega
           ! same for the incindent radiation
-          tga = tga + (ia(i, j, k, ns) * omeg(ns)) 
+          tga = tga + (ia(i, j, k, ns) * omeg(ns))
        end do
        qr(i, j, k, 1:3) = tqr(1:3)
        ga(i, j, k) = tga 

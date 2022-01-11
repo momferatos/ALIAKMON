@@ -86,6 +86,7 @@ module parameters
        &2884197169399375105820974944592307816406286208998628034825&
        &342117068_rk
   logical                :: VALID
+  real(rk), parameter     :: CLIGHT=2.99792458e8
   real(rk), parameter    :: CP=4.0e3_rk
   real(rk), parameter    :: PATM=1.01325e5
   real(rk), parameter    :: DENS=1.225
