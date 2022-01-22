@@ -20,12 +20,6 @@ cmap_blackbody = ListedColormap(ncmap_blackbody)
 
 paths = sys.argv[1:]
 
-nh5files = 0
-for ipath,path in enumerate(paths):
-    h5files = glob.glob(path + '/*.h5', recursive=False)
-    nh5files = nh5files + len(h5files)
-
-
 ih5file = 0
 for ipath,path in enumerate(paths):
     h5files = glob.glob(path + '/*.h5', recursive=False)
@@ -59,6 +53,7 @@ for ipath,path in enumerate(paths):
         with h5py.File(h5file, 'r') as h5file:            
             print('Processing file # ' + f'{ih5file+1:d}/{nh5files:d}',
                   end='\r')
+            fieldkeys = maxfield.keys()
             for fieldkey in fieldkeys:
                 pngfile = os.path.join(pngdir, f'{fieldkey}.{ih5file:06}.png')
                 if os.path.isfile(pngfile):
@@ -70,7 +65,7 @@ for ipath,path in enumerate(paths):
                 field = np.concatenate((field,field2), axis=0)
                 scale = (maxfield[fieldkey] - minfield[fieldkey]) ** (-1)
                 field = scale * (field - minfield[fieldkey])
-                if 'scl' in fieldkey:
+                if 'scl' in fieldkey or fieldkey == 'b':
                     cmap = cmap_blackbody
                 else:
                     cmap = cmap_blueblack

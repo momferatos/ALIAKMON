@@ -499,7 +499,8 @@ contains
     end if
 
     if(RADIATION) then
-       
+       !$acc update self(qr(1:nn(1),1:nn(2),1:nn(3),1:3),&
+       !$acc& ga(1:nn(1),1:nn(2),1:nn(3)))
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
           h5_scalar_data(i,j,k)=ga(i, j, k)
@@ -642,6 +643,9 @@ contains
 
     if(RADIATION) then
 
+       !$acc update self(qr(1:nn(1),1:nn(2),1:nn(3),1:3),&
+       !$acc& ga(1:nn(1),1:nn(2),1:nn(3)))
+       
        i=nn(1)/2
        !$omp parallel do
        do k=1,nn(3) ; do j=1,nn(2)

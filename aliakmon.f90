@@ -118,8 +118,10 @@ program aliakmon
   ! Read input file
   if(mpirank==MPIROOT) print *, 'Reading input file...'
   call read_namelist_file
-  lkstart=0
-  ljstart=0
+  lkstart=1
+  ljstart=1
+  ljsize=nn(2)
+  lksize=nn(3)
 #ifdef _MPI_
   ! Allocate FFT structures
 

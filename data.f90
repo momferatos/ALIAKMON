@@ -133,8 +133,9 @@ contains
     !allocate memory
     if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), 0:nn(3)+1, 1:nsects))
     !$acc enter data create(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
-    if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
-    !$acc enter data create(iba(1:nn(1), 1:nn(2), 1:nn(3), 1:nsects))
+    if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 0:nn(3)+1, &
+         &1:nsects))
+    !$acc enter data create(iba(1:nn(1), 1:nn(2), 0:nn(3)+1, 1:nsects))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc enter data create(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -146,8 +147,8 @@ contains
          & 1:nn(3)))
     if(.not.allocated(fdivqr_tmp)) allocate(fdivqr_tmp(1:dim1(nn(1)), 1:nn(2),&
          & 1:nn(3)))
-    if(.not.allocated(s)) allocate(s(nsects, 1:3))
-    !$acc enter data create(s(nsects, 1:3))
+    if(.not.allocated(s)) allocate(s(1:nsects, 1:3))
+    !$acc enter data create(s(1:nsects, 1:3))
     if(.not.allocated(omeg)) allocate(omeg(1:nsects))
     !$acc enter data create(omeg(1:nsects))
 
@@ -235,7 +236,7 @@ contains
     integer(ik) :: sd
 
     !nsects = 80
-
+    
     ! initialize radiative intensities to zero
     !$omp parallel do 
     do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -263,7 +264,7 @@ contains
        fdivqr_tmp(i, j, k) = 0.0_rk
     end do; end do ; end do
     !$omp end parallel do
-!!$acc update device(ga(1:n1, 1:n2, 1:n3))
+
 
     !$omp parallel do 
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -276,7 +277,6 @@ contains
        fqr(i, j, k, l) = 0.0_rk
     end do; end do ; end do; end do
     !$omp end parallel do
-!!$acc update device(qr(1:n1, 1:n2, 1:n3,1:3))
 
     !$omp parallel do
     do ns=1,nsects
@@ -722,7 +722,7 @@ contains
     nn(2)=n2
     nn(3)=n3
     nn(4)=nfields
-    !$acc update device(nn(1:4))
+    !$acc update device(nn(1:4), TEMPMIN, TEMPMAX)
     if(nsects == 0) nsects = nn(1)
     !$acc update device(nsects)
 

@@ -18,56 +18,81 @@ module numerics
 contains
 
   subroutine interpolate_qr(nn, qr, qr_out, x)
-    use mpivars, only: ljstart, ljsize, lkstart, lksize
+    use mpivars, only: ljstart, ljsize, lkstart, lksize, mpirank
     implicit none
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3),1:3), intent(in) :: qr
     real(rk), dimension(3), intent(out) :: qr_out
     real(rk), dimension(3), intent(in) :: x
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik) :: ii, jj, kk
+    integer(ik) :: i0, j0, k0
+    integer(ik) :: i1, j1, k1
+    integer(ik) :: i2, j2, k2
     integer(ik) :: jstart, jend, kstart, kend
-    real(rks) :: dx, dy, dz
-    real(rks) :: xd, yd, zd
-    real(rks), dimension(3) :: c000, c100, c010, c110, c001, c101, c011, c111
-    real(rks), dimension(3) :: c00, c01, c10, c11
-    real(rks), dimension(3) :: c0, c1
-    real(rks), dimension(3) :: c
+    real(rk) :: dx, dy, dz
+    real(rk) :: xd, yd, zd
+    real(rk), dimension(3) :: c000, c100, c010, c110, c001, c101, c011, c111
+    real(rk), dimension(3) :: c00, c01, c10, c11
+    real(rk), dimension(3) :: c0, c1
+    real(rk), dimension(3) :: c
 
+    qr_out=0.0
+    
     dx=LBOX/real(nn(1)-1_ik,rk)
     dy=LBOX/real(gn2-1_ik,rk)
     dz=LBOX/real(gn3-1_ik,rk)
 
-    ii=max(min(int(ceiling(x(1)/dx),ik),nn(1)-1),1_rk)
-    jj=max(min(int(ceiling(x(2)/dy),ik),gn2-1),1_rk)
-    kk=max(min(int(ceiling(x(3)/dz),ik),gn3-1),1_ik)
+    i0=int(floor(x(1)/dx),ik)
+    j0=int(floor(x(2)/dy),ik)
+    k0=int(floor(x(3)/dz),ik)
 
-    jstart=ljstart+1
-    jend=ljstart+ljsize
-    if(jj<jstart.or.jj>jend) then
+    i1=i0+1
+    j1=j0+1
+    k1=k0+1
+
+    i2=i0+2
+    j2=j0+2
+    k2=k0+2
+
+    
+    if(i1<1.or.i2>nn(1)) then
        qr_out=0.0_rk
        return
     end if
 
-    kstart=lkstart+1
-    kend=lkstart+lksize
-    if(kk<kstart.or.kk>kend) then
+    jstart=ljstart
+    jend=ljstart+ljsize-1
+    if(j1<jstart.or.j2>jend) then
        qr_out=0.0_rk
        return
+    else
+       j1=j1-ljstart+1
+       j2=j2-ljstart+1
     end if
 
-    xd=x(1)-(ii-1)*dx
-    yd=x(2)-(jj-1)*dy
-    zd=x(3)-(kk-1)*dz 
+    kstart=lkstart
+    kend=lkstart+lksize-1
+    if(k1<kstart.or.k2>kend) then
+       qr_out=0.0_rk
+       return
+    else
+       k1=k1-lkstart+1
+       k2=k2-lkstart+1
+    end if
 
-    c000=qr(ii  ,jj  ,kk  ,1:3)
-    c100=qr(ii+1,jj  ,kk  ,1:3)
-    c010=qr(ii  ,jj+1,kk  ,1:3)
-    c110=qr(ii+1,jj+1,kk  ,1:3)
-    c001=qr(ii  ,jj  ,kk+1,1:3)
-    c101=qr(ii+1,jj  ,kk+1,1:3)
-    c011=qr(ii  ,jj+1,kk+1,1:3)
-    c111=qr(ii+1,jj+1,kk+1,1:3)
+    xd=modulo(x(1), dx)/dx
+    yd=modulo(x(2), dy)/dy
+    zd=modulo(x(3), dz)/dz 
+
+   
+    c000=qr(i1,j1,k1,1:3)
+    c100=qr(i2,j1,k1,1:3)
+    c010=qr(i1,j2,k1,1:3)
+    c110=qr(i2,j2,k1,1:3)
+    c001=qr(i1,j1,k2,1:3)
+    c101=qr(i2,j1,k2,1:3)
+    c011=qr(i1,j2,k2,1:3)
+    c111=qr(i2,j2,k2,1:3)
 
     c00=c000*(1-xd)+c100*xd
     c01=c001*(1-xd)+c101*xd
@@ -98,32 +123,42 @@ contains
     integer(ik) :: ns
     real(rk) :: eps=1.0e-3
     real(rk) :: val
+    real(rk) :: dx, dy, dz
+
+    !$acc update self(qr(1:nn(1),1:nn(2),1:nn(3),1:3),&
+    !$acc& ga(1:nn(1),1:nn(2),1:nn(3)))
     
     halfbox=LBOX/2.0_rk
-    quarterbox=LBOX/4.0
-    radius=halfbox
+    quarterbox=LBOX/4.0_rk
+    radius=quarterbox
     center=halfbox
     vol=LBOX**3
+
+    dx=LBOX/real(nn(1),rk)
+    dy=LBOX/real(gn2,rk)
+    dz=LBOX/real(gn3,rk)
 
     val=0.0_rk
     do ns=1,nsects
        shat=s(ns,1:3)/dot_product(s(ns,1:3),s(ns,1:3))
-       point(1:3)=center(1:3)+radius*shat(1:3)
+       point(1:3)=center(1:3)+radius*s(ns,1:3)
        call interpolate_qr(nn,qr,qr_vec,point)
        qr_proj=dot_product(qr_vec,s(ns,1:3))
        val=val+qr_proj
     end do
 
-    red=(sum(ga)/vol)/CLIGHT
+    red=(sum(ga)*dx*dy*dz)/CLIGHT
     sbuf(1)=val
     sbuf(2)=red
-    call mpi_reduce(sbuf,rbuf,2_i4b,MPIRK,MPI_SUM,MPIROOT,MPI_COMM_WORLD,mpierr)
+    call mpi_reduce(sbuf,rbuf,2_i4b,MPIRK,&
+         &MPI_SUM,MPIROOT,MPI_COMM_WORLD,mpierr)
     val=rbuf(1)
     red=rbuf(2)
-    if(mpirank==MPIROOT) write(432,*) time, val*radius**2, red
-    
-    flush(432)
-    
+    if(mpirank==MPIROOT) then
+       write(432,*) time, val*radius**2, red
+       flush(432)
+    end if
+        
     return
     
   end subroutine integrate_qr
@@ -336,7 +371,7 @@ contains
   subroutine project(nn,fu,press)
     use mpi
     use mpivars
-    use data, only:wv,nu1,nb1,isactive,scratch,zero
+    use data, only: wv,nu1,nb1,isactive,scratch,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
@@ -405,7 +440,6 @@ contains
        scratch(:,:,:,1)=press(:,:,:)
        call fourier(nn,-1_ik,scratch,nfs=1_ik,nfe=1_ik)
        press(:,:,:)=scratch(:,:,:,1)
-       !$acc update device(press(1:dim1(nn(1)),1:nn(2),1:nn(3)))
        call zero(nn,scratch)
     end if
     
@@ -838,49 +872,49 @@ contains
       call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
       call divergence(nnn, fdivqr, fqr)
 
-      nidx=1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      call zero(nn,scratch2)
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         fdivqr_tmp(i,j,k) = 0.0_rk
-      end do; end do ;  end do
-      !$omp end parallel do
-
-      call zero(nn,scratch2)
-      call copy(nn, scratch2, fu)
-      call shift(nn, 1_ik, scratch2)
-      call fourier(nn,-1_ik,scratch2)
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         temp(i,j,k)=scratch2(i,j,k,ntemp)
-      end do; end do ;  end do
-      !$omp end parallel do
-      
-      call calcia
-
-      nnn(1:3) = nn(1:3)
-      nnn(4) = 3_ik
-      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-      call divergence(nnn, fdivqr_tmp, fqr)
-
-      call zero(nn,scratch2)
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
-      end do; end do ;  end do
-      !$omp end parallel do
-
-      call shift(nn, -1_ik, scratch2 ,nfs=ntemp, nfe=ntemp,idx=nidx)
-
-      !$omp parallel do
-      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
-      end do; end do ;  end do
-      !$omp end parallel do
-
-      call zero(nn,scratch2)
+!!$      nidx=1
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!$      call zero(nn,scratch2)
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr_tmp(i,j,k) = 0.0_rk
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      call zero(nn,scratch2)
+!!$      call copy(nn, scratch2, fu)
+!!$      call shift(nn, 1_ik, scratch2)
+!!$      call fourier(nn,-1_ik,scratch2)
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         temp(i,j,k)=scratch2(i,j,k,ntemp)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$      
+!!$      call calcia
+!!$
+!!$      nnn(1:3) = nn(1:3)
+!!$      nnn(4) = 3_ik
+!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+!!$      call divergence(nnn, fdivqr_tmp, fqr)
+!!$
+!!$      call zero(nn,scratch2)
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      call shift(nn, -1_ik, scratch2 ,nfs=ntemp, nfe=ntemp,idx=nidx)
+!!$
+!!$      !$omp parallel do
+!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
+!!$      end do; end do ;  end do
+!!$      !$omp end parallel do
+!!$
+!!$      call zero(nn,scratch2)
 !!$      
 !!$
 !!$      nidx=2
@@ -2481,11 +2515,15 @@ contains
     if(.not.allocated(tmp)) allocate(tmp(1:nn(4)))
 
     call msvalue(nn,fu,tmp)
-    !$omp parallel do
-    do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       fu(i,j,k,l)=fu(i,j,k,l)/sqrt(tmp(nu1))
-    end do; end do ; end do ; end do
-    !$omp end parallel do
+
+    if(tmp(nu1)/=0.0) then
+       !$omp parallel do
+       do l=nu1,nu3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+          fu(i,j,k,l)=fu(i,j,k,l)/sqrt(tmp(nu1))
+       end do; end do ; end do ; end do
+       !$omp end parallel do
+    end if
+
     if(PASSIVE_SCALAR) then
        !$omp parallel do
        do l=nsclf,nscll ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
@@ -2644,6 +2682,8 @@ contains
        end if
     end if
 
+    if(mvel==0.0) dt=0.05
+    
     !Set auxiliary arrays back to zero
     call zero(nn,rmsarr)
 
@@ -2705,11 +2745,11 @@ contains
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, ghostleft, ghostright,&
          &ia, iba, ntemp, sgn, s, copy, left, right,&
-         &is_wq, omeg,copy,zero,ga,qr,temp,nn
+         &is_wq, omeg,copy,zero,ga,qr,temp,nn,press
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: ns
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Explicit MPI method for the calculation of the radiative intensity !
@@ -2722,10 +2762,13 @@ contains
     integer :: nit, maxiter, maxloc, maxrank
     real(rk), dimension(1, 2) :: sbuf2, rbuf2
     integer(ik) :: maxerr_rank
+    integer(ik) :: ngangs, vlength
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        
-    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
 
+    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
+    !$acc update device(press(1:nn(1), 1:nn(2), 1:nn(3)))
+
+    
     ! iteration loop      
     iterloop:do nit=1,niterdo
 
@@ -2735,57 +2778,62 @@ contains
        !$acc update device(ghostleft(1:nn(1), 1:nn(2), 1:nsects),&
        !$acc& ghostright(1:nn(1), 1:nn(2), 1:nsects))
 
-       maxerr = 0.0_rk
-       err = 0.0_rk
-       !$acc parallel private(err) reduction(max:maxerr) 
+       maxerr = 0.0
+       vlength=32
+       ngangs=nsects
+       !$acc parallel copy(maxerr) reduction(max:maxerr)
 
-       !acc loop independent collapse(3)
+       !$acc loop independent collapse(3)
        do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
           ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
           ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
        end do; end do ; end do
-       
-       !acc loop independent collapse(4)
-       do ns=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       !$acc end loop
+
+       !$acc loop independent collapse(4)
+       do ns=1,nsects ; do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
           iba(i, j, k, ns) = ia(i, j, k, ns)
        end do; end do ; end do ; end do
        !$acc end loop
 
-       !$acc loop seq
+
        ! sweep the domain in 8 directions, one from each corneρ
+       !$acc loop seq
        sweeploop: do sd=1,8
-          !$acc loop independent gang vector
+          !$acc loop seq
           do ns=1,nsects             
              ! sweep...
              if(is_wq(sd,ns)) then
-                !$acc loop seq collapse(3)
+                !$acc loop seq
                 do k=kstart(sd),kend(sd),kstep(sd)
+                   !$acc loop seq
                    do j=jstart(sd),jend(sd),jstep(sd)
+                      !$acc loop seq 
                       do i=istart(sd),iend(sd),istep(sd)
                          ! update the cell's radiative intensity
                          ! according to the step scheme
                          call cell_step_scheme(ns, i, j, k)
                       end do
+                      !$acc end loop
                    end do
+                   !$acc end loop
                 end do
+                !$acc end loop
              end if
-          end do          
+          end do
+          !$acc end loop
        end do sweeploop
        !$acc end loop
-       ! calculate maximum error and its position for each MPI process
-       maxerr = 0.0
-       err = 0.0
-       ierr = 0
-       jerr = 0
-       kerr = 0
-       !$acc loop independent gang vector private(err) reduction(max: maxerr) &
-       !$acc& collapse(4)
+
+       
+       ! calculate maximum error
+       !$acc loop independent reduction(max:maxerr) collapse(4)
        do ns=1,nsects
           do k=1,nn(3)
              do j=1,nn(2)
                 do i=1,nn(1)
-                   err = abs(ia(i, j, k, ns) - iba(i, j, k, ns))
-                   if(err > maxerr) maxerr = err
+                   maxerr = max(maxerr, abs(ia(i, j, k, ns) &
+                        &- iba(i, j, k, ns)))      
                 end do
              end do
           end do
@@ -2797,9 +2845,11 @@ contains
           left(i, j, ns) = ia(i, j, 1_ik, ns)
           right(i, j, ns) = ia(i, j, nn(3), ns)
        end do; end do ; end do
+       !$acc end loop
+
        !$acc end parallel
 
-       
+
 !!$          !reduce maximum error across processes
 !!$          sbuf(1) = maxerr
 !!$          call mpi_allreduce(sbuf, rbuf, 1_i4b, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, mpierr)
@@ -2813,17 +2863,17 @@ contains
        maxerr = rbuf(1)
 
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
-       
+
        if(maxerr < FVTOL) then
           exit iterloop  
        end if
-       
+
     end do iterloop
 
-    !$acc update self(ia(1:nn(1),1:nn(2),0:nn(3)+1,1:nsects))
-    
+    !    !$acc update self(ia(1:nn(1),1:nn(2),0:nn(3)+1,1:nsects))
+
     call calcqr
-    
+
 !!$
 !!$    ! find the process in which the maximum error occurs
 !!$    sbuf2(1,1) = maxerr
@@ -2984,29 +3034,43 @@ contains
     ! calculates radiative heat flux and incindent radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
-    real(rk) :: maxga, tqr(1:3), tga
+    real(rk) :: maxga, tqr1, tqr2, tqr3, tga
 
-
+    !$acc parallel
+    !$acc loop independent collapse(3)
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0
        qr(i, j, k, 1:3) = 0.0
     end do;  end do ;  end do
+    !$acc end loop
 
+    !$acc loop independent collapse(3) private(tqr1,tqr2,tqr3,tga)
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
-       tqr(1:3)=0.0
+       tqr1=0.0
+       tqr2=0.0
+       tqr3=0.0
        tga=0.0
+       !$acc loop independent reduction(+:tqr1,tqr2,tqr3,tga)
        do ns=1,nsects
           !qr = sum ia * s
           ! add contribution of direction s
-          tqr(1:3) = tqr(1:3) + (ia(i, j, k, ns) * s(ns,1:3))
+          tqr1 = tqr1 + (ia(i, j, k, ns) * s(ns,1))
+          tqr2 = tqr2 + (ia(i, j, k, ns) * s(ns,2))
+          tqr3 = tqr3 + (ia(i, j, k, ns) * s(ns,3))
           !G = sum ia * omega
           ! same for the incindent radiation
           tga = tga + (ia(i, j, k, ns) * omeg(ns))
        end do
-       qr(i, j, k, 1:3) = tqr(1:3)
+       !$acc end do
+       qr(i, j, k, 1) = tqr1
+       qr(i, j, k, 2) = tqr2
+       qr(i, j, k, 3) = tqr3
        ga(i, j, k) = tga 
     end do; end do; end do
+    !$acc end do
+    !$acc end parallel
 
+    
     return
 
   end subroutine calcqr
@@ -3065,10 +3129,10 @@ contains
     sp = (STEFB / PI) * temp(i, j, k) ** 4
 
     T=temp(i,j,k)
-    y = (t - TEMPMIN) / (TEMPMAX - TEMPMIN)
+    y = (T - TEMPMIN) / (TEMPMAX - TEMPMIN)
     y = max(0.0_rk, min(1.0_rk, real(y, rk)))
     p = press(i,j,k)
-    fac = absorb(T, y, p, 1_ik) * &
+    fac = absorb(T, y, p, 0_ik) * &
          &vol * omeg(ns) ! auxiliary factor
 
     nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)
@@ -3081,7 +3145,7 @@ contains
   end subroutine cell_step_scheme
 
   pure subroutine faces_step_scheme(ns, i, j, k, faces_step, surf)
-    use data, only: nn, ia
+    use data, only: nn, iba
     use parameters, only: PI, LBOX
     implicit none
     !$acc routine seq
@@ -3102,12 +3166,12 @@ contains
     ! set surface area of cell faces
     surf(1:6) = tmp
 
-    faces_step(1) = ia(per(i + 1), j, k, ns)
-    faces_step(2) = ia(per(i - 1), j, k, ns)
-    faces_step(3) = ia(i, per(j + 1), k, ns)
-    faces_step(4) = ia(i, per(j - 1), k, ns)
-    faces_step(5) = ia(i, j, k + 1, ns)
-    faces_step(6) = ia(i, j, k - 1, ns)
+    faces_step(1) = iba(per(i + 1), j, k, ns)
+    faces_step(2) = iba(per(i - 1), j, k, ns)
+    faces_step(3) = iba(i, per(j + 1), k, ns)
+    faces_step(4) = iba(i, per(j - 1), k, ns)
+    faces_step(5) = iba(i, j, k + 1, ns)
+    faces_step(6) = iba(i, j, k - 1, ns)
 
     return
 
