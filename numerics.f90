@@ -342,7 +342,7 @@ contains
     use data, only: scratch,copy,tr_wv_idx
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(inout)               :: fu
     integer(ik) :: i,j,k,l,jplus,jminus
     real(rk) ::  tmp1, tmp2
 
@@ -2768,7 +2768,7 @@ contains
     !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc update device(press(1:nn(1), 1:nn(2), 1:nn(3)))
 
-    
+
     ! iteration loop      
     iterloop:do nit=1,niterdo
 
@@ -2779,71 +2779,66 @@ contains
        !$acc& ghostright(1:nn(1), 1:nn(2), 1:nsects))
 
        maxerr = 0.0
-       vlength=32
+       vlength=nsects
        ngangs=nsects
        !$acc parallel copy(maxerr) reduction(max:maxerr)
 
-       !$acc loop independent collapse(3)
-       do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-          ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
-          ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
+       !$acc loop independent gang collapse(3)
+       do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+          ia(ns, i, j, 0_ik) = ghostleft(i, j, ns)
+          ia(ns, i, j, nn(3) + 1) = ghostright(i, j, ns)
        end do; end do ; end do
        !$acc end loop
 
-       !$acc loop independent collapse(4)
-       do ns=1,nsects ; do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1)
-          iba(i, j, k, ns) = ia(i, j, k, ns)
+       !$acc loop independent gang collapse(4)
+       do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+          iba(ns, i, j, k) = ia(ns, i, j, k)
        end do; end do ; end do ; end do
        !$acc end loop
 
 
        ! sweep the domain in 8 directions, one from each corneρ
-       !$acc loop seq
+       !$acc loop independent gang
        sweeploop: do sd=1,8
-          !$acc loop seq
-          do ns=1,nsects             
-             ! sweep...
-             if(is_wq(sd,ns)) then
-                !$acc loop seq
-                do k=kstart(sd),kend(sd),kstep(sd)
-                   !$acc loop seq
-                   do j=jstart(sd),jend(sd),jstep(sd)
-                      !$acc loop seq 
-                      do i=istart(sd),iend(sd),istep(sd)
-                         ! update the cell's radiative intensity
-                         ! according to the step scheme
-                         call cell_step_scheme(ns, i, j, k)
-                      end do
-                      !$acc end loop
+          ! sweep...
+          !$acc loop independent gang 
+          do k=kstart(sd),kend(sd),kstep(sd)
+             !$acc loop independent gang
+             do j=jstart(sd),jend(sd),jstep(sd)
+                !$acc loop independent gang
+                do i=istart(sd),iend(sd),istep(sd)
+                   !$acc loop independent gang
+                   do ns=1,nsects             
+                      ! update the cell's radiative intensity
+                      ! according to the step scheme
+                      if(is_wq(sd,ns)) call cell_step_scheme(ns, i, j, k)
                    end do
-                   !$acc end loop
                 end do
-                !$acc end loop
-             end if
+             end do
           end do
           !$acc end loop
        end do sweeploop
        !$acc end loop
 
-       
+
        ! calculate maximum error
-       !$acc loop independent reduction(max:maxerr) collapse(4)
-       do ns=1,nsects
-          do k=1,nn(3)
-             do j=1,nn(2)
-                do i=1,nn(1)
-                   maxerr = max(maxerr, abs(ia(i, j, k, ns) &
-                        &- iba(i, j, k, ns)))      
+       !$acc loop independent gang reduction(max:maxerr) collapse(4)
+       do k=1,nn(3)
+          do j=1,nn(2)
+             do i=1,nn(1)
+                do ns=1,nsects
+                   maxerr = max(maxerr, real(abs((ia(ns, i, j, k) &
+                        &- iba(ns, i, j, k)) / ia(ns, i, j, k)), rk))      
                 end do
              end do
           end do
        end do
        !$acc end loop
 
-       !$acc loop independent collapse(3)
-       do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-          left(i, j, ns) = ia(i, j, 1_ik, ns)
-          right(i, j, ns) = ia(i, j, nn(3), ns)
+       !$acc loop independent gang collapse(3)
+       do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+          left(i, j, ns) = ia(ns, i, j, 1_ik)
+          right(i, j, ns) = ia(ns, i, j, nn(3))
        end do; end do ; end do
        !$acc end loop
 
@@ -2981,14 +2976,14 @@ contains
 
       if(dir == R2L) then
          !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            sendbuf(i, j, ns) = ia(i, j, 1, ns)
+         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+            sendbuf(i, j, ns) = ia(ns, i, j, 1)
          end do; end do; end do
          !$omp end parallel do
       else
          !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            sendbuf(i, j, ns) = ia(i, j, nn(3), ns)
+         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+            sendbuf(i, j, ns) = ia(ns, i, j, nn(3))
          end do; end do; end do
          !$omp end parallel do
       end if
@@ -3054,12 +3049,12 @@ contains
        do ns=1,nsects
           !qr = sum ia * s
           ! add contribution of direction s
-          tqr1 = tqr1 + (ia(i, j, k, ns) * s(ns,1))
-          tqr2 = tqr2 + (ia(i, j, k, ns) * s(ns,2))
-          tqr3 = tqr3 + (ia(i, j, k, ns) * s(ns,3))
+          tqr1 = tqr1 + (ia(ns, i, j, k) * s(ns,1))
+          tqr2 = tqr2 + (ia(ns, i, j, k) * s(ns,2))
+          tqr3 = tqr3 + (ia(ns, i, j, k) * s(ns,3))
           !G = sum ia * omega
           ! same for the incindent radiation
-          tga = tga + (ia(i, j, k, ns) * omeg(ns))
+          tga = tga + (ia(ns, i, j, k) * omeg(ns))
        end do
        !$acc end do
        qr(i, j, k, 1) = tqr1
@@ -3076,7 +3071,7 @@ contains
   end subroutine calcqr
   
   subroutine cell_step_scheme(ns, i, j, k)
-    use data, only: nn, ia, s, omeg, temp, press
+    use data, only: nn, ia, s, omeg, temp, press, dotprds
     use parameters, only: PI, STEFB, LBOX
     implicit none
     !$acc routine seq
@@ -3088,19 +3083,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(8) :: dotprd, sumin, sumout 
     real(8) :: sp, nom, denom, fac
-    real(8), dimension(6, 3) :: norm ! norm(nface, 1:3) unit vector normal to finite volume face
     real(8), dimension(6) :: surf ! surf(nface) finite volume face surface area
     real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
     integer(8) :: nface
     real(8) :: vol, y, T, p
-
-    ! set normal unit vectors for each face of the spatial control volume
-    norm(1, 1:3) = (/  1.0,  0.0,  0.0 /)
-    norm(2, 1:3) = (/ -1.0,  0.0,  0.0 /)
-    norm(3, 1:3) = (/  0.0,  1.0,  0.0 /)
-    norm(4, 1:3) = (/  0.0, -1.0,  0.0 /)
-    norm(5, 1:3) = (/  0.0,  0.0,  1.0 /)
-    norm(6, 1:3) = (/  0.0,  0.0, -1.0 /)
 
     ! initialize fluxes to zero
     faces_step(:) = 0.0
@@ -3115,7 +3101,7 @@ contains
     sumout = 0.0 ! sum of outgoing intensities
     !$acc loop seq
     do nface=1,6 ! loop over finite volume faces
-       dotprd = dot_product(s(ns, :), norm(nface, :)) 
+       dotprd = dotprds(nface,ns)
        if(dotprd < 0.0) then ! s is incoming
           sumin = sumin + faces_step(nface) * (-dotprd) * surf(nface)
        else ! s is outgoing
@@ -3138,14 +3124,14 @@ contains
     nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)
 
     denom = fac + sumout ! denominator of eq. (17.62) 
-    ia(i, j, k, ns) =  nom / denom ! update radiative intensity
+    ia(ns, i, j, k) =  nom / denom ! update radiative intensity
 
     return
 
   end subroutine cell_step_scheme
 
   pure subroutine faces_step_scheme(ns, i, j, k, faces_step, surf)
-    use data, only: nn, iba
+    use data, only: nn, ia
     use parameters, only: PI, LBOX
     implicit none
     !$acc routine seq
@@ -3166,12 +3152,12 @@ contains
     ! set surface area of cell faces
     surf(1:6) = tmp
 
-    faces_step(1) = iba(per(i + 1), j, k, ns)
-    faces_step(2) = iba(per(i - 1), j, k, ns)
-    faces_step(3) = iba(i, per(j + 1), k, ns)
-    faces_step(4) = iba(i, per(j - 1), k, ns)
-    faces_step(5) = iba(i, j, k + 1, ns)
-    faces_step(6) = iba(i, j, k - 1, ns)
+    faces_step(1) = ia(ns,per(i + 1), j, k)
+    faces_step(2) = ia(ns,per(i - 1), j, k)
+    faces_step(3) = ia(ns,i, per(j + 1), k)
+    faces_step(4) = ia(ns,i, per(j - 1), k)
+    faces_step(5) = ia(ns,i, j, k + 1)
+    faces_step(6) = ia(ns,i, j, k - 1)
 
     return
 

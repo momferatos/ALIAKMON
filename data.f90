@@ -84,6 +84,8 @@ module data
   !$acc declare create(s)
   real(rk), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
   !$acc declare create(omeg)
+  real(rk), dimension(:,:), allocatable :: dotprds
+  !$acc declare create(dotprds)
   integer(ik) :: nnphi
   ! sign vectors used to check the direction of the shat vector
   real(rk), dimension(8, 3) :: sgn
@@ -131,11 +133,12 @@ contains
     end if
 
     !allocate memory
-    if(.not.allocated(ia)) allocate(ia(1:nn(1), 1:nn(2), 0:nn(3)+1, 1:nsects))
-    !$acc enter data create(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
-    if(.not.allocated(iba)) allocate(iba(1:nn(1), 1:nn(2), 0:nn(3)+1, &
-         &1:nsects))
-    !$acc enter data create(iba(1:nn(1), 1:nn(2), 0:nn(3)+1, 1:nsects))
+    if(.not.allocated(ia)) allocate(ia(1:nsects,1:nn(1), 1:nn(2), &
+         &0:nn(3)+1))
+    !$acc enter data create(ia(1:nsects,1:nn(1), 1:nn(2), 0:nn(3) + 1))
+    if(.not.allocated(iba)) allocate(iba(1:nsects, 1:nn(1), 1:nn(2), &
+         &0:nn(3)+1))
+    !$acc enter data create(iba(1:nsects,1:nn(1), 1:nn(2), 0:nn(3)+1))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc enter data create(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -151,7 +154,9 @@ contains
     !$acc enter data create(s(1:nsects, 1:3))
     if(.not.allocated(omeg)) allocate(omeg(1:nsects))
     !$acc enter data create(omeg(1:nsects))
-
+    if(.not.allocated(dotprds)) allocate(dotprds(1:6, 1:nsects))
+    !$acc enter data create(dotprds(1:6, 1:nsects))
+    
     !$acc enter data create(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
 
@@ -199,6 +204,8 @@ contains
     !$acc exit data delete(s)
     if(allocated(omeg)) deallocate(omeg)
     !$acc exit data delete(omeg)
+    if(allocated(dotprds)) deallocate(dotprds)
+    !$acc exit data delete(dotprds)
 
     !$acc exit data delete(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
@@ -233,24 +240,24 @@ contains
     integer(ik) :: m, mp, ns, i, j, k, l
     integer(ik) :: isl, iel, jsl, jel, ksl, kel
     real(rk), dimension(3) :: shat
-    integer(ik) :: sd
-
+    integer(ik) :: sd, nface
+    real(8), dimension(6, 3) :: norm ! norm(nface, 1:3) unit vector normal to finite volume face
     !nsects = 80
     
     ! initialize radiative intensities to zero
     !$omp parallel do 
-    do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       ia(i, j, k, l) = 0.0_rk
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+       ia(ns, i, j, k) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(ia(1:n1, 1:n2, 0:nn(3)+1, 1:nsects))
+    !$acc update device(ia(1:nsects,1:n1, 1:n2, 0:nn(3)+1))
 
     !$omp parallel do 
-    do l=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       iba(i, j, k, l) = 0.0_rk
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+       iba(ns, i, j, k) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(iba(1:n1, 1:n2, 1:nn(3), 1:nsects))
+    !$acc update device(iba(1:nsects,1:n1, 1:n2, 1:nn(3)))
 
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -297,6 +304,21 @@ contains
     call sectors
     !$acc update device(s(1:nsects,1:3), omeg(1:nsects))
 
+    ! set normal unit vectors for each face of the spatial control volume
+    norm(1, 1:3) = (/  1.0,  0.0,  0.0 /)
+    norm(2, 1:3) = (/ -1.0,  0.0,  0.0 /)
+    norm(3, 1:3) = (/  0.0,  1.0,  0.0 /)
+    norm(4, 1:3) = (/  0.0, -1.0,  0.0 /)
+    norm(5, 1:3) = (/  0.0,  0.0,  1.0 /)
+    norm(6, 1:3) = (/  0.0,  0.0, -1.0 /)
+    
+    do nface=1,6
+       do ns=1,nsects
+          dotprds(nface,ns) = dot_product(s(ns, :), norm(nface, :)) 
+       end do
+    end do
+
+    !$acc update device(dotprds(1:6,1:nsects))
     isl = 1
     iel = nn(1)
 
