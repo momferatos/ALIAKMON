@@ -133,12 +133,12 @@ contains
     end if
 
     !allocate memory
-    if(.not.allocated(ia)) allocate(ia(1:nsects,1:nn(1), 1:nn(2), &
+    if(.not.allocated(ia)) allocate(ia(1:nsects,0:nn(1)+1, 0:nn(2)+1, &
          &0:nn(3)+1))
-    !$acc enter data create(ia(1:nsects,1:nn(1), 1:nn(2), 0:nn(3) + 1))
-    if(.not.allocated(iba)) allocate(iba(1:nsects, 1:nn(1), 1:nn(2), &
+    !$acc enter data create(ia(1:nsects,0:nn(1)+1, 0:nn(2)+1, 0:nn(3) + 1))
+    if(.not.allocated(iba)) allocate(iba(1:nsects, 0:nn(1)+1, 0:nn(2)+1, &
          &0:nn(3)+1))
-    !$acc enter data create(iba(1:nsects,1:nn(1), 1:nn(2), 0:nn(3)+1))
+    !$acc enter data create(iba(1:nsects,0:nn(1)+1, 0:nn(2)+1, 0:nn(3)+1))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc enter data create(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -173,8 +173,8 @@ contains
     if(.not.allocated(right)) allocate(right(1:n1, 1:n2, 1:nsects))
     !$acc enter data create(right(1:n1, 1:n2, 1:nsects))
 
-    if(.not.allocated(is_wq)) allocate(is_wq(1:8, 1:nsects))
-    !$acc enter data create(is_wq(1:8, 1:nsects))
+    if(.not.allocated(is_wq)) allocate(is_wq(1:nsects, 1:8))
+    !$acc enter data create(is_wq(1:nsects, 1:8))
 
     return
 
@@ -246,18 +246,18 @@ contains
     
     ! initialize radiative intensities to zero
     !$omp parallel do 
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+    do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
        ia(ns, i, j, k) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(ia(1:nsects,1:n1, 1:n2, 0:nn(3)+1))
+    !$acc update device(ia(1:nsects,0:n1+1, 0:n2+1, 0:nn(3)+1))
 
     !$omp parallel do 
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+    do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
        iba(ns, i, j, k) = 0.0_rk
     end do; end do ; end do ; end do
     !$omp end parallel do
-    !$acc update device(iba(1:nsects,1:n1, 1:n2, 1:nn(3)))
+    !$acc update device(iba(1:nsects,0:n1+1, 0:n2+1, 0:nn(3)+1))
 
     !$omp parallel do 
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
@@ -352,14 +352,15 @@ contains
     !$acc update device(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
 
-    do ns=1,nsects
-       do sd=1,8
+    
+    do sd=1,8
+       do ns=1,nsects
           ! direction cosines of s
           shat = s(ns, 1:3) / sqrt(dot_product(s(ns, 1:3), s(ns, 1:3))) 
-          is_wq(sd, ns) = all(sgn(sd, 1:3) * shat(1:3) >= 0.0)
+          is_wq(ns,sd) = all(sgn(sd, 1:3) * shat(1:3) >= 0.0)
        end do
     end do
-    !$acc update device(is_wq(1:8, 1:nsects))
+    !$acc update device(is_wq(1:nsects,1:8))
 
     return
 

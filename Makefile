@@ -4,7 +4,7 @@ MPICXX = mpic++
 
 DEBUGFLAGS = -cpp -g -Mbounds # -Ktrap=denorm,divz,inexact,inv,ovf,unf
 OPTFLAGS=-fast -fastsse -tp=native 
-BUILDFLAGS = $(OPTFLAGS)
+BUILDFLAGS = $(OPTbFLAGS)
 
 OMPFLAGS= -D _OPENMP_ -mp=multicore
 MPIFLAGS= -D _MPI_

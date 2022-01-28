@@ -2745,7 +2745,7 @@ contains
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, ghostleft, ghostright,&
          &ia, iba, ntemp, sgn, s, copy, left, right,&
-         &is_wq, omeg,copy,zero,ga,qr,temp,nn,press
+         &is_wq, omeg,copy,zero,ga,qr,temp,nn,press,dotprds
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
@@ -2764,6 +2764,12 @@ contains
     integer(ik) :: maxerr_rank
     integer(ik) :: ngangs, vlength
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    real(8) :: dotprd, sumin, sumout 
+    real(8) :: sp, nom, denom, fac
+    real(8) :: surf ! surf(nface) finite volume face surface area
+    real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
+    integer(8) :: nface
+    real(8) :: vol, y, T, p
 
     !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc update device(press(1:nn(1), 1:nn(2), 1:nn(3)))
@@ -2781,48 +2787,105 @@ contains
        maxerr = 0.0
        vlength=nsects
        ngangs=nsects
-       !$acc parallel copy(maxerr) reduction(max:maxerr)
 
-       !$acc loop independent gang collapse(3)
+       !$acc parallel &
+       !$acc& private(dotprd, sumin, sumout , &
+       !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
+       !$acc& vol, y, T, p, tmp)
+
+       !$acc loop independent collapse(3)
        do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
           ia(ns, i, j, 0_ik) = ghostleft(i, j, ns)
           ia(ns, i, j, nn(3) + 1) = ghostright(i, j, ns)
        end do; end do ; end do
        !$acc end loop
 
-       !$acc loop independent gang collapse(4)
-       do k=0,nn(3)+1 ; do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+       !$acc loop independent collapse(4)
+       do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
           iba(ns, i, j, k) = ia(ns, i, j, k)
        end do; end do ; end do ; end do
        !$acc end loop
 
 
        ! sweep the domain in 8 directions, one from each corneρ
-       !$acc loop independent gang
+       !$acc loop seq
        sweeploop: do sd=1,8
+
+          !$acc loop independent collapse(3)
+          do k=1,nn(3) ; do j=1,nn(2) ; do ns=1,nsects
+             ia(ns, 0, j, k) =  ia(ns, nn(1), j, k)  
+             ia(ns, nn(1)+1, j, k) = ia(ns, 1, j, k)
+          end do; end do ; end do
+          !$acc end loop
+
+          !$acc loop independent collapse(3)
+          do k=1,nn(3) ; do i=1,nn(1) ; do ns=1,nsects
+             ia(ns, i, 0, k) = ia(ns, i, nn(2), k) 
+             ia(ns, i, nn(2)+1, k) = ia(ns, i, 1, k)
+          end do; end do ; end do
+          !$acc end loop
+
           ! sweep...
-          !$acc loop independent gang 
+          !$acc loop independent collapse(4)
           do k=kstart(sd),kend(sd),kstep(sd)
-             !$acc loop independent gang
              do j=jstart(sd),jend(sd),jstep(sd)
-                !$acc loop independent gang
                 do i=istart(sd),iend(sd),istep(sd)
-                   !$acc loop independent gang
-                   do ns=1,nsects             
-                      ! update the cell's radiative intensity
-                      ! according to the step scheme
-                      if(is_wq(sd,ns)) call cell_step_scheme(ns, i, j, k)
+                   do ns=1,nsects
+                      if(is_wq(ns,sd))  then
+                         ! update the cell's radiative intensity
+                         ! according to the step scheme
+
+                         ! set surface area of cell faces
+                         surf = (LBOX / real(nn(1), rk)) ** 2
+
+                         faces_step(1) = ia(ns,i + 1, j, k)
+                         faces_step(2) = ia(ns,i - 1, j, k)
+                         faces_step(3) = ia(ns,i, j + 1, k)
+                         faces_step(4) = ia(ns,i, j - 1, k)
+                         faces_step(5) = ia(ns,i, j, k + 1)
+                         faces_step(6) = ia(ns,i, j, k - 1)
+                         !    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
+
+                         sumin = 0.0  ! sum of incoming intensities
+                         sumout = 0.0 ! sum of outgoing intensities
+                         !$acc loop seq reduction(+:sumin,sumout)
+                         do nface=1,6 ! loop over finite volume faces
+                            dotprd = dotprds(nface,ns)
+                            if(dotprd < 0.0) then ! s is incoming
+                               sumin = sumin + faces_step(nface) * (-dotprd) * surf
+                            else ! s is outgoing
+                               sumout = sumout + dotprd * surf
+                            end if
+                         end do
+                         !$acc end loop
+
+                         vol = (LBOX / real(nn(1), rk)) ** 3
+
+                         sp = (STEFB / PI) * temp(i, j, k) ** 4
+
+                         T=temp(i,j,k)
+                         y = (T - TEMPMIN) / (TEMPMAX - TEMPMIN)
+                         y = max(0.0_rk, min(1.0_rk, real(y, rk)))
+                         p = press(i,j,k)
+                         fac = absorb(T, y, p, 0_ik) * &
+                              &vol * omeg(ns) ! auxiliary factor
+
+                         nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)
+
+                         denom = fac + sumout ! denominator of eq. (17.62) 
+                         ia(ns, i, j, k) =  nom / denom ! update radiative intensity
+                         !call cell_step_scheme(ns, i, j, k)
+                      end if
                    end do
                 end do
              end do
           end do
           !$acc end loop
        end do sweeploop
-       !$acc end loop
 
 
        ! calculate maximum error
-       !$acc loop independent gang reduction(max:maxerr) collapse(4)
+       !$acc loop independent reduction(max:maxerr) collapse(4)
        do k=1,nn(3)
           do j=1,nn(2)
              do i=1,nn(1)
@@ -2835,7 +2898,7 @@ contains
        end do
        !$acc end loop
 
-       !$acc loop independent gang collapse(3)
+       !$acc loop independent collapse(3)
        do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
           left(i, j, ns) = ia(ns, i, j, 1_ik)
           right(i, j, ns) = ia(ns, i, j, nn(3))
@@ -2843,7 +2906,6 @@ contains
        !$acc end loop
 
        !$acc end parallel
-
 
 !!$          !reduce maximum error across processes
 !!$          sbuf(1) = maxerr
@@ -2908,7 +2970,7 @@ contains
          &dir, rank
     integer(i4b), parameter :: L2R = 0, R2L = 1
     integer(ik) :: i, j, ns
-
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     rank = mpirank
 
@@ -3039,7 +3101,7 @@ contains
     end do;  end do ;  end do
     !$acc end loop
 
-    !$acc loop independent collapse(3) private(tqr1,tqr2,tqr3,tga)
+    !$acc loop independent private(tqr1,tqr2,tqr3,tga)
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
        tqr1=0.0
        tqr2=0.0
@@ -3086,7 +3148,7 @@ contains
     real(8), dimension(6) :: surf ! surf(nface) finite volume face surface area
     real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
     integer(8) :: nface
-    real(8) :: vol, y, T, p
+    real(8) :: vol, y, T, p, tmp
 
     ! initialize fluxes to zero
     faces_step(:) = 0.0
@@ -3095,7 +3157,20 @@ contains
     surf(:) = 0.0
 
     ! calculate intensity on faces and face surface area
-    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
+    faces_step(:) = 0.0
+    surf(:) = 0.0
+
+    tmp = (LBOX / real(nn(1), rk)) ** 2
+    ! set surface area of cell faces
+    surf(1:6) = tmp
+
+    faces_step(1) = ia(ns,i + 1, j, k)
+    faces_step(2) = ia(ns,i - 1, j, k)
+    faces_step(3) = ia(ns,i, j + 1, k)
+    faces_step(4) = ia(ns,i, j - 1, k)
+    faces_step(5) = ia(ns,i, j, k + 1)
+    faces_step(6) = ia(ns,i, j, k - 1)
+!    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
 
     sumin = 0.0  ! sum of incoming intensities
     sumout = 0.0 ! sum of outgoing intensities
@@ -3152,10 +3227,10 @@ contains
     ! set surface area of cell faces
     surf(1:6) = tmp
 
-    faces_step(1) = ia(ns,per(i + 1), j, k)
-    faces_step(2) = ia(ns,per(i - 1), j, k)
-    faces_step(3) = ia(ns,i, per(j + 1), k)
-    faces_step(4) = ia(ns,i, per(j - 1), k)
+    faces_step(1) = ia(ns,i + 1, j, k)
+    faces_step(2) = ia(ns,i - 1, j, k)
+    faces_step(3) = ia(ns,i, j + 1, k)
+    faces_step(4) = ia(ns,i, j - 1, k)
     faces_step(5) = ia(ns,i, j, k + 1)
     faces_step(6) = ia(ns,i, j, k - 1)
 
@@ -3180,7 +3255,9 @@ contains
     else
        per = i
     end if
-        
+
+    per = i
+    
     return
 
   end function per
