@@ -390,7 +390,7 @@ program aliakmon
            temp(i,j,k)=u(i,j,k,ntemp)
         end do; end do ; end do
         !$omp end parallel do
-        call calcia
+        call calcia(nn, temp)
      end if
 
 

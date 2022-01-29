@@ -70,25 +70,22 @@ module data
   real(rks), dimension(:, :, :, :), allocatable, target ::  ia    ! radiation intensity
   !$acc declare create(ia)
   real(rks), dimension(:, :, :, :), allocatable, target ::  iba   ! radiation intensity at previous iteration
-  !$acc declare create(iba)
   real(rks), dimension(:, :, :), allocatable, target ::  temp   ! temperature buffer
   !$acc declare create(temp)
   real(rks), dimension(:, :, :), allocatable, target ::  ga   ! incident radiation
-  !$acc declare create(ga)
   real(rks), dimension(:, :, :, :), allocatable, target ::  qr   ! incident radiation
-  !$acc declare create(qr)
   real(rks), dimension(:, :, :, :), allocatable, target ::  fqr   ! incident radiation
   real(rks), dimension(:, :, :), allocatable, target ::  fdivqr
   real(rks), dimension(:, :, :), allocatable, target ::  fdivqr_tmp
-  real(rk), dimension(:, :), allocatable :: s      ! vector pointing at the direction of the center of the angular
+  real(rks), dimension(:, :), allocatable :: s      ! vector pointing at the direction of the center of the angular
   !$acc declare create(s)
-  real(rk), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
+  real(rks), dimension(:), allocatable :: omeg                                 ! solid angle per angular finite volume
   !$acc declare create(omeg)
-  real(rk), dimension(:,:), allocatable :: dotprds
+  real(rks), dimension(:,:), allocatable :: dotprds
   !$acc declare create(dotprds)
   integer(ik) :: nnphi
   ! sign vectors used to check the direction of the shat vector
-  real(rk), dimension(8, 3) :: sgn
+  real(rks), dimension(8, 3) :: sgn
   !$acc declare create(sgn(1:8, 1:3))
   integer(ik), dimension(8) :: istart, iend, istep ! starts, ends and steps of the i-sweep (step is +/- 1)
   !$acc declare create(istart(1:8), istep(1:8), iend(1:8))
@@ -138,13 +135,14 @@ contains
     !$acc enter data create(ia(1:nsects,0:nn(1)+1, 0:nn(2)+1, 0:nn(3) + 1))
     if(.not.allocated(iba)) allocate(iba(1:nsects, 0:nn(1)+1, 0:nn(2)+1, &
          &0:nn(3)+1))
-    !$acc enter data create(iba(1:nsects,0:nn(1)+1, 0:nn(2)+1, 0:nn(3)+1))
+    !$acc enter data create(iba(1:nsects,0:nn(1)+1, 0:nn(2)+1, 0:nn(3) + 1))
     if(.not.allocated(temp)) allocate(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc enter data create(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(ga)) allocate(ga(1:nn(1), 1:nn(2), 1:nn(3)))
-!!$acc enter data create(ga(1:nn(1), 1:nn(2), 1:nn(3)))
+    !$acc enter data create(ga(1:nn(1), 1:nn(2), 1:nn(3)))
     if(.not.allocated(qr)) allocate(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
-!!$acc enter data create(qr(1:nn(1), 1:nn(2), 1:nn(3), 1:3))
+    !$acc enter data create(qr(1:nn(1), 1:nn(2), 1:nn(3),1:3))
+    
     if(.not.allocated(fqr)) allocate(fqr(1:dim1(nn(1)), 1:nn(2), 1:nn(3), 1:3))
     if(.not.allocated(fdivqr)) allocate(fdivqr(1:dim1(nn(1)), 1:nn(2),&
          & 1:nn(3)))
@@ -190,16 +188,16 @@ contains
     if(allocated(ia)) deallocate(ia)
     !$acc exit data delete(ia)
     if(allocated(iba)) deallocate(iba)
-    !$acc exit data delete(iba)
+
     if(allocated(temp)) deallocate(temp)
     !$acc exit data delete(temp)
     if(allocated(ga)) deallocate(ga)
-!!$acc exit data delete(ga)
+
     if(allocated(qr)) deallocate(qr)
     if(allocated(fqr)) deallocate(fqr)
     if(allocated(fdivqr)) deallocate(fdivqr)
     if(allocated(fdivqr_tmp)) deallocate(fdivqr_tmp)
-!!$acc exit data delete(qr)
+
     if(allocated(s)) deallocate(s)
     !$acc exit data delete(s)
     if(allocated(omeg)) deallocate(omeg)
@@ -243,7 +241,7 @@ contains
     integer(ik) :: sd, nface
     real(8), dimension(6, 3) :: norm ! norm(nface, 1:3) unit vector normal to finite volume face
     !nsects = 80
-    
+
     ! initialize radiative intensities to zero
     !$omp parallel do 
     do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
@@ -264,25 +262,26 @@ contains
        ga(i, j, k) = 0.0_rk
     end do; end do ; end do
     !$omp end parallel do
-
-    !$omp parallel do 
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
-       fdivqr(i, j, k) = 0.0_rk
-       fdivqr_tmp(i, j, k) = 0.0_rk
-    end do; end do ; end do
-    !$omp end parallel do
-
+    !$acc update device(ga(1:n1, 1:n2, 1:nn(3)))
 
     !$omp parallel do 
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        qr(i, j, k, l) = 0.0_rk
     end do; end do ; end do; end do
     !$omp end parallel do
+    !$acc update device(qr(1:n1, 1:n2, 1:nn(3),1:3))
 
     !$omp parallel do 
     do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
        fqr(i, j, k, l) = 0.0_rk
     end do; end do ; end do; end do
+    !$omp end parallel do
+
+    !$omp parallel do 
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
+       fdivqr(i, j, k) = 0.0_rk
+       fdivqr_tmp(i, j, k) = 0.0_rk
+    end do; end do ; end do
     !$omp end parallel do
 
     !$omp parallel do
@@ -311,7 +310,7 @@ contains
     norm(4, 1:3) = (/  0.0, -1.0,  0.0 /)
     norm(5, 1:3) = (/  0.0,  0.0,  1.0 /)
     norm(6, 1:3) = (/  0.0,  0.0, -1.0 /)
-    
+
     do nface=1,6
        do ns=1,nsects
           dotprds(nface,ns) = dot_product(s(ns, :), norm(nface, :)) 
@@ -348,11 +347,11 @@ contains
     sgn(6, 1:3) = (/ -1,  1, -1 /)
     sgn(7, 1:3) = (/ -1, -1,  1 /)
     sgn(8, 1:3) = (/ -1, -1, -1 /)
-    
+
     !$acc update device(istart(1:8), iend(1:8),  jstart(1:8), jend(1:8),  kstart(1:8), kend(1:8), &
     !$acc& istep(1:8), jstep(1:8), kstep(1:8), sgn(1:8, 1:3))
 
-    
+
     do sd=1,8
        do ns=1,nsects
           ! direction cosines of s

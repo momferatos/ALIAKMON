@@ -848,7 +848,7 @@ contains
       real(8), external :: cptp
       real(8), external :: psatt
       real(8), external :: dtp
-      
+
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          fdivqr(i,j,k) = 0.0_rk
@@ -864,7 +864,7 @@ contains
       end do; end do ;  end do
       !$omp end parallel do
 
-      call calcia
+      call calcia(nn, temp)
 
       nnn(1:3) = nn(1:3)
       nnn(4) = 3_ik
@@ -872,115 +872,191 @@ contains
       call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
       call divergence(nnn, fdivqr, fqr)
 
-!!$      nidx=1
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$      call zero(nn,scratch2)
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr_tmp(i,j,k) = 0.0_rk
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      call zero(nn,scratch2)
-!!$      call copy(nn, scratch2, fu)
-!!$      call shift(nn, 1_ik, scratch2)
-!!$      call fourier(nn,-1_ik,scratch2)
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         temp(i,j,k)=scratch2(i,j,k,ntemp)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$      
-!!$      call calcia
-!!$
-!!$      nnn(1:3) = nn(1:3)
-!!$      nnn(4) = 3_ik
-!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-!!$      call divergence(nnn, fdivqr_tmp, fqr)
-!!$
-!!$      call zero(nn,scratch2)
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      call shift(nn, -1_ik, scratch2 ,nfs=ntemp, nfe=ntemp,idx=nidx)
-!!$
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      call zero(nn,scratch2)
-!!$      
-!!$
-!!$      nidx=2
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr_tmp(i,j,k) = 0.0_rk
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$      call zero(nn,scratch)
-!!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-!!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
-!!$      call calcia(nn,scratch)
 
-!!$      nnn(1:3) = nn(1:3)
-!!$      nnn(4) = 3_ik
-!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-!!$      call divergence(nnn, fdivqr_tmp, fqr)
-!!$
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         scratch(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
-!!$
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,ntemp)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      nidx=3
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr_tmp(i,j,k) = 0.0_rk
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$      call zero(nn,scratch)
-!!$      call copy(nn, scratch, fu, nfs=ntemp, nfe=ntemp)
-!!$      call shift(nn, 1_ik, scratch, nfs=1_ik, nfe=3_ik, idx=nidx)
-!!$      call calcia(nn,scratch)
-!!$
-!!$      nnn(1:3) = nn(1:3)
-!!$      nnn(4) = 3_ik
-!!$      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
-!!$      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
-!!$      call divergence(nnn, fdivqr_tmp, fqr)
-!!$
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         scratch(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
-!!$      call shift(nn, -1_ik, scratch, nfs=1_ik, nfe=1_ik, idx=nidx)
-!!$
-!!$      !$omp parallel do
-!!$      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch(i,j,k,ntemp)
-!!$      end do; end do ;  end do
-!!$      !$omp end parallel do
-!!$
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      nidx=1
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr_tmp(i,j,k) = 0.0_rk
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+      call copy(nn,scratch2,fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn,1_ik, scratch2, nfs=ntemp, nfe=ntemp, idx=nidx)
+      call fourier(nn,-1_ik,scratch2, nfs=ntemp, nfe=ntemp)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         temp(i,j,k)=scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call calcia(nn, temp)
+
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn,-1_ik,scratch2,nfs=ntemp, nfe=ntemp,idx=nidx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      nidx=1
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr_tmp(i,j,k) = 0.0_rk
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+      call copy(nn,scratch2,fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn,1_ik, scratch2, nfs=ntemp, nfe=ntemp, idx=nidx)
+      call fourier(nn,-1_ik,scratch2, nfs=ntemp, nfe=ntemp)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         temp(i,j,k)=scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call calcia(nn, temp)
+
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn,-1_ik,scratch2,nfs=ntemp, nfe=ntemp,idx=nidx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      nidx=2
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr_tmp(i,j,k) = 0.0_rk
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+      call copy(nn,scratch2,fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn,1_ik, scratch2, nfs=ntemp, nfe=ntemp, idx=nidx)
+      call fourier(nn,-1_ik,scratch2, nfs=ntemp, nfe=ntemp)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         temp(i,j,k)=scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call calcia(nn, temp)
+
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn,-1_ik,scratch2,nfs=ntemp, nfe=ntemp,idx=nidx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      nidx=3
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr_tmp(i,j,k) = 0.0_rk
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+      call copy(nn,scratch2,fu, nfs=ntemp, nfe=ntemp)
+      call shift(nn,1_ik, scratch2, nfs=ntemp, nfe=ntemp, idx=nidx)
+      call fourier(nn,-1_ik,scratch2, nfs=ntemp, nfe=ntemp)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         temp(i,j,k)=scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call calcia(nn, temp)
+
+      nnn(1:3) = nn(1:3)
+      nnn(4) = 3_ik
+      call copy(nnn, fqr, qr, nfs=1_ik, nfe=3_ik)
+      call fourier(nnn, 1_ik, fqr, nfs=1_ik, nfe=3_ik)
+      call divergence(nnn, fdivqr_tmp, fqr)
+
+      call zero(nn,scratch2)
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         scratch2(i,j,k,ntemp) = fdivqr_tmp(i,j,k)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call shift(nn,-1_ik,scratch2,nfs=ntemp, nfe=ntemp,idx=nidx)
+
+      !$omp parallel do
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         fdivqr(i,j,k) = fdivqr(i,j,k) + scratch2(i,j,k,ntemp)
+      end do; end do ;  end do
+      !$omp end parallel do
+
+      call zero(nn,scratch2)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       !$omp parallel do
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          fdivqr(i,j,k) = 0.5_rk * fdivqr(i,j,k)
@@ -2709,8 +2785,8 @@ contains
     !          
     !    https://www.sandia.gov/TNF/radiation.html
     !
-    real(rk) :: tt, yy
-    real(rk), dimension(4) :: A_H2O, B_H2O, C_H2O
+    real(4) :: tt, yy
+    real(4), dimension(4) :: A_H2O, B_H2O, C_H2O
     integer(ik) :: i, imode
 
     imode=0
@@ -2740,15 +2816,17 @@ contains
 
   end function absorb
 
-  subroutine calcia
+  subroutine calcia(nn, temp)
     use parameters, only: n1, nsects, niterdo, fvtol, LBOX, STEFB, PI
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, ghostleft, ghostright,&
          &ia, iba, ntemp, sgn, s, copy, left, right,&
-         &is_wq, omeg,copy,zero,ga,qr,temp,nn,press,dotprds
+         &is_wq, omeg,copy,zero,ga,qr,press,dotprds
     use mpi
     use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
     implicit none
+    integer(ik), dimension(1:4) :: nn
+    real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: temp
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: ns
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2826,7 +2904,10 @@ contains
           !$acc end loop
 
           ! sweep...
-          !$acc loop independent collapse(4)
+          !$acc loop independent collapse(4) &
+          !$acc& private(dotprd, sumin, sumout , &
+          !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
+          !$acc& vol, y, T, p, tmp)
           do k=kstart(sd),kend(sd),kstep(sd)
              do j=jstart(sd),jend(sd),jstep(sd)
                 do i=istart(sd),iend(sd),istep(sd)
@@ -2870,10 +2951,13 @@ contains
                          fac = absorb(T, y, p, 0_ik) * &
                               &vol * omeg(ns) ! auxiliary factor
 
-                         nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)
+                         ! numerator of eq. (17.62) in (Modest, 2013)
+                         nom = fac * sp + sumin 
 
-                         denom = fac + sumout ! denominator of eq. (17.62) 
-                         ia(ns, i, j, k) =  nom / denom ! update radiative intensity
+                         denom = fac + sumout ! denominator of eq. (17.62)
+                         
+                         ! update radiative intensity
+                         ia(ns, i, j, k) =  nom / denom 
                          !call cell_step_scheme(ns, i, j, k)
                       end if
                    end do
@@ -3126,7 +3210,6 @@ contains
     end do; end do; end do
     !$acc end do
     !$acc end parallel
-
     
     return
 
