@@ -280,6 +280,7 @@ program aliakmon
      call fourier(nn,1_ik,fu)
 
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
+     
   else
      if(mpirank == mpiroot) print *, 'Initial conditions...'
      call set_initial_conditions(nn,u,fu)
@@ -459,7 +460,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if(mpirank==MPIROOT) print *, 'Dissipation Peak'
     if(.not.FORCED.and..not.FORCED_MHD) then
-       TMAX=time+5.0*ETT
+       !TMAX=time+5.0*ETT
     end if
 
     nfilestrfun=nfilestrfun+1
@@ -519,7 +520,7 @@ contains
     call copy(nn,u,fu)
 
     call fourier(nn,-1_ik,u)
-    call write_hdf5_file(nn,u,time,num)
+    call write_hdf5_file(nn,u,time,num + NFILESTART)
 
     call zero(nn,u)
 

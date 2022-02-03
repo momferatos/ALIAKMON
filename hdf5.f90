@@ -1145,7 +1145,7 @@ contains
             &H5Z_FILTER_DECODE_ENABLED_F)
        if(filter_info .ne. filter_info_both) gzip_avail = .false.
     end if
-    
+
 #ifdef _MPI_
     ! 
     ! Setup file access property list with parallel I/O access.
@@ -1188,14 +1188,12 @@ contains
 
     !write mhd
     if(MHD) then
-       call read_hdf5_scalar_dataset('/b1',h5_scalar_data,nn)
-       u(1:nn(1),1:nn(2),1:nn(3),nb1)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
-
-       call read_hdf5_scalar_dataset('/b2',h5_scalar_data,nn)
-       u(1:nn(1),1:nn(2),1:nn(3),nb2)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
-
-       call read_hdf5_scalar_dataset('/b3',h5_scalar_data,nn)
-       u(1:nn(1),1:nn(2),1:nn(3),nb3)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
+       call read_hdf5_vector_dataset('/b',h5_vector_data,nn)
+       !$omp parallel do
+       do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+          u(i,j,k,nb1+l-1)=h5_vector_data(l,i,j,k)
+       end do; end do; end do; end do
+       !$omp end parallel do
     end if
 
     ! Deallocate data buffer.
@@ -1335,8 +1333,8 @@ contains
       offset(2) = 0
       offset(3) = ljstart-1
       offset(4) = lkstart-1
-      
-      
+
+
       call h5dopen_f(file_id, dataset_name, &
            dset_id, error)
 

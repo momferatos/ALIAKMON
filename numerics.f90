@@ -661,13 +661,14 @@ contains
 
     
     
-    ! project to zero divergence
-    if(.not.BURGERS) call project(nn,fnl,press)
+    
     if(INITCOND == freeslip) call apply_free_slip_bcs(nn,fu)
     ! compute diffusive terms
     call compute_diffusive_terms
 
-
+    ! project to zero divergence
+    if(.not.BURGERS) call project(nn,fnl,press)
+    
     ! set auxiliary arrays back to zero
     call zero(nn,u)
     call zero(nn,scratch)
