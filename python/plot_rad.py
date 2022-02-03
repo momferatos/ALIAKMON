@@ -17,5 +17,5 @@ for idir, pdir in enumerate(dirs):
     x, y, z = np.loadtxt(os.path.join(pdir, 'fort.432'), unpack=True)
     axs[0].plot(x, y, label=labels[idir])
     axs[1].plot(x, z, label=labels[idir])
-#xplt.legend(loc=0)
+plt.legend(loc=0)
 plt.show()

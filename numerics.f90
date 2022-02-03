@@ -2866,11 +2866,16 @@ contains
        vlength=nsects
        ngangs=nsects
 
-       !$acc parallel &
+       !$acc data present(nn, ia, iba, is_wq, dotprds, temp, press)
+
+       !$acc parallel copy(maxerr) &
        !$acc& private(dotprd, sumin, sumout , &
        !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
        !$acc& vol, y, T, p, tmp)
 
+#ifndef _OPENACC
+       !$omp parallel do 
+#endif
        !$acc loop independent collapse(3)
        do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
           ia(ns, i, j, 0_ik) = ghostleft(i, j, ns)
@@ -2878,6 +2883,9 @@ contains
        end do; end do ; end do
        !$acc end loop
 
+#ifndef _OPENACC
+       !$omp parallel do 
+#endif
        !$acc loop independent collapse(4)
        do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
           iba(ns, i, j, k) = ia(ns, i, j, k)
@@ -2889,6 +2897,9 @@ contains
        !$acc loop seq
        sweeploop: do sd=1,8
 
+#ifndef _OPENACC
+          !$omp parallel do 
+#endif
           !$acc loop independent collapse(3)
           do k=1,nn(3) ; do j=1,nn(2) ; do ns=1,nsects
              ia(ns, 0, j, k) =  ia(ns, nn(1), j, k)  
@@ -2896,6 +2907,9 @@ contains
           end do; end do ; end do
           !$acc end loop
 
+#ifndef _OPENACC
+          !$omp parallel do 
+#endif
           !$acc loop independent collapse(3)
           do k=1,nn(3) ; do i=1,nn(1) ; do ns=1,nsects
              ia(ns, i, 0, k) = ia(ns, i, nn(2), k) 
@@ -2903,11 +2917,18 @@ contains
           end do; end do ; end do
           !$acc end loop
 
+#ifndef _OPENACC
+          ! sweep...
+          !$omp parallel do &
+          !$omp& private(dotprd, sumin, sumout , &
+          !$omp& sp, nom, denom, fac, surf, faces_step, nface, &
+          !$omp& vol, y, T, p, tmp)
+#endif
           ! sweep...
           !$acc loop independent collapse(4) &
           !$acc& private(dotprd, sumin, sumout , &
           !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
-          !$acc& vol, y, T, p, tmp)
+          !$acc& vol, y, T, p, tmp)
           do k=kstart(sd),kend(sd),kstep(sd)
              do j=jstart(sd),jend(sd),jstep(sd)
                 do i=istart(sd),iend(sd),istep(sd)
@@ -2925,7 +2946,6 @@ contains
                          faces_step(4) = ia(ns,i, j - 1, k)
                          faces_step(5) = ia(ns,i, j, k + 1)
                          faces_step(6) = ia(ns,i, j, k - 1)
-                         !    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
 
                          sumin = 0.0  ! sum of incoming intensities
                          sumout = 0.0 ! sum of outgoing intensities
@@ -2933,7 +2953,8 @@ contains
                          do nface=1,6 ! loop over finite volume faces
                             dotprd = dotprds(nface,ns)
                             if(dotprd < 0.0) then ! s is incoming
-                               sumin = sumin + faces_step(nface) * (-dotprd) * surf
+                               sumin = sumin + faces_step(nface) * &
+                                    &(-dotprd) * surf
                             else ! s is outgoing
                                sumout = sumout + dotprd * surf
                             end if
@@ -2955,7 +2976,7 @@ contains
                          nom = fac * sp + sumin 
 
                          denom = fac + sumout ! denominator of eq. (17.62)
-                         
+
                          ! update radiative intensity
                          ia(ns, i, j, k) =  nom / denom 
                          !call cell_step_scheme(ns, i, j, k)
@@ -2969,6 +2990,9 @@ contains
 
 
        ! calculate maximum error
+#ifndef _OPENACC
+       !$omp parallel do reduction(max:maxerr)
+#endif
        !$acc loop independent reduction(max:maxerr) collapse(4)
        do k=1,nn(3)
           do j=1,nn(2)
@@ -2991,13 +3015,9 @@ contains
 
        !$acc end parallel
 
-!!$          !reduce maximum error across processes
-!!$          sbuf(1) = maxerr
-!!$          call mpi_allreduce(sbuf, rbuf, 1_i4b, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, mpierr)
-!!$          maxerr = rbuf(1)
-       ! global convergence condition
+       !$acc end data
 
-
+       ! reduce maximum error across processes
        sbuf(1) = maxerr
        call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
             &MPI_MAX, MPI_COMM_WORLD, mpierr);
@@ -3005,13 +3025,12 @@ contains
 
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
 
+       ! comnvergence condition
        if(maxerr < FVTOL) then
           exit iterloop  
        end if
 
     end do iterloop
-
-    !    !$acc update self(ia(1:nn(1),1:nn(2),0:nn(3)+1,1:nsects))
 
     call calcqr
 
@@ -3177,7 +3196,12 @@ contains
     integer(ik) :: i, j, k, ns
     real(rk) :: maxga, tqr1, tqr2, tqr3, tga
 
+    !$acc data present(ia, ga, qr)
+
     !$acc parallel
+#ifndef _OPENACC
+    !$omp parallel do collapse(3)
+#endif
     !$acc loop independent collapse(3)
     do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0
@@ -3191,6 +3215,9 @@ contains
        tqr2=0.0
        tqr3=0.0
        tga=0.0
+#ifndef _OPENACC
+       !$omp parallel do reduction(+:tqr1,tqr2,tqr3,tga)
+#endif
        !$acc loop independent reduction(+:tqr1,tqr2,tqr3,tga)
        do ns=1,nsects
           !qr = sum ia * s
@@ -3209,8 +3236,11 @@ contains
        ga(i, j, k) = tga 
     end do; end do; end do
     !$acc end do
+
     !$acc end parallel
-    
+
+    !$acc end data
+
     return
 
   end subroutine calcqr
