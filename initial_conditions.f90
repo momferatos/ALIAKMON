@@ -477,9 +477,10 @@ contains
              y=(ljstart+j-1)*dy
              do i=1,nn(1)
                 x=(i-1)*dx
-                u(i,j,k,1_ik)=-cos(kk*y) + sin(kk*z) !  
-                u(i,j,k,2_ik)= sin(kk*y) ! 
-                u(i,j,k,3_ik)= sin(kk*y)
+                u(i,j,k,nu1)= cos(kk*y)  
+                u(i,j,k,nu2)= cos(kk*y)
+                u(i,j,k,nu3)= sin(kk*y)
+                u(i,j,k,ntemp)= sin(kk*y)
              end do
           end do
        end do

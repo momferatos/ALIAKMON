@@ -32,7 +32,7 @@ program aliakmon
   ! 
   ! Main program
   ! 
-  integer(ik)                         :: i, j, k
+  integer(ik)                         :: i, j, k, l
   integer(ik)                         :: days,hours,mins,secs
   integer(ik)                         :: nfilespec,nfilestrfun
   real(rk)                            :: eta, tau, time,tstart
@@ -280,7 +280,7 @@ program aliakmon
      call fourier(nn,1_ik,fu)
 
      if(mpirank==MPIROOT) print *, 'Restart file OK.'
-     
+
   else
      if(mpirank == mpiroot) print *, 'Initial conditions...'
      call set_initial_conditions(nn,u,fu)
@@ -379,9 +379,29 @@ program aliakmon
 
      call cfl_condition(nn,dt)
      ! Advance in time
+
      call timestep(nn,fu,dt)
+     call copy(nn,u,fu)
+     call fourier(nn,-1_ik,u)
+     print '(a,2(a,e10.3))', 'BCs for v: ', ' y=0: ', &
+          &sum(abs(u(1:nn(1),1,:,nu2))), '| y=PI: ', &
+          &sum(abs(u(1:nn(1),nn(2)/2,:,nu2)))
+     call gradient(nn,fsclgrads,fu,nu1,ntemp)
+     do l=nu1,nu3
+        fsclgrad=>fsclgrads(:,:,:,:,l)
+        call fourier(nn,-1_ik,fsclgrad,nu1,ntemp)
+     end do
+     print '(a,2(a,e10.3))', 'BCs for du/dy: ', ' y=0: ', &
+          &sum(abs(fsclgrads(1:nn(1),1,:,nu1,nu2))), '| y=PI: ', &
+          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,nu1,nu2)))
+     print '(a,2(a,e10.3))', 'BCs for dw/dy: ', ' y=0: ', &
+          &sum(abs(fsclgrads(1:nn(1),1,:,nu3,nu2))), '| y=PI: ', &
+          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,nu3,nu2)))
+     print '(a,2(a,e10.3))', 'BCs for dT/dy: ', ' y=0: ', &
+          &sum(abs(fsclgrads(1:nn(1),1,:,ntemp,nu2))), '| y=PI: ', &
+          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,ntemp,nu2)))
      if(RADIATION) call integrate_qr(nn,qr,time)
-     
+
      if(VALID) call dissipation_test !call energy_test(nn,u,fu,rhs)
      if(RADIATION.and..not.RADIATION_COUPLING) then
         call copy(nn,u,fu)
