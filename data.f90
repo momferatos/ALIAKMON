@@ -1312,6 +1312,7 @@ contains
        j=-gn2/2+i
        gk2(i+gn2/2+1)=j
     end do
+    
     trgk2(:)=gk2(:)
     trgk2(gn2/2+1)=(gn2/2)
 #ifdef _MPI_
@@ -1375,7 +1376,7 @@ contains
     if(idx>=0) then
        tr_idx=idx+1
     else if(idx<0) then
-       tr_idx=n-abs(idx)
+       tr_idx=n-abs(idx)+1
     end if
         
     return

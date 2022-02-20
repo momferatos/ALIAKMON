@@ -338,6 +338,45 @@ contains
 
   end function mean_value
 
+  subroutine check_free_slip_bcs(nn,fu)
+    use data, only: u, copy, zero, fsclgrads, fsclgrad
+    implicit none
+    integer(ik), dimension(1:4), intent(in)                   :: nn
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(inout)               :: fu
+    integer(ik) :: j0, jpi
+    real(rk) :: v0, vpi, d0, dpi
+
+    call copy(nn,u,fu)
+    call fourier(nn,-1_ik,u)
+
+    j0=1
+    jpi=nn(2)/2+1
+    
+    v0=maxval(abs(u(1:nn(1),j0,1:nn(3),nu2)))
+    vpi=maxval(abs(u(1:nn(1),jpi,1:nn(3),nu2)))
+    print '(a,2(a,e10.3))', 'BCs for v: ', ' y=0: ', v0, '| y=PI: ', vpi
+
+    call gradient(nn,fsclgrads,fu,nu1,ntemp)
+    fsclgrad=>fsclgrads(:,:,:,:,2)
+    call fourier(nn,-1_ik,fsclgrad)
+
+    d0=maxval(abs(fsclgrad(1:nn(1),j0,1:nn(3),nu1)))
+    dpi=maxval(abs(fsclgrad(1:nn(1),jpi,1:nn(3),nu1)))
+    print '(a,2(a,e10.3))', 'BCs for du/dy: ', ' y=0: ', d0, '| y=PI: ', dpi
+
+    d0=maxval(abs(fsclgrad(1:nn(1),j0,1:nn(3),nu3)))
+    dpi=maxval(abs(fsclgrad(1:nn(1),jpi,1:nn(3),nu3)))
+    print '(a,2(a,e10.3))', 'BCs for dw/dy: ', ' y=0: ', d0, '| y=PI: ', dpi
+    
+    d0=maxval(abs(fsclgrad(1:nn(1),j0,1:nn(3),ntemp)))
+    dpi=maxval(abs(fsclgrad(1:nn(1),jpi,1:nn(3),ntemp)))
+    print '(a,2(a,e10.3))', 'BCs for dT/dy: ', ' y=0: ', d0, '| y=PI: ', dpi
+    call zero(nn,fsclgrad);
+
+    return
+
+  end subroutine check_free_slip_bcs
+  
   subroutine apply_free_slip_bcs(nn, fu)
     use data, only: scratch,copy,tr_wv_idx
     implicit none
@@ -351,7 +390,7 @@ contains
     do l=1,nn(4) ; do k=1,nn(3) ; do j=0,nn(2)/2 ; do i=1,dim1(nn(1))
        jplus=tr_wv_idx(j,nn(2))
        jminus=tr_wv_idx(-j,nn(2))
-       if(l==2) then
+       if(l==nu2) then
           tmp1 = 0.5_rk*(scratch(i,jplus,k,l)-scratch(i,jminus,k,l))
           tmp2 = 0.5_rk*(scratch(i,jminus,k,l)-scratch(i,jplus,k,l))
           fu(i,jplus,k,l) = tmp1
@@ -662,12 +701,14 @@ contains
     
     
     
-    if(INITCOND == freeslip) call apply_free_slip_bcs(nn,fu)
+    
     ! compute diffusive terms
     call compute_diffusive_terms
 
     ! project to zero divergence
     if(.not.BURGERS) call project(nn,fnl,press)
+
+    if(INITCOND==FREESLIP) call apply_free_slip_bcs(nn,fu)
     
     ! set auxiliary arrays back to zero
     call zero(nn,u)
@@ -1655,7 +1696,7 @@ contains
     use data, only: wv,isactive, nu1, nu2, nu3, nsclf,nscll, zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),nu1:nu3), intent(OUT) :: fg
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4),1:3), intent(OUT) :: fg
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
     integer(ik), optional                                :: nfs, nfe
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1676,17 +1717,17 @@ contains
        if(isactive(i,j,k)) then
           tmp=cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
 
-          fg(i,j,k,l,nu1)=real(ii*wv(1_ik,i,j,k)*tmp,rk)
-          fg(i+1,j,k,l,nu1)=aimag(ii*wv(1_ik,i,j,k)*tmp)
+          fg(i,j,k,l,1)=real(ii*wv(1_ik,i,j,k)*tmp,rk)
+          fg(i+1,j,k,l,1)=aimag(ii*wv(1_ik,i,j,k)*tmp)
 
-          fg(i,j,k,l,nu2)=real(ii*wv(2_ik,i,j,k)*tmp,rk)
-          fg(i+1,j,k,l,nu2)=aimag(ii*wv(2_ik,i,j,k)*tmp)
+          fg(i,j,k,l,2)=real(ii*wv(2_ik,i,j,k)*tmp,rk)
+          fg(i+1,j,k,l,2)=aimag(ii*wv(2_ik,i,j,k)*tmp)
 
-          fg(i,j,k,l,nu3)=real(ii*wv(3_ik,i,j,k)*tmp,rk)
-          fg(i+1,j,k,l,nu3)=aimag(ii*wv(3_ik,i,j,k)*tmp)
+          fg(i,j,k,l,3)=real(ii*wv(3_ik,i,j,k)*tmp,rk)
+          fg(i+1,j,k,l,3)=aimag(ii*wv(3_ik,i,j,k)*tmp)
        else
-          fg(i,j,k,l,nu1:nu3)=0.0_rk
-          fg(i+1,j,k,l,nu1:nu3)=0.0_rk
+          fg(i,j,k,l,1:3)=0.0_rk
+          fg(i+1,j,k,l,1:3)=0.0_rk
        end if
     end do; end do; end do ; end do
     !$omp end parallel do

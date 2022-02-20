@@ -284,12 +284,14 @@ program aliakmon
   else
      if(mpirank == mpiroot) print *, 'Initial conditions...'
      call set_initial_conditions(nn,u,fu)
+
      if(mpirank == mpiroot) print *, 'Initial conditions are set.'
      maxc=incompressibility(nn,fu,nu1)
      if(mpirank == mpiroot) print '(a,e10.3)', 'max(comp) = ', &
           &maxc
      !stop
      nhdf5file=0_ik
+          
      call output_files(0_ik)
      nhdf5file=nhdf5file+1_ik
 
@@ -383,23 +385,8 @@ program aliakmon
      call timestep(nn,fu,dt)
      call copy(nn,u,fu)
      call fourier(nn,-1_ik,u)
-     print '(a,2(a,e10.3))', 'BCs for v: ', ' y=0: ', &
-          &sum(abs(u(1:nn(1),1,:,nu2))), '| y=PI: ', &
-          &sum(abs(u(1:nn(1),nn(2)/2,:,nu2)))
-     call gradient(nn,fsclgrads,fu,nu1,ntemp)
-     do l=nu1,nu3
-        fsclgrad=>fsclgrads(:,:,:,:,l)
-        call fourier(nn,-1_ik,fsclgrad,nu1,ntemp)
-     end do
-     print '(a,2(a,e10.3))', 'BCs for du/dy: ', ' y=0: ', &
-          &sum(abs(fsclgrads(1:nn(1),1,:,nu1,nu2))), '| y=PI: ', &
-          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,nu1,nu2)))
-     print '(a,2(a,e10.3))', 'BCs for dw/dy: ', ' y=0: ', &
-          &sum(abs(fsclgrads(1:nn(1),1,:,nu3,nu2))), '| y=PI: ', &
-          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,nu3,nu2)))
-     print '(a,2(a,e10.3))', 'BCs for dT/dy: ', ' y=0: ', &
-          &sum(abs(fsclgrads(1:nn(1),1,:,ntemp,nu2))), '| y=PI: ', &
-          &sum(abs(fsclgrads(1:nn(1),nn(2)/2,:,ntemp,nu2)))
+     call check_free_slip_bcs(nn,fu)
+
      if(RADIATION) call integrate_qr(nn,qr,time)
 
      if(VALID) call dissipation_test !call energy_test(nn,u,fu,rhs)

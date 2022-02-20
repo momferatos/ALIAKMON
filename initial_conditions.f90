@@ -115,12 +115,11 @@ contains
 
   end subroutine random_field
 
-
   subroutine set_initial_conditions(nn,u,fu)
     !use lagrangian, only: lset_initial_conditions
     use data, only:temp,press
     use mpivars
-    use numerics, only: calcia, apply_free_slip_bcs
+    use numerics, only: calcia, check_free_slip_bcs, apply_free_slip_bcs
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
@@ -160,18 +159,15 @@ contains
     case(freeslip)
        call free_slip(nn,fu)
     end select
-
+    
     !Perform truncation
     call truncate(nn,fu)
-
-    
     
     !Enforce incompressibility / zero magnetic field divergence
     call project(nn,fu,press)
-
+    
     !Rescale to unit rms
     call rescale(nn,fu)
-
 
     !set magnetic field relative strength
     if(MHD) then
@@ -205,7 +201,7 @@ contains
        !$omp end parallel do
        call calcia(nn, temp)
     end if
-    
+
     return
 
   end subroutine set_initial_conditions
@@ -282,9 +278,9 @@ contains
        !Calculate large-scale ABC flow
        do nu=1,nn(4)
           do k=1,nn(3)
-             z=(lkstart+k-1)*dz
+             z=(lkstart-1+k-1)*dz
              do j=1,nn(2)
-                y=(ljstart+j-1)*dy
+                y=(ljstart-1+j-1)*dy
                 do i=1,nn(1)
                    !Calculate coordinates
                    x=(i-1)*dx
@@ -346,9 +342,9 @@ contains
     call zero(nn,u)
 
     !Calculate steps
-    dx=LBOX/real(n1-1,rk)
-    dy=LBOX/real(gn2-1,rk)
-    dz=LBOX/real(gn3-1,rk)
+    dx=LBOX/real(n1,rk)
+    dy=LBOX/real(gn2,rk)
+    dz=LBOX/real(gn3,rk)
 
     !Set-up stochastic coefficients
     !call random_number(a)
@@ -358,9 +354,9 @@ contains
     c=1.0_rk-a-b
     !Calculate large-scale ABC flow
     do k=1,nn(3)
-       z=(lkstart+k-1)*dz
+       z=(lkstart-1+k-1)*dz
        do j=1,nn(2)
-          y=(ljstart+j-1)*dy
+          y=(ljstart-1+j-1)*dy
           do i=1,nn(1)
              x=(i-1)*dx
              !Calculate field
@@ -408,9 +404,9 @@ contains
     call zero(nn,u)
 
     !Calculate steps
-    dx=LBOX/real(n1-1,rk)
-    dy=LBOX/real(gn2-1,rk)
-    dz=LBOX/real(gn3-1,rk)
+    dx=LBOX/real(n1,rk)
+    dy=LBOX/real(gn2,rk)
+    dz=LBOX/real(gn3,rk)
 
     !Set-up stochastic coefficients
     !call random_number(a)
@@ -420,9 +416,9 @@ contains
     c=1.0_rk-a-b
     !Calculate large-scale ABC flow
     do k=1,nn(3)
-       z=(lkstart+k-1)*dz
+       z=(lkstart-1+k-1)*dz
        do j=1,nn(2)
-          y=(ljstart+j-1)*dy
+          y=(ljstart-1+j-1)*dy
           do i=1,nn(1)
              x=(i-1)*dx
              !Calculate field
@@ -453,7 +449,7 @@ contains
   end subroutine rad_sphere
 
   subroutine free_slip(nn,u)
-    use numerics, only: apply_free_slip_bcs
+    use numerics
     use types
     use data, only: nu1,nu2,nu3
     use mpivars
@@ -461,26 +457,30 @@ contains
     integer(ik), dimension(1:4), intent(in) :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)),intent(OUT)              :: u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(ik) :: i,j,k,l,kk
+    integer(ik) :: i,j,k,l,kk, j0, j10, j11
     real(rk) :: x, y, z
-    real(rk) :: dx, dy, dz
+    real(rk) :: a, b, c, dx, dy, dz, v0, vpi
     !    call abc_flow(nn,1_ik,3_ik,u)
 
     !Calculate steps
-    dx=LBOX/real(n1-1,rk)
-    dy=LBOX/real(gn2-1,rk)
-    dz=LBOX/real(gn3-1,rk)
+    dx=LBOX/real(n1,rk)
+    dy=LBOX/real(gn2,rk)
+    dz=LBOX/real(gn3,rk)
+    
+    a=0.5_rk
+    b=-0.3_rk
+    c=1.0_rk-a-b
     do kk=1,1
        do k=1,nn(3)
-          z=(lkstart+k-1)*dz
+          z=lkstart-1+(k-1)*dz
           do j=1,nn(2)
-             y=(ljstart+j-1)*dy
+             y=ljstart-1+(j-1)*dy
              do i=1,nn(1)
                 x=(i-1)*dx
-                u(i,j,k,nu1)= cos(kk*y)  
-                u(i,j,k,nu2)= cos(kk*y)
-                u(i,j,k,nu3)= sin(kk*y)
-                u(i,j,k,ntemp)= sin(kk*y)
+                u(i,j,k,nu1)=a*sin(x)*cos(y)*cos(z)
+                u(i,j,k,nu2)=b*sin(y)*cos(x)*cos(z)
+                u(i,j,k,nu3)=c*sin(z)*cos(y)*cos(x)
+                u(i,j,k,ntemp)=cos(y)
              end do
           end do
        end do
@@ -515,16 +515,16 @@ contains
     call fourier(nn,-1_ik,rks1)
 
     !Orszag-Tang vortex large-scale component
-    dx=LBOX/real(nn(1)-1,rk)
-    dy=LBOX/real(gn2-1,rk)
-    dz=LBOX/real(gn3-1,rk)
+    dx=LBOX/real(nn(1),rk)
+    dy=LBOX/real(gn2,rk)
+    dz=LBOX/real(gn3,rk)
 
     do i=1,nn(1)
        do j=1,nn(2)
           do k=1,nn(3)
              xx=(i-1)*dx
-             yy=(ljstart+j-1)*dy
-             zz=(lkstart+k-1)*dz
+             yy=(ljstart-1+j-1)*dy
+             zz=(lkstart-1+k-1)*dz
              u(i,j,k,nu1)=-2.0_rk*sin(yy)
              u(i,j,k,nu2)=2.0_rk*sin(xx)
              u(i,j,k,nu3)=sin(xx)+sin(yy)
