@@ -409,9 +409,9 @@ contains
     !Set-up stochastic coefficients
     !call random_number(a)
     !call random_number(b)
-    a=0.5_rk
-    b=-0.3_rk
-    c=1.0_rk-a-b
+    a=0.0!0.5_rk
+    b=0.0!-0.3_rk
+    c=0.0!1.0_rk-a-b
     !Calculate large-scale ABC flow
     do k=1,nn(3)
        z=(lkstart-1+k-1)*dz

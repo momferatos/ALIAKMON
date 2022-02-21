@@ -664,6 +664,8 @@ contains
 
     if(PASSIVE_SCALAR) call compute_passive_scalar
 
+    if(BOUSSINESQ) call compute_boussinesq
+    
     if(MHD) then
        call compute_mhd
        !Get the Lorentz force
@@ -878,8 +880,9 @@ contains
 
     end subroutine compute_passive_scalar
 
-    subroutine boussinesq
+    subroutine compute_boussinesq
       real(rk) :: ksq
+      !$omp parallel do private(ksq)
       do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
          if(isactive(i,j,k)) then
             ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+wv(3_ik,i,j,k)**2
@@ -889,8 +892,9 @@ contains
                fnl(i,j,k,nu3)=fnl(i,j,k,nu3)-AEXP*GGRAV*0.5_rk*TEMP0
             end if
          end if
-      end do ; end do ; end do
-    end subroutine boussinesq
+      end do; end do ; end do
+      !$omp end parallel do
+    end subroutine compute_boussinesq
     
     subroutine compute_radiation
       use data, only: qr, fqr, fdivqr, fdivqr_tmp, ia, iba, copy, temp,&
