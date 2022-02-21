@@ -156,8 +156,6 @@ contains
        call taylor_green(nn,fu)
     case(radsphere)
        call rad_sphere(nn,fu)
-    case(freeslip)
-       call free_slip(nn,fu)
     end select
     
     !Perform truncation

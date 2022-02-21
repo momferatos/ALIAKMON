@@ -90,10 +90,13 @@ module parameters
   real(rk), parameter    :: CP=4.0e3_rk
   real(rk), parameter    :: PATM=1.01325e5
   real(rk), parameter    :: DENS=1.225
+  real(rk), parameter    :: AEXP=2.1e-3
+  real(rk), parameter    :: GGRAV=9.8
   real(rk)               :: TEMPMIN
   !$acc declare create(TEMPMIN)
   real(rk)               :: TEMPMAX
   !$acc declare create(TEMPMAX)
+  real(rk)               :: TEMP0
   ! factor for mean-square value calculation in Fourier space
   real(rk)               :: MSFAC
   ! Factor for spherical truncation
@@ -167,7 +170,9 @@ module parameters
   ! Constants for choice of initial conditions
   integer(ik), parameter :: ZERO_INITCOND=0,STOCHASTIC_INITCOND_FLAT=1
   integer(ik), parameter :: STOCHASTIC_INITCOND_WITH_SPECTRUM=2
-  integer(ik), parameter :: ORSZAG_TANG_VORTEX=3, ABC=4, TAYLOR_GREEN_VORTEX=5, RADSPHERE=6, FREESLIP=7
+  integer(ik), parameter :: ORSZAG_TANG_VORTEX=3, ABC=4
+  integer(ik), parameter :: TAYLOR_GREEN_VORTEX=5, RADSPHERE=6
+  integer(ik), parameter :: PERIODIC=0, FREESLIP=1
   ! Constants for choice of time integration method
   integer(ik), parameter :: MEULER=0, MRUNGE_KUTTA2=1,MRUNGE_KUTTA4=2
   ! Constants for choice of truncation method
@@ -200,6 +205,8 @@ module parameters
   real(rk), dimension(:), allocatable  :: VISC
   ! Logical variabkle for Burgers equation
   logical                :: BURGERS
+  ! Logical variabkle for Boussinesq approximation
+  logical                :: BOUSSINESQ
   ! Logical variabkle for forcing
   logical                :: FORCED
   ! Integer variable for choice of forcing
@@ -280,7 +287,9 @@ module parameters
   ! Crank-Nicholson method for dissipative terms
   logical                :: CRANK_NICHOLSON
   ! Default initial condition
-  integer                :: INITCOND
+  integer(ik)            :: INITCOND
+  ! Default boundary condition
+  integer(ik)            :: BOUNDCOND
   ! Wave-number for the initial conditions
   real(rk)               :: KINITCOND
   ! Seed random number generator

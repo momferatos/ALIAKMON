@@ -242,6 +242,7 @@ contains
     real(8), dimension(6, 3) :: norm ! norm(nface, 1:3) unit vector normal to finite volume face
     !nsects = 80
 
+    TEMP0=0.5_rk*(TEMPMIN+TEMPMAX)
     ! initialize radiative intensities to zero
     !$omp parallel do 
     do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
@@ -713,6 +714,8 @@ contains
 
     nmax=max(n1,n2,n3)
 
+    TEMP0=0.5
+    
     ! set number of fields
     ! velocity is certain
     nu1=1

@@ -481,6 +481,8 @@ contains
        press(:,:,:)=scratch(:,:,:,1)
        call zero(nn,scratch)
     end if
+
+    if(BOUNDCOND==FREESLIP) call apply_free_slip_bcs(nn,fu)
     
     return
 
@@ -707,8 +709,6 @@ contains
 
     ! project to zero divergence
     if(.not.BURGERS) call project(nn,fnl,press)
-
-    if(INITCOND==FREESLIP) call apply_free_slip_bcs(nn,fu)
     
     ! set auxiliary arrays back to zero
     call zero(nn,u)
@@ -878,6 +878,20 @@ contains
 
     end subroutine compute_passive_scalar
 
+    subroutine boussinesq
+      real(rk) :: ksq
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+         if(isactive(i,j,k)) then
+            ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+wv(3_ik,i,j,k)**2
+            if(ksq/=0.0) then
+               fnl(i,j,k,nu3)=fnl(i,j,k,nu3)+AEXP*GGRAV*u(i,j,k,ntemp)
+            else
+               fnl(i,j,k,nu3)=fnl(i,j,k,nu3)-AEXP*GGRAV*0.5_rk*TEMP0
+            end if
+         end if
+      end do ; end do ; end do
+    end subroutine boussinesq
+    
     subroutine compute_radiation
       use data, only: qr, fqr, fdivqr, fdivqr_tmp, ia, iba, copy, temp,&
            &scratch2

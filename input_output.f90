@@ -26,7 +26,7 @@ contains
     !Read the input namelist file
     namelist /general/           n,TIMESTEPS, TMAX, CFL, RE, KMAXETA,&
          &STOP_AT_DISSPEAK,VALID
-    namelist /hydro/             VISCOUS,BURGERS
+    namelist /hydro/             VISCOUS,BURGERS,BOUSSINESQ
     namelist /force/           FORCED, VARIABLE_FORCING,KFORCING
     namelist /passivescalar/     PASSIVE_SCALAR, DIFFUSIVE, PR, HEATING,&
          &FORCED_PASSIVE_SCALAR,NUMSCLS
@@ -39,7 +39,7 @@ contains
          &PERIODIC_PARTICLES,LAGRANGIAN_HISTORY,STK
     namelist /numerics/          INTEGRATION_METHOD,TRUNCATION,DEALIASING,&
          &CRANK_NICHOLSON, FFT_DECOMPOSITION
-    namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM
+    namelist /initialconditions/ INITCOND,KINITCOND,SEEDRANDOM,BOUNDCOND
     namelist /inputoutput/       OUTPUTFILES,INPUT_FIELD,INPUT_FIELD_FILENAME,&
          &NFILESTART,hdf5frate,slicefrate,COMPRESSION_LEVEL, HDF5_OVERWRITE
 
