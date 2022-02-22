@@ -90,7 +90,7 @@ module parameters
   real(rk), parameter    :: CP=4.0e3_rk
   real(rk), parameter    :: PATM=1.01325e5
   real(rk), parameter    :: DENS=1.225
-  real(rk), parameter    :: AEXP=2.1e-3
+  real(rk), parameter    :: AEXP=1.0
   real(rk), parameter    :: GGRAV=9.8
   real(rk)               :: TEMPMIN
   !$acc declare create(TEMPMIN)

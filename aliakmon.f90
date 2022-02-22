@@ -289,7 +289,7 @@ program aliakmon
      maxc=incompressibility(nn,fu,nu1)
      if(mpirank == mpiroot) print '(a,e10.3)', 'max(comp) = ', &
           &maxc
-     !stop
+
      nhdf5file=0_ik
           
      call output_files(0_ik)

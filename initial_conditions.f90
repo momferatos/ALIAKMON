@@ -396,8 +396,8 @@ contains
     real(rk), dimension(1:3)                               :: dist, xx, center
     real(rk)                                               :: dst, rad, fac
 
-    center(1:3) = PI
-    rad = PI / 4.0_rk
+    center(1:3) = [PI, PI/4., PI]
+    rad = PI / 32.0_rk
     !Set fields to zero
     call zero(nn,u)
 
@@ -409,9 +409,9 @@ contains
     !Set-up stochastic coefficients
     !call random_number(a)
     !call random_number(b)
-    a=0.0!0.5_rk
-    b=0.0!-0.3_rk
-    c=0.0!1.0_rk-a-b
+    a=0.5_rk
+    b=-0.3_rk
+    c=1.0_rk-a-b
     !Calculate large-scale ABC flow
     do k=1,nn(3)
        z=(lkstart-1+k-1)*dz
@@ -420,9 +420,9 @@ contains
           do i=1,nn(1)
              x=(i-1)*dx
              !Calculate field
-             u(i,j,k,nu1)=a*sin(x)*cos(y)*cos(z)
-             u(i,j,k,nu2)=b*sin(y)*cos(x)*cos(z)
-             u(i,j,k,nu3)=c*sin(z)*cos(y)*cos(x)
+             u(i,j,k,nu1)=0.0!a*sin(x)*cos(y)*cos(z)
+             u(i,j,k,nu2)=0.0!b*sin(y)*cos(x)*cos(z)
+             u(i,j,k,nu3)=0.0!c*sin(z)*cos(y)*cos(x)
              xx(1)=x
              xx(2)=y
              xx(3)=z
@@ -439,7 +439,7 @@ contains
           end do
        end do
     end do
-
+    
     call fourier(nn,1_ik,u)
 
     return

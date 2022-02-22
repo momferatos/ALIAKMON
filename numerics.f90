@@ -481,8 +481,6 @@ contains
        press(:,:,:)=scratch(:,:,:,1)
        call zero(nn,scratch)
     end if
-
-    if(BOUNDCOND==FREESLIP) call apply_free_slip_bcs(nn,fu)
     
     return
 
@@ -507,6 +505,8 @@ contains
        stop 'timestep:: Invalid integration method.'
     end if
 
+    if(BOUNDCOND==FREESLIP) call apply_free_slip_bcs(nn,fu)
+    
     return
 
   end subroutine timestep
@@ -887,13 +887,14 @@ contains
          if(isactive(i,j,k)) then
             ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+wv(3_ik,i,j,k)**2
             if(ksq/=0.0) then
-               fnl(i,j,k,nu3)=fnl(i,j,k,nu3)+AEXP*GGRAV*u(i,j,k,ntemp)
+               fnl(i,j,k,nu2)=fnl(i,j,k,nu2)-AEXP*GGRAV*u(i,j,k,ntemp)
             else
-               fnl(i,j,k,nu3)=fnl(i,j,k,nu3)-AEXP*GGRAV*0.5_rk*TEMP0
+               fnl(i,j,k,nu2)=fnl(i,j,k,nu2)+AEXP*GGRAV*0.5_rk*TEMP0
             end if
          end if
       end do; end do ; end do
       !$omp end parallel do
+      
     end subroutine compute_boussinesq
     
     subroutine compute_radiation
@@ -2818,7 +2819,7 @@ contains
        end if
     end if
 
-    if(mvel==0.0) dt=0.05
+    if(dt>0.05) dt=0.05
     
     !Set auxiliary arrays back to zero
     call zero(nn,rmsarr)
