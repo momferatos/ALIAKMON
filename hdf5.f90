@@ -57,26 +57,31 @@ module hdf5_aliakmon
 
 contains
 
-  subroutine add_timestamp(filename, time)
+  subroutine add_timestamp(filename, time, nfile)
     implicit none
     character(len=*), intent(IN) :: filename
     real(rk), intent(IN) :: time
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(ik), intent(IN) :: nfile
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(hid_t) :: hdf5_file
-    character(len = 4), parameter :: dsetname = 'time'
+    character(len = 256) :: dsetname
     integer :: trank
     integer(hid_t) :: dset_id, dcpl
     integer        :: error
     integer(hsize_t), dimension(1) :: data_dims
     real(8), dimension(1) :: time_arr
+    integer, dimension(1) :: nfile_arr
 
     time_arr(1) = time
-
+    nfile_arr(1) = nfile
+    
     ! set dataset rank                                                          
     trank = 1
     ! Set dataset dimensions for data                                           
     data_dims(1) = 1
 
+    dsetname = 'time'
+    
     call h5fopen_f(trim(filename), H5F_ACC_RDWR_F, hdf5_file, error)
 
     ! Create the data space for the  dataset.                                   
@@ -90,16 +95,35 @@ contains
     call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, time_arr, data_dims, error)
 
     ! cleanup
-    
+
     call h5sclose_f(filespace, error)
 
     call h5dclose_f(dset_id, error)
-    
+
+
+    dsetname = 'nfile'
+    ! Create the data space for the  dataset.                                   
+    call h5screate_simple_f(trank, data_dims, filespace, error)
+    ! Create the dataset                                                        
+    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_INTEGER, filespace, &
+         &dset_id, error)
+
+    ! write the dataset                                                         
+
+    call h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, nfile_arr, data_dims, error)
+
+    ! cleanup
+
+    call h5sclose_f(filespace, error)
+
+    call h5dclose_f(dset_id, error)
+
     call h5fclose_f(hdf5_file, error)
-    
+
     return
-    
+
   end subroutine add_timestamp
+  
   
   subroutine write_hdf5_vector_dataset(dataset_name, dataset, nn)
     implicit none
@@ -486,7 +510,7 @@ contains
        h5_vector_data(l,i,j,k)=u(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
-    call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
+    ! call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
     ndatanames = ndatanames + 1
     datanames(ndatanames) = 'u'
     data_is_vector(ndatanames) = .true.
@@ -550,7 +574,7 @@ contains
     if(mpirank==mpiroot) then
        call write_xdmf_file(nn(1),nn(2),ndatanames,&
             &datanames, data_is_vector, filename,nfile)
-       call add_timestamp(filename, time)
+       call add_timestamp(filename, time, nfile)
     end if
 
     !
@@ -676,7 +700,7 @@ contains
     call h5fclose_f(file_id, error)
 
     if(mpirank==mpiroot) then
-       call add_timestamp(filename, time)
+       call add_timestamp(filename, time, nfile)
        call write_xdmf_slice_file(nn(1),nn(2),nfields,&
             &datanames,filename,nfile)
     end if
@@ -849,6 +873,7 @@ contains
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN) :: u2
     character(len=*), intent(IN)                           :: filename
     real(rk), intent(IN) :: time
+    integer(ik) :: nfile
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Writes HDF5 file in parallel !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -980,7 +1005,7 @@ contains
     call h5fclose_f(file_id, error)
 
     if(mpirank==mpiroot) then
-       call add_timestamp(filename, time)
+       call add_timestamp(filename, time, nfile)
        call write_xdmf_pp_file
     end if
 
