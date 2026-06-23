@@ -233,6 +233,19 @@ elseif(ALIAKMON_BACKEND STREQUAL "cufft")
   set_target_properties(aliakmon PROPERTIES LINKER_LANGUAGE Fortran)
   target_link_options(aliakmon PRIVATE ${ALIAKMON_ACC_FLAGS} -c++libs)
   target_link_libraries(aliakmon PRIVATE CUDA::cufft CUDA::cudart CUDA::cuda_driver)
+  # Wire the NVHPC runtime dirs into RPATH so the GPU exe runs without
+  # LD_LIBRARY_PATH: compilers/lib holds the OpenACC/CUDA-Fortran runtime
+  # (libacc*, libnvf, libcudafor, libnvomp); math_libs/cuda hold cuFFT/cudart.
+  # With DT_RPATH (set above) this also guarantees the NVHPC OpenMP runtime is
+  # used instead of GNU libgomp ("libgomp: TODO"). heFFTe/HDF5/MPI dirs are
+  # already on RPATH via their linked libraries.
+  get_filename_component(_nvsdk "${CUDAToolkit_BIN_DIR}/../../.." ABSOLUTE)
+  set(_nv_rpath "${_nvsdk}/compilers/lib")
+  file(GLOB _nv_extra "${_nvsdk}/math_libs/*/lib64" "${_nvsdk}/cuda/*/lib64")
+  list(APPEND _nv_rpath ${_nv_extra})
+  set_property(TARGET aliakmon APPEND PROPERTY BUILD_RPATH   ${_nv_rpath})
+  set_property(TARGET aliakmon APPEND PROPERTY INSTALL_RPATH ${_nv_rpath})
+  message(STATUS "ALIAKMON: cuFFT runtime RPATH += ${_nv_rpath}")
 endif()
 
 # ----------------------------------------------------------------------------
