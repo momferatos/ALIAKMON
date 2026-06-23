@@ -200,8 +200,29 @@ if(ALIAKMON_BACKEND STREQUAL "mkl")
                     "LD_LIBRARY_PATH=<mkl>/lib. (Build still succeeds.)")
   endif()
 elseif(ALIAKMON_BACKEND STREQUAL "cufft")
+  # The cuFFT backend offloads the fields to the GPU via OpenACC (the !$acc
+  # directives in numerics.f90 etc.) and hands device pointers to heFFTe's
+  # cuFFT backend. It therefore REQUIRES the NVIDIA HPC Fortran compiler
+  # (nvfortran) — gfortran ignores !$acc and the fields would stay on the host.
+  # Configure with -DCMAKE_Fortran_COMPILER=mpifort (wrapping nvfortran) or
+  # =nvfortran, and use the matching NVHPC MPI.
+  if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC|PGI")
+    message(WARNING
+      "cufft backend needs nvfortran (NVHPC) for OpenACC GPU offload, but the "
+      "Fortran compiler is '${CMAKE_Fortran_COMPILER_ID}'. The build may succeed "
+      "while silently NOT offloading to the GPU. Set "
+      "-DCMAKE_Fortran_COMPILER=<nvfortran or its mpi wrapper>.")
+  endif()
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
+  # OpenACC GPU offload flags (NVHPC). -cuda enables CUDA interop so device
+  # pointers can be passed to heFFTe; -Minfo=accel reports offload decisions.
+  # Override the accel target with e.g. -DALIAKMON_ACC_FLAGS="-acc=gpu;-gpu=cc75".
+  set(ALIAKMON_ACC_FLAGS "-acc=gpu;-cuda;-Minfo=accel"
+      CACHE STRING "NVHPC OpenACC/GPU flags for the cuFFT backend")
+  target_compile_options(aliakmon PRIVATE
+    $<$<COMPILE_LANGUAGE:Fortran>:${ALIAKMON_ACC_FLAGS}>)
+  target_link_options(aliakmon PRIVATE -acc=gpu -cuda)
   target_link_libraries(aliakmon PRIVATE CUDA::cufft CUDA::cudart CUDA::cuda_driver)
 endif()
 
