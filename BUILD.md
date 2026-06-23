@@ -39,8 +39,8 @@ Dependency hints (cache var or environment): `Heffte_ROOT`, `HDF5_ROOT`,
   runs end-to-end here.**
 - **fftw** — needs `libhefftefftwfortran` and FFTW. Recommended for single-node.
 - **mkl** — needs `libhefftemklfortran` and the Intel MKL runtime. See gotcha #2.
-- **cufft** — GPU backend. Needs CUDA + `libhefftecufftfortran`, pulls in
-  `fft_cuda.cpp`, and **requires the NVHPC `nvfortran` compiler**: the fields
+- **cufft** — GPU backend. Needs CUDA + `libhefftecufftfortran`, and
+  **requires the NVHPC `nvfortran` compiler**: the fields
   are moved to the GPU with OpenACC (`!$acc`) directives and device pointers are
   passed to heFFTe's cuFFT backend, so it is built with `-acc=gpu -cuda`
   (overridable via `-DALIAKMON_ACC_FLAGS`). gfortran cannot do this offload.

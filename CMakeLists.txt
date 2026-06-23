@@ -64,10 +64,9 @@ set(ALIAKMON_FSOURCES
   input_output.f90
   aliakmon.f90)
 
+# heffte_init.cpp is the only C++ source built for every backend (cuFFT
+# included). fft_cuda.cpp is a standalone experiment, not part of the build.
 set(ALIAKMON_CXXSOURCES heffte_init.cpp)
-if(ALIAKMON_BACKEND STREQUAL "cufft")
-  list(APPEND ALIAKMON_CXXSOURCES fft_cuda.cpp)
-endif()
 
 add_executable(aliakmon ${ALIAKMON_FSOURCES} ${ALIAKMON_CXXSOURCES})
 set_target_properties(aliakmon PROPERTIES
