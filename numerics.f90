@@ -2290,9 +2290,9 @@ contains
           do k=1,nn(3)
              !Calculate the energy spectrum
              !Velocity field
-             tmp1=scale*cmplx(fu(i,j,k,nu1),fu(i,j,k,nu1),ck)
-             tmp2=scale*cmplx(fu(i,j,k,nu2),fu(i,j,k,nu2),ck)
-             tmp3=scale*cmplx(fu(i,j,k,nu3),fu(i,j,k,nu3),ck)
+             tmp1=scale*cmplx(fu(i,j,k,nu1),fu(i+1,j,k,nu1),ck)
+             tmp2=scale*cmplx(fu(i,j,k,nu2),fu(i+1,j,k,nu2),ck)
+             tmp3=scale*cmplx(fu(i,j,k,nu3),fu(i+1,j,k,nu3),ck)
              !Magnetic field
              if(MHD) then
                 tmp4=scale*cmplx(fu(i,j,k,nb1),fu(i+1,j,k,nb1),ck)

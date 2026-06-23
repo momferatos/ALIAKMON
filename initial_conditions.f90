@@ -99,7 +99,7 @@ contains
                    call random_number(r1)
                    !Set phase
                    call random_number(r2)
-                   tmp=abs(r1)*exp(2.0_rk*PI*r2)
+                   tmp=abs(r1)*exp(ii*2.0_rk*PI*r2)
                    fu(i,j,k,l)=real(tmp,rk)
                    fu(i+1,j,k,l)=aimag(tmp)
                 else
