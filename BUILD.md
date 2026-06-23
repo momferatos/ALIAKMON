@@ -84,6 +84,38 @@ DT_RUNPATH and would otherwise hide their MKL child from the exe's RPATH.
 |---------|-----------|-------|-----|
 | stock   | ✅ | ✅ | ✅ (KE/ε correct) |
 | mkl     | ✅ | ✅ | loads w/o `LD_LIBRARY_PATH`; aborts at FFT init (gotcha #2) |
+| cufft   | ✅ | ✅ | ✅ **on GTX 1650** (KE/ε match CPU to 6 digits; 766 GPU data transfers) |
 
-Backends `fftw`/`cufft` were not built here (Fortran interface libs / CUDA not
-present in this environment) but are wired in the CMakeLists.
+`fftw` was not built here (no FFTW Fortran interface lib) but is wired in.
+
+### cuFFT build recipe (what made it work)
+
+The cuFFT GPU build needs an all-NVHPC stack — each dependency must be the
+nvfortran/nvc++ variant:
+
+1. **NVHPC compilers + MPI**: `-DCMAKE_Fortran_COMPILER=$NVHPC/.../ompi/bin/mpifort`
+   (wraps nvfortran), and the matching `mpicc`/`mpicxx`.
+2. **NVHPC-built HDF5** (parallel). A gcc HDF5 fails the NVHPC compile test; if
+   you only have a CMake *build tree*, `cmake --install` it to a clean prefix
+   first, then `-DHDF5_ROOT=<prefix>`.
+3. **heFFTe built with NVHPC + CUDA**. The stock CPU heFFTe has no GPU device
+   code — its `libheffte` lacks `heffte::cuda::*`, so the link fails with
+   "undefined reference to heffte::compute_transform<…gpu…>". Rebuild heFFTe
+   with `-D Heffte_ENABLE_CUDA=ON -D CMAKE_CUDA_ARCHITECTURES=75
+   -D Heffte_ENABLE_FORTRAN=ON` using nvc++/nvfortran (the old FindCUDA-style
+   `CUDA_TOOLKIT_ROOT_DIR`/`CUDA_NVCC_FLAGS` recipe silently skips the device
+   code; use the CUDA *language* + `CMAKE_CUDA_ARCHITECTURES`).
+4. **Link via nvfortran** (the CMakeLists sets `LINKER_LANGUAGE Fortran` for
+   cuFFT): only the Fortran driver injects the CUDA-Fortran runtime
+   (`libcudafor`, `libcudanvhpc`, `libnvf`, …) that `use cudafor` needs — a
+   C++-driven link leaves `cudaGetDeviceCount` etc. undefined. `-c++libs` then
+   pulls the NVHPC C++ runtime for heFFTe's C++ code.
+
+Example:
+```bash
+cmake -B build -DALIAKMON_BACKEND=cufft \
+  -DCMAKE_Fortran_COMPILER=$NV/mpifort -DCMAKE_C_COMPILER=$NV/mpicc -DCMAKE_CXX_COMPILER=$NV/mpicxx \
+  -DALIAKMON_ACC_FLAGS="-acc=gpu;-cuda;-gpu=cc75" \
+  -DHeffte_ROOT=<nvhpc+cuda heffte> -DHDF5_ROOT=<nvhpc parallel hdf5>
+cmake --build build -j
+```

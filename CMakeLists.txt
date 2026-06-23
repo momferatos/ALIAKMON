@@ -214,14 +214,24 @@ elseif(ALIAKMON_BACKEND STREQUAL "cufft")
   endif()
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
-  # OpenACC GPU offload flags (NVHPC). -cuda enables CUDA interop so device
-  # pointers can be passed to heFFTe; -Minfo=accel reports offload decisions.
-  # Override the accel target with e.g. -DALIAKMON_ACC_FLAGS="-acc=gpu;-gpu=cc75".
+  # OpenACC GPU offload flags (NVHPC). -cuda enables CUDA Fortran/interop (so
+  # `use cudafor` and device-pointer passing to heFFTe work); -Minfo=accel
+  # reports offload decisions. Append your GPU arch, e.g.
+  #   -DALIAKMON_ACC_FLAGS="-acc=gpu;-cuda;-gpu=cc75"   (GTX 1650 = cc75).
+  # The SAME flags go on the link line: nvfortran uses -cuda/-gpu there to pull
+  # the matching CUDA Fortran runtime (libcudafor) — without them the cudafor
+  # device calls (cudaGetDeviceCount, ...) are undefined at link.
   set(ALIAKMON_ACC_FLAGS "-acc=gpu;-cuda;-Minfo=accel"
       CACHE STRING "NVHPC OpenACC/GPU flags for the cuFFT backend")
   target_compile_options(aliakmon PRIVATE
     $<$<COMPILE_LANGUAGE:Fortran>:${ALIAKMON_ACC_FLAGS}>)
-  target_link_options(aliakmon PRIVATE -acc=gpu -cuda)
+  # Drive the link with nvfortran (not the C++ compiler that CMake would pick
+  # because of heffte_init.cpp): only the Fortran driver injects the full CUDA
+  # Fortran runtime (libcudafor, libcudanvhpc, libnvf, ...) that `use cudafor`
+  # needs. `-c++libs` then pulls the NVHPC C++ runtime for heffte_init.cpp and
+  # heFFTe's C++ libraries. This mirrors the original Makefile (link via mpifort).
+  set_target_properties(aliakmon PROPERTIES LINKER_LANGUAGE Fortran)
+  target_link_options(aliakmon PRIVATE ${ALIAKMON_ACC_FLAGS} -c++libs)
   target_link_libraries(aliakmon PRIVATE CUDA::cufft CUDA::cudart CUDA::cuda_driver)
 endif()
 
