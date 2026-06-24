@@ -243,9 +243,7 @@ contains
 
     !Broadcast
 #ifdef _MPI_
-    sbuf(1:nn(4))=fscale(1:nn(4))
-    call mpi_bcast(sbuf,int(nn(4)),MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
-    fscale(1:nn(4))=sbuf(1:nn(4))
+    call mpi_bcast(fscale,int(nn(4)),MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
 #endif
 
     percent=0.0_rk
@@ -365,9 +363,6 @@ contains
 
        !FIX THIS: to multiple scalars
        if(PASSIVE_SCALAR) then
-!!$          write(passive_dat,'(11e37.8)') t,meanscl,sclvar,maxscl,minscl,&
-!!$               &emeanscl,maxgrad,PEl,&
-!!$               &lambdascl,etaoc,fscale(nsclf:nscll)          
        end if
 
        if(MHD) then

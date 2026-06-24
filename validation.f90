@@ -340,12 +340,10 @@ contains
     mcherr=mcherr1+mcherr2
     mmherr=mmherr1+mmherr2
 #ifdef _MPI_
-    sbuf(1:4) = (/enerr,mkherr,mcherr,mmherr/)
-    call mpi_allreduce(sbuf,rbuf,4,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    enerr=rbuf(1)
-    mkherr=rbuf(2)
-    mcherr=rbuf(3)
-    mmherr=rbuf(4)
+    call mpi_allreduce(MPI_IN_PLACE,enerr,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
+    call mpi_allreduce(MPI_IN_PLACE,mkherr,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
+    call mpi_allreduce(MPI_IN_PLACE,mcherr,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
+    call mpi_allreduce(MPI_IN_PLACE,mmherr,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
     !Print errors
     if(mpirank==mpiroot) then

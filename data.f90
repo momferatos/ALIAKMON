@@ -1290,19 +1290,6 @@ contains
     trk1(1:dim1(n1))=k1(1:dim1(n1))
     trk1(n1/2+1)=(n1/2)
 
-!!$    ! y-direction
-!!$    k2(1)=0_ik
-!!$    do i=2,n2/2
-!!$       k2(i)=(i-1)
-!!$    end do
-!!$
-!!$    k2(n2/2+1)=(n2/2)
-!!$    do i=1,n2/2-1
-!!$       j=-n2/2+i
-!!$       k2(i+n2/2+1)=j
-!!$    end do
-!!$    trk2(:)=k2(:)
-!!$    trk2(n2/2+1)=(n2/2)
     ! y-direction is divided across MPI processes
     ! global wave-vector array
     gk2(1)=0_ik

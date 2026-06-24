@@ -69,7 +69,6 @@ program aliakmon
   tstart=0.0_rk
   dt=1.0e-9_rk
   RAND_SIZE=1
-  MSFAC=1.0_rk
   TRFAC=sqrt(2.0_rk)/3.0_rk
   RMSUTAR=sqrt(1.0_rk/3.0_rk)
   nfilestrfun=0
@@ -109,10 +108,6 @@ program aliakmon
   cudaerror = cudasetdevice(numdevice)
   cudaerror = cudagetdevice(numdevice)
   call heffte_set_num_device(numdevice)
-!!$  print '(a,i0,2a,3(a,i0),a)', 'MPI Process ', mpirank, ' running @ node ', &
-!!$       &trim(nodename), ' with localrank ', locrank, ' uses GPU # ', &
-!!$       &numdevice + 1, ' out of ', &
-!!$       &numdevices, ' available on the node.'
   call mpi_barrier(MPI_COMM_WORLD, mpierr)
 #endif
   ! Read input file
@@ -315,11 +310,9 @@ program aliakmon
      ME=0.0_rk
   end if
   teinitial=0.5_rk*(ME+KE)
-  rkten=teinitial
 
   ! Mean kinetic helicity
   mkhinitial=mean_kinetic_helicity(nn,fu)
-  rkmkh=mkhinitial
   ! MHD helicities
   if(MHD) then
      mchinitial=mean_cross_helicity(nn,fu)
@@ -360,13 +353,9 @@ program aliakmon
 
      ! Broadcast dissipation rates
 #ifdef _MPI_
-     sbuf(1)=totdis
-     sbuf(2)=totdisprev
-     sbuf(3)=totdisprev2
-     call mpi_bcast(sbuf,3,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
-     totdis=sbuf(1)
-     totdisprev=sbuf(2)
-     totdisprev2=sbuf(3)
+     call mpi_bcast(totdis,1,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
+     call mpi_bcast(totdisprev,1,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
+     call mpi_bcast(totdisprev2,1,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
 #endif
 
      ! Check for temporal total dissipation peak
@@ -541,7 +530,7 @@ contains
             &action='write',&
             &status='old',position='append')
     else
-       open(maxima_dat,file='maxima.dat',form='formatted',action='write')
+       open(newunit=maxima_dat,file='maxima.dat',form='formatted',action='write')
     end if
     write(maxima_dat,'(6a17)') 'Time|','max(u)|','max(b)|','max(w)|', &
          &'max(j)|', 'max(j x b)|'
@@ -581,7 +570,7 @@ contains
             &'etaoc|', 'sclfscale|'
     end if
     if(INPUT_FIELD.and.MHD) then
-       open(magnetic_dat,file='magnetic.dat',form='formatted',action='write',&
+       open(newunit=magnetic_dat,file='magnetic.dat',form='formatted',action='write',&
             &status='old',position='append')
     else
        open(newunit=magnetic_dat,file='magnetic.dat',form='formatted',&
@@ -706,24 +695,6 @@ contains
        call dissipation(nn, scratch, 1_ik, fu)
 
     end if
-!!$
-!!$    if(PASSIVE_SCALAR.and.OUTPUT_SCL_DISS) then
-!!$       call gradient(nn,u,fscl,.true.)
-!!$       call fourier(nn,-1_ik,u1)
-!!$       call fourier(nn,-1_ik,u2)
-!!$       call fourier(nn,-1_ik,u3)
-!!$
-!!$       rhs5=u1**2+u2**2+u3**2
-!!$
-!!$    end if
-!!$
-!!$    !calculate vorticity
-!!$    if(MHD.and.OUTPUT_J) then
-!!$       call curl(nn,u,fb,.true.)
-!!$       call fourier(nn,-1_ik,u1)
-!!$       call fourier(nn,-1_ik,u2)
-!!$       call fourier(nn,-1_ik,u3)   
-!!$    end if
 
     !create output HDF5 filename
     write(filename_out,'(2a)') 'pp_',trim(filename_in)
@@ -865,9 +836,7 @@ contains
        maxerr=maxval(abs(u(1:nn(1),1:nn(2),1:nn(3),1:nn(4))-&
             &fu(1:nn(1),1:nn(2),1:nn(3),1:nn(4))))
 #ifdef _MPI_
-       sbuf(1)=maxerr
-       call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-       maxerr=rbuf(1)
+       call mpi_allreduce(MPI_IN_PLACE,maxerr,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
 #endif
        if(mpirank == mpiroot) print '(a,e10.3)', 'FFT max error:', maxerr
     end do

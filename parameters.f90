@@ -65,18 +65,10 @@ module parameters
   real(rk)                                      :: mchinitial
   real(rk)                                      :: mmhinitial
   real(rk)                                      :: mkhinitial
-  real(rk)                                      :: rkvdis
-  real(rk)                                      :: rkodis
-  real(rk)                                      :: rkaddis
-  real(rk)                                      :: rkten
-  real(rk)                                      :: rkeinj
-  real(rk)                                      :: rkmkh
-  real(rk)                                      :: rkmkhdis
   ! Output files
   integer(ik)                                   :: dispeak_dat=111
   integer(ik)                                   :: hydro_dat=222
   integer(ik)                                   :: passive_dat=333
-  integer(ik)                                   :: ank_stdout=444
   integer(ik)                                   :: maxima_dat=555
   integer(ik)                                   :: magnetic_dat=666
   integer(ik)                                   :: distest_dat=777
@@ -174,7 +166,7 @@ module parameters
   integer(ik), parameter :: TAYLOR_GREEN_VORTEX=5, RADSPHERE=6
   integer(ik), parameter :: PERIODIC=0, FREESLIP=1
   ! Constants for choice of time integration method
-  integer(ik), parameter :: MEULER=0, MRUNGE_KUTTA2=1,MRUNGE_KUTTA4=2
+  integer(ik), parameter :: MRUNGE_KUTTA2=1,MRUNGE_KUTTA4=2
   ! Constants for choice of truncation method
   integer(ik), parameter :: TWO_THIRDS=0, SPHERICAL=1,POLYHEDRAL=2
   ! Constants for choice of dealiasing method
@@ -325,35 +317,8 @@ contains
   pure elemental function dim1(n)
     integer(ik) :: dim1
     integer(ik), intent(IN) :: n
-    ! 
-    ! Used to handle x dimension of the FFTW arrays
-    ! 
-
-    dim1=int(2_ik*(floor(real(n,rk)/2.0_rk)+1),ik)
-
-    return
+    dim1=2_ik*(n/2_ik+1_ik)
   end function dim1
-
-  function round(x)
-    integer(ik) :: round
-    real(rk) :: x
-    ! 
-    ! Round a real number
-    ! 
-    integer(ik) :: floor
-    real(rk) :: frac
-
-    floor=int(x,ik)
-    frac=x-floor
-    if(frac>0.5_rk) then
-       round=floor+1
-    else
-       round=floor
-    end if
-
-    return
-
-  end function round
 
 end module parameters
 
@@ -392,10 +357,6 @@ module mpivars
   integer(ik) :: glkmax,kstep
   ! Constants for MPI data types
   integer :: MPIRK, MPI2RK, MPISP,MPICKS, MPIIK,MPIRKS
-  ! Buffers used in reductions and Broadcasts
-  real(dp), dimension(1024) :: sbuf,rbuf
-  ! Maximum integer
-  integer, parameter :: MPIMAXINT=2**16
 contains
   subroutine set_mpi_types
     implicit none
@@ -417,7 +378,7 @@ contains
 
     if(rks==sp) then
        MPIRKS=MPI_REAL
-    else if(rk==dp) then
+    else if(rks==dp) then
        MPIRKS=MPI_DOUBLE_PRECISION
     end if
 

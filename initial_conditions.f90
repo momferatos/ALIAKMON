@@ -129,9 +129,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                             :: i, j, k, l, ns
     !Set initial conditions for particles
-!!$    if(PARTICLES) then
-!!$       call lset_initial_conditions(np,x,vp)
-!!$    end if
 
     !Set zero initial conditions, use only with forcing
     select case(initcond)
@@ -257,15 +254,6 @@ contains
     dz=LBOX/real(gn3,rk)
     !Calculate stochastic coefficients
     do kk=k1,k2
-!!$       if(mpirank==MPIROOT) then
-!!$          aa(1)=2.0*(rand()-0.5)
-!!$          aa(2)=2.0*(rand()-0.5)
-!!$          aa(3)=2.0*(rand()-0.5)
-!!$       end if
-!!$       !Broadcast   
-!!$#ifdef _MPI_
-!!$       call mpi_bcast(aa,3,MPIRK,MPIROOT,MPI_COMM_WORLD,mpierr)
-!!$#endif
        aa(1)=0.1
        aa(2)=0.3
        aa(3)=0.4
@@ -297,12 +285,7 @@ contains
 
     !Set-up stochastic small-scale component
     call random_field(nn,scratch,2.0_rk)
-!!$    !Enforce incompressibility / zero magnetic field divergence
-!!$    call project(nn,scratch,press)
-!!$    !rescale to unit rms
     call rescale(nn,scratch)
-!!$    !truncate
-!!$    call truncate(nn, scratch)
     
     !$omp parallel do
     do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
@@ -431,11 +414,6 @@ contains
              fac = (rad*sqrt(2.0_rk*PI))**(-1)
              u(i,j,k,ntemp)=fac*exp(-(dst**8&
                   &/(2._rk*rad**2)))
-!!$             if(dst<rad) then
-!!$                u(i,j,k,ntemp)=1.0_rks
-!!$             else
-!!$                u(i,j,k,ntemp)=0.0_rks
-!!$             end if
           end do
        end do
     end do

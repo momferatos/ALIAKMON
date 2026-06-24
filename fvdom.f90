@@ -47,7 +47,7 @@ contains
          &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right,&
          &is_wq, omeg
     use mpi
-    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
+    use mpivars, only: MPIRK, MPI2RK, mpierr, mpirank
     use numerics, only: fourier
     implicit none
     integer(ik) :: ns
@@ -245,17 +245,11 @@ contains
 
        !$acc end parallel
 
-!!$          !reduce maximum error across processes
-!!$          sbuf(1) = maxerr
-!!$          call mpi_allreduce(sbuf, rbuf, 1_i4b, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD, mpierr)
-!!$          maxerr = rbuf(1)
        ! global convergence condition
 
 
-       sbuf(1) = maxerr
-       call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
-            &MPI_MAX, MPI_COMM_WORLD, mpierr);
-       maxerr = rbuf(1)
+       call mpi_allreduce(MPI_IN_PLACE,maxerr,1_i4b,MPIRK,&
+            &MPI_MAX,MPI_COMM_WORLD,mpierr)
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
        if(maxerr < fvtol) then
           exit iterloop  
@@ -263,25 +257,6 @@ contains
 
     end do iterloop
 
-!!$
-!!$    ! find the process in which the maximum error occurs
-!!$    sbuf2(1,1) = maxerr
-!!$    sbuf2(1,2) = mpirank
-!!$    call mpi_allreduce(sbuf2, rbuf2, 1_i4b, MPI2RK, &
-!!$         &MPI_MAXLOC, MPI_COMM_WORLD, mpierr); 
-!!$    maxerr = rbuf2(1,1)
-!!$    maxerr_rank = int(rbuf2(1,2), ik)
-!!$
-!!$    ! broadcast
-!!$    sbuf(1) = ierr
-!!$    sbuf(2) = jerr
-!!$    sbuf(3) = kerr
-!!$    sbuf(4) = nserr
-!!$    call mpi_bcast(sbuf, 4_i4b, MPIRK, int(maxerr_rank, i4b), MPI_COMM_WORLD, mpierr)
-!!$    ierr = sbuf(1)
-!!$    jerr = sbuf(2)
-!!$    kerr = sbuf(3)
-!!$    nserr = sbuf(4)
 
 
 
@@ -292,7 +267,7 @@ contains
   subroutine ghost_nodes(left, right, ghostleft, ghostright)
     use mpi
     use mpivars, only: mpirank, MPIRKS, MPIROOT, &
-         &mpisize, mpierr, sbuf, rbuf, lkstart, lksize
+         &mpisize, mpierr, lkstart, lksize
     use data, only: ia, sendbuf, recvbuf, nsects, nn
     implicit none
     real(rks), dimension(1:nn(1), 1:nn(2), 1:nsects), intent(IN) ::&
@@ -442,10 +417,9 @@ contains
     end do; end do; end do
     !$omp end parallel do
 
-    sbuf(1) = maxval(ga)
-    call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
-         &MPI_MAX, MPI_COMM_WORLD, mpierr);
-    maxga = rbuf(1)
+    maxga = maxval(ga)
+    call mpi_allreduce(MPI_IN_PLACE,maxga,1_i4b,MPIRK,&
+         &MPI_MAX,MPI_COMM_WORLD,mpierr)
     if(mpirank == 0) print '(a,e15.5)', 'max(G) = ', maxga
     return
 
@@ -573,30 +547,3 @@ contains
 end module fvdom
 
 
-!!$     if(mod(rank, 2) == 0) then
-!!$       dir = R2L
-!!$       call copy_sendbuf(dir)
-!!$       call mpi_send(sendbuf, count, MPIRKS, right, dir, MPI_COMM_WORLD, mpierr)
-!!$       call mpi_recv(recvbuf, count, MPIRKS, left, dir,  MPI_COMM_WORLD,&
-!!$            & status, mpierr)
-!!$       call copy_recvbuf(dir)
-!!$       dir = L2R
-!!$       call copy_sendbuf(dir)
-!!$       call mpi_send(sendbuf, count, MPIRKS, left, dir, MPI_COMM_WORLD, mpierr)
-!!$       call mpi_recv(recvbuf, count, MPIRKS, right, dir,  MPI_COMM_WORLD,&
-!!$            & status, mpierr)
-!!$       call copy_recvbuf(dir)
-!!$    else
-!!$       dir = R2L
-!!$       call mpi_recv(recvbuf, count, MPIRKS, left, dir,  MPI_COMM_WORLD,&
-!!$            & status, mpierr)
-!!$       call copy_recvbuf(dir)
-!!$       call copy_sendbuf(dir)
-!!$       call mpi_send(sendbuf, count, MPIRKS, right, dir, MPI_COMM_WORLD, mpierr)
-!!$       dir = L2R
-!!$       call mpi_recv(recvbuf, count, MPIRKS, right, dir,  MPI_COMM_WORLD, &
-!!$            &status, mpierr)
-!!$       call copy_recvbuf(dir)
-!!$       call copy_sendbuf(dir)
-!!$       call mpi_send(sendbuf, count, MPIRKS, left, dir, MPI_COMM_WORLD, mpierr)
-!!$    end if

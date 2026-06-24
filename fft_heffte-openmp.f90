@@ -1,12 +1,4 @@
 !$
-!!$ (  / _ \\ \       /                               
-!!$   | |_| |\ \  _  __  ___  ___   _  __   __  _  __
-!!$   |  _  | > \| |/  \/ / |/ / | | |/ / _ \ \| |/ /
-!!$   | | | |/ ^ \ ( ()  <|   <| |_| | |_/ \_| | / / 
-!!$   |_| |_/_/ \_\_)__/\_\_|\_\ ._,_|\___^___/|__/  
-!!$                            |_|
-!!$  
-!!$   Copyright (c) 2009-2020 George Momferatos
 
 module fft_heffte
   use mpi
@@ -126,31 +118,21 @@ contains
 
     return
 
-!!$#ifdef _CUFFT_
-!!$    fft = heffte_fft3d_r2c_cufft(il1, il2, il3, ih1, ih2, $
     !!&ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2, $
     !!&r2c_direction, MPI_COMM_WORLD, $         &.false., .true.,
     !!.false.)
-!!$    fft = heffte_fft3d_r2c_cufft(il1,il2,il3,ih1,ih2,ih3, $
     !!&ol1,ol2,ol3,oh1,oh2,oh3 $
     !!&,r2c_direction,MPI_COMM_WORLD,use_alltoall=.false.)
-!!$#elif defined _MKL_
-!!$    fft = heffte_fft3d_r2c_mkl(il1, il2, il3, ih1, ih2, $
     !!&ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2, $
     !!&r2c_direction, MPI_COMM_WORLD, $         &.false., .true.,
     !!.false.)
-!!$    fft = heffte_fft3d_r2c_mkl(il1,il2,il3,ih1,ih2,ih3, $
     !!&ol1,ol2,ol3,oh1,oh2,oh3 $
     !!&,r2c_direction,MPI_COMM_WORLD)
-!!$#else
-!!$    fft = heffte_fft3d_r2c_fftw(il1,il2,il3,ih1,ih2,ih3, $
     !!&ol1,ol2,ol3,oh1,oh2,oh3 $
     !!&,r2c_direction,MPI_COMM_WORLD)
-!!$#endif
 
 
 
-!!$acc enter data create(input(1:size_in), output(1:size_out),
     !!work(1:size_work))
 
     !call c_f_pointer(c_loc(input),r_array,shape=(/n1, ljsize,
@@ -170,7 +152,6 @@ contains
     !deallocate(input)
     !deallocate(output)
     !deallocate(work)
-!!$acc exit data delete(input, output, work)
 
     !    call fft%release()
 
@@ -286,8 +267,6 @@ contains
     cudaerror = cudasetdevice(numdevice)
     cudaerror = cudagetdevice(numdevice)
     call heffte_set_num_device(numdevice)
-!!$    if(mpirank == mpiroot) print '(3(a,i3),a)', 'Thread # ', nthread, &
-!!$         & 'uses GPU # ', numdevice, ' out of ', numdevices, ' visible.'
 #endif
 
     allocate(input(1:size_in))

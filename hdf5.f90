@@ -465,12 +465,6 @@ contains
     integer(ik) :: i,j,k,l
     write(filename,'(a,i6.6,a)') 'output.',nfile,'.h5'
 
-!!$    dimsf(1)=nn(1)
-!!$    dimsf(2)=gn2
-!!$    dimsf(3)=gn3
-!!$    dimsf(4)=3
-!!$
-!!$    dimsfi(:)=dimsf(:)
 
     !
     ! Initialize FORTRAN predefined datatypes
@@ -584,16 +578,6 @@ contains
 
 
 
-!!$    datanames(nu2)='u2'
-!!$    datanames(nu3)='u3'
-!!$    if(PASSIVE_SCALAR) then
-!!$       datanames(nsclf:nscll)='scl'
-!!$    end if
-!!$    if(MHD) then
-!!$       datanames(nb1)='b1'
-!!$       datanames(nb2)='b2'
-!!$       datanames(nb3)='b3'
-!!$    end if
 
 
 
@@ -1150,12 +1134,6 @@ contains
 
     real(rks), dimension(:,:,:), allocatable :: h5_scalar_data
 
-!!$    rank=4
-!!$    dimsf(1)=3
-!!$    dimsf(2)=nn(1)
-!!$    dimsf(3)=gn2
-!!$    dimsf(4)=gn3
-!!$    dimsfi(:)=dimsf(:)
 
     !
     ! Initialize FORTRAN predefined datatypes
@@ -1196,20 +1174,7 @@ contains
     end do; end do; end do; end do
     !$omp end parallel do
 
-!!$    call read_hdf5_scalar_dataset('/u1',h5_scalar_data,nn)
-!!$    u(1:nn(1),1:nn(2),1:nn(3),nu1)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
-!!$
-!!$    call read_hdf5_scalar_dataset('/u2',h5_scalar_data,nn)
-!!$    u(1:nn(1),1:nn(2),1:nn(3),nu2)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
-!!$
-!!$    call read_hdf5_scalar_dataset('/u3',h5_scalar_data,nn)
-!!$    u(1:nn(1),1:nn(2),1:nn(3),nu3)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
 
-!!$    !write passive scalar
-!!$    if(PASSIVE_SCALAR) then
-!!$       call read_hdf5_scalar_dataset('/scl',h5_scalar_data,nn)
-!!$       u(1:nn(1),1:nn(2),1:nn(3),nsclf)=h5_scalar_data(1:nn(1),1:nn(2),1:nn(3))
-!!$    end if
 
     !write mhd
     if(MHD) then

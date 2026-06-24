@@ -124,6 +124,7 @@ contains
     real(rk) :: eps=1.0e-3
     real(rk) :: val
     real(rk) :: dx, dy, dz
+    real(rk) :: tmp_send(2), tmp_recv(2)
 
     !$acc update self(qr(1:nn(1),1:nn(2),1:nn(3),1:3),&
     !$acc& ga(1:nn(1),1:nn(2),1:nn(3)))
@@ -148,12 +149,11 @@ contains
     end do
 
     red=(sum(ga)*dx*dy*dz)/CLIGHT
-    sbuf(1)=val
-    sbuf(2)=red
-    call mpi_reduce(sbuf,rbuf,2_i4b,MPIRK,&
+    tmp_send(1)=val; tmp_send(2)=red
+    call mpi_reduce(tmp_send,tmp_recv,2_i4b,MPIRK,&
          &MPI_SUM,MPIROOT,MPI_COMM_WORLD,mpierr)
-    val=rbuf(1)
-    red=rbuf(2)
+    val=tmp_recv(1)
+    red=tmp_recv(2)
     if(mpirank==MPIROOT) then
        write(432,*) time, val*radius**2, red
        flush(432)
@@ -169,7 +169,7 @@ contains
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     integer(ik), intent(IN)                                    :: dir
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT) :: fu
     integer(ik), optional :: nfs, nfe
     integer(ik), optional :: idx
 !!!!!!!!!!!!!!!!!!
@@ -252,17 +252,12 @@ contains
     end do
     
 #ifdef _MPI_
-    sbuf(1:nn(4))=msv(1:nn(4))
-    call mpi_allreduce(sbuf,rbuf,int(nn(4)),MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    msv(1:nn(4))=rbuf(1:nn(4))
+    call mpi_allreduce(MPI_IN_PLACE,msv,int(nn(4)),MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
 
     tmp=msv(nu1)+msv(nu2)+msv(nu3)
     msv(nu1:nu3)=tmp
     
-!!$    if(PASSIVE_SCALAR) then
-!!$       msv(nsclf:nscll)=rms(nsclf:nscll)
-!!$    end if
 
     if(MHD) then
        tmp=msv(nb1)+msv(nb2)+msv(nb3)
@@ -286,10 +281,8 @@ contains
     !calculate mean-square value for vector array
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                                 :: i,j,k,l
-    real(rk), dimension(:), allocatable                         :: fmean
+    real(rk) :: fmean(nn(4))
     real(rk)                                                    :: fac,tmp
-
-    if(.not.allocated(fmean)) allocate(fmean(1:nn(4)))
     !Calculate scale factor
     fac=1.0_rk / real(nn(1)*gn2*gn3,rk)
 
@@ -329,9 +322,7 @@ contains
 
     !Reduce root-mean-square
 #ifdef _MPI_
-    sbuf(1:nn(4))=meanval(1:nn(4))
-    call mpi_allreduce(sbuf,rbuf,int(nn(4)),MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    meanval(1:nn(4))=rbuf(1:nn(4))
+    call mpi_allreduce(MPI_IN_PLACE,meanval,int(nn(4)),MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
 
     return
@@ -413,7 +404,7 @@ contains
     use data, only: wv,nu1,nb1,isactive,scratch,zero
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)               :: fu
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3)), intent(OUT)                  :: press
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !project velocity/magnetic field to solenoidal subspace
@@ -491,7 +482,7 @@ contains
   subroutine timestep(nn,fu,dt)
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)  :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)  :: fu
     real(rk), intent(IN)                                        :: dt
 !!!!!!!!!!!!!!!!!!!!!
     !timestep advancement
@@ -517,7 +508,7 @@ contains
     use data, only: wv,rhs,rks1,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)               :: fu
     real(rk), intent(IN)                                        :: dt
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Second-order Runge-Kutta time integration
@@ -562,7 +553,7 @@ contains
     use data, only: wv,rhs,rks1,rks2,isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)               :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)               :: fu
     real(rk), intent(IN)                                        :: dt
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !Fourth-order Runge-Kutta time integration
@@ -652,13 +643,7 @@ contains
     !Non-linear terms in rotational form
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik)                                             :: i, j, k,l,m
-    complex(ck), dimension(:),allocatable :: ff, fvisc
     real(rk) :: ksq
-
-    
-    
-    if(.not.allocated(fvisc)) allocate(fvisc(1:nn(4)))
-    if(.not.allocated(ff)) allocate(ff(1:nn(4)))
 
     call compute_hydro
 
@@ -782,11 +767,8 @@ contains
       !$omp end parallel do
 
 #ifdef _MPI_
-      sbuf(1)=MAXVEL
-      sbuf(2)=MAXVORT
-      call mpi_allreduce(sbuf,rbuf,2,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-      MAXVEL=rbuf(1)
-      MAXVORT=rbuf(2)
+      call mpi_allreduce(MPI_IN_PLACE,MAXVEL,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+      call mpi_allreduce(MPI_IN_PLACE,MAXVORT,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
 #endif
 
 
@@ -1125,23 +1107,7 @@ contains
       !$omp end parallel do
 
 
-!!$         !$omp parallel do private(tt, y, pp, dens, vappress, dens_air, cv)
-!!$         do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-!!$            tt = u(i, j, k, ntemp)
-!!$            y = (tt - TEMPMIN) / (TEMPMAX - TEMPMIN)
-!!$            y = max(0.0_rk, min(real(y, rk), 1.0_rk))
-!!$            pp = 1.0e-6 * PATM
-!!$            dens = DTp( tt, pp, dens, icode )
-!!$            dens_air = 1.1455_rk
-!!$            dens = y * dens + (1 - y) * dens_air
-!!$            cv = CvTp( tt, pp, cv, icode )
-!!$            icp(i, j, k, 1) = (dens * 1.0e-3_rk * cv) ** -1
-!!$         end do; end do ; end do
-!!$         !$omp end parallel do
 
-!!$         print *, 'min(c)', minval(icp), 'max(c)', maxval(icp)
-!!$         icp = 1.0_rk / (1.0e3_rk * icp)
-!!$         print *, 'min(ic)', minval(icp), 'max(ic)', maxval(icp)
       !call fourier(nn, 1_ik, icp, nfs=1_ik, nfe=1_ik)
 
       return
@@ -1213,21 +1179,22 @@ contains
     subroutine compute_diffusive_terms
       use types
       implicit none
-      !$omp parallel do private(ksq,ff,fvisc)
-      do l=1,nn(4) ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1)) 
+      complex(ck) :: ff(nn(4))
+      real(rk) :: ksq, fvisc_val
+      !$omp parallel do private(ksq,ff,fvisc_val,l)
+      do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))
          if(isactive(i,j,k)) then
             call forcing_rhs(nn,i,j,k,fu,ff)
             ksq=wv(1_ik,i,j,k)**2+wv(2_ik,i,j,k)**2+wv(3_ik,i,j,k)**2
-            fvisc(l)=-ksq*visc(l)*fu(i,j,k,l)
-            !Add to get the right-hand-side
-            scratch(i,j,k,l)=fnl(i,j,k,l)+fvisc(l)+ff(l)
+            do l=1,nn(4)
+               fvisc_val=-ksq*visc(l)*fu(i,j,k,l)
+               fnl(i,j,k,l)=fnl(i,j,k,l)+fvisc_val+ff(l)
+            end do
          else
-            scratch(i,j,k,l)=0.0_rk
+            fnl(i,j,k,:)=0.0_rks
          end if
-         fnl(i,j,k,l)=scratch(i,j,k,l)
-      end do; end do ; end do ; end do 
+      end do; end do; end do
       !$omp end parallel do
-      return
     end subroutine compute_diffusive_terms
 
 
@@ -1254,63 +1221,11 @@ contains
          &(sqrt(real(trk1(iii)**2+trk2(j)**2+trk3(k)**2,rk))<KFORCING)
 
     if(condition) then
-!!$       !Toy stochastic forcing
-!!$       if(.not.VARIABLE_FORCING) then
-!!$          if(FORCED) then
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nu1)=FSCALE*r*exp(ii*2*PI*ph)
-!!$
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nu2)=FSCALE*r*exp(ii*2*PI*ph)
-!!$
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nu3)=FSCALE*r*exp(ii*2*PI*ph)
-!!$          end if
-!!$
-!!$          !Passive scalar
-!!$          if(PASSIVE_SCALAR.and.FORCED_PASSIVE_SCALAR) then
-!!$             do l=nsclf,nscll
-!!$                call random_number(r)
-!!$                call random_number(ph)
-!!$                ff(l)=FSCALE*r*exp(ii*2*PI*ph)
-!!$             end do
-!!$          end if
-!!$
-!!$          !Magnetohydrodynamics
-!!$          if(MHD.and.FORCED_MHD) then
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nb1)=FSCALE*r*exp(ii*2*PI*ph)
-!!$
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nb2)=FSCALE*r*exp(ii*2*PI*ph)
-!!$
-!!$             call random_number(r)
-!!$             call random_number(ph)
-!!$             ff(nb3)=FSCALE*r*exp(ii*2*PI*ph)
-!!$          end if
-!!$
-!!$          !Kaneda et al. (2004) forcing
-!!$       else if(VARIABLE_FORCING) then
        do l=1,nn(4)
           ff(l)=fscale(l)*cmplx(fu(i,j,k,l),fu(i+1,j,k,l),ck)
        end do
     else
        ff(:)=cmplx(0.0_rk,0.0_rk,ck)
-!!$       ff(nu2)=cmplx(0.0_rk,0.0_rk,ck)
-!!$       ff(nu3)=cmplx(0.0_rk,0.0_rk,ck)
-!!$
-!!$       if(PASSIVE_SCALAR) ff(nscl)=cmplx(0.0_rk,0.0_rk,ck)
-!!$
-!!$       if(MHD) then
-!!$          ff(nb1)=cmplx(0.0_rk,0.0_rk,ck)
-!!$          ff(nb2)=cmplx(0.0_rk,0.0_rk,ck)
-!!$          ff(nb3)=cmplx(0.0_rk,0.0_rk,ck)
-!!$       end if
 
     end if
 
@@ -1443,11 +1358,8 @@ contains
     !$omp end parallel do
 
 #ifdef _MPI_
-    sbuf(1)=maxj
-    sbuf(2)=maxlf
-    call mpi_allreduce(sbuf,rbuf,2,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-    maxj=rbuf(1)
-    maxlf=rbuf(2)
+    call mpi_allreduce(MPI_IN_PLACE,maxj,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
+    call mpi_allreduce(MPI_IN_PLACE,maxlf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
 #endif
 
     !Forward Fourier transforms
@@ -1475,8 +1387,6 @@ contains
        end do; end do ; end do ; end do
     end if
 
-!!$    !Truncate the Lorentz force
-!!$    call truncate(nn,lf)
 
     !Truncate the ambipolar diffusion terms
     if(AMB_DIFF.or.HALL) then
@@ -1590,21 +1500,6 @@ contains
 
 
 
-!!$  subroutine maxima(nn,fu)
-!!$    use mpivars
-!!$    implicit none
-!!$    integer(ik), dimension(1:4), intent(in)                   :: nn
-!!$    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN)  :: fu
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$    !Calculate maxima of the scalar field
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$    integer(ik) :: i,j,k
-!!$    
-!!$    
-!!$
-!!$    return
-!!$
-!!$  end subroutine maxima
 
   subroutine cross_product(nn,c,a,b,nf)
     use types
@@ -1925,9 +1820,7 @@ contains
 
     !Reduce
 #ifdef _MPI_
-    sbuf(1)=addis
-    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    addis=rbuf(1)
+    call mpi_allreduce(MPI_IN_PLACE,addis,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
 
     addis=AD_COEFF*addis
@@ -2080,7 +1973,6 @@ contains
 
     !Perform inner product
     call inner_product(nn,scratch,nu1,u,scratch2,nu1)
-!!$
     !Forward Fourier transform
     call fourier(nn,1_ik,scratch,nu1,nu1)
 
@@ -2351,9 +2243,7 @@ contains
 
     !Reduce
 #ifdef _MPI_
-    sbuf(1)=area
-    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    area=rbuf(1)
+    call mpi_allreduce(MPI_IN_PLACE,area,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
 
     !Integrate to ge the integral length scale
@@ -2374,11 +2264,8 @@ contains
 
     !Reduce
 #ifdef _MPI_
-    sbuf(1)=L
-    sbuf(2)=diss
-    call mpi_allreduce(sbuf,rbuf,2,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
-    L=rbuf(1)
-    diss=rbuf(2)
+    call mpi_allreduce(MPI_IN_PLACE,L,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
+    call mpi_allreduce(MPI_IN_PLACE,diss,1,MPIRK,MPI_SUM,MPI_COMM_WORLD,mpierr)
 #endif
     if(area==0._rk) area=1.0_rk
     L=(area**(-1))*L
@@ -2612,7 +2499,7 @@ contains
     use data, only: isactive
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT) :: fu
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT) :: fu
     integer(ik), optional :: nfs,nfe
 !!!!!!!!!!!!!!!!!!!!!!!!
     !Truncate a scalar field
@@ -2672,13 +2559,9 @@ contains
           call copy(nn,u,fu)
           call fourier(nn,-1_rk,u,nfs=ntemp,nfe=ntemp)
           smax = maxval(u(:, :, :, ntemp))
-          sbuf(1)=smax
-          call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-          smax=rbuf(1)
+          call mpi_allreduce(MPI_IN_PLACE,smax,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
           smin = minval(u(:, :, :, ntemp))
-          sbuf(1)=smin
-          call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MIN,MPI_COMM_WORLD,mpierr)
-          smin=rbuf(1)
+          call mpi_allreduce(MPI_IN_PLACE,smin,1,MPIRK,MPI_MIN,MPI_COMM_WORLD,mpierr)
           !$omp parallel do
           do k=1,nn(3) ; do j=1,nn(2) ; do i=1,dim1(nn(1))   
              u(i,j,k,ntemp)= (TEMPMAX - TEMPMIN) * (u(i,j,k,ntemp) - smin) / &
@@ -2714,7 +2597,7 @@ contains
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     integer(ik), intent(IN)                                    :: dir
-    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(IN OUT)              :: u
+    real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(INOUT)              :: u
     integer(ik), optional :: nfs, nfe
     logical, optional :: trunc
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2803,9 +2686,7 @@ contains
 
     !Reduce
 #ifdef _MPI_
-    sbuf(1)=mvel
-    call mpi_allreduce(sbuf,rbuf,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
-    mvel=rbuf(1)
+    call mpi_allreduce(MPI_IN_PLACE,mvel,1,MPIRK,MPI_MAX,MPI_COMM_WORLD,mpierr)
 #endif
 
         
@@ -2884,7 +2765,7 @@ contains
          &ia, iba, ntemp, sgn, s, copy, left, right,&
          &is_wq, omeg,copy,zero,ga,qr,press,dotprds
     use mpi
-    use mpivars, only: MPIRK, MPI2RK, sbuf, rbuf, mpierr, mpirank
+    use mpivars, only: MPIRK, MPI2RK, mpierr, mpirank
     implicit none
     integer(ik), dimension(1:4) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: temp
@@ -3079,10 +2960,8 @@ contains
        !$acc end data
 
        ! reduce maximum error across processes
-       sbuf(1) = maxerr
-       call mpi_allreduce(sbuf, rbuf, 1_i4b, MPIRK, &
-            &MPI_MAX, MPI_COMM_WORLD, mpierr);
-       maxerr = rbuf(1)
+       call mpi_allreduce(MPI_IN_PLACE,maxerr,1_i4b,MPIRK,&
+            &MPI_MAX,MPI_COMM_WORLD,mpierr)
 
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
 
@@ -3095,25 +2974,6 @@ contains
 
     call calcqr
 
-!!$
-!!$    ! find the process in which the maximum error occurs
-!!$    sbuf2(1,1) = maxerr
-!!$    sbuf2(1,2) = mpirank
-!!$    call mpi_allreduce(sbuf2, rbuf2, 1_i4b, MPI2RK, &
-!!$         &MPI_MAXLOC, MPI_COMM_WORLD, mpierr); 
-!!$    maxerr = rbuf2(1,1)
-!!$    maxerr_rank = int(rbuf2(1,2), ik)
-!!$
-!!$    ! broadcast
-!!$    sbuf(1) = ierr
-!!$    sbuf(2) = jerr
-!!$    sbuf(3) = kerr
-!!$    sbuf(4) = nserr
-!!$    call mpi_bcast(sbuf, 4_i4b, MPIRK, int(maxerr_rank, i4b), MPI_COMM_WORLD, mpierr)
-!!$    ierr = sbuf(1)
-!!$    jerr = sbuf(2)
-!!$    kerr = sbuf(3)
-!!$    nserr = sbuf(4)
 
     return
 
@@ -3122,7 +2982,7 @@ contains
   subroutine ghost_nodes(left, right, ghostleft, ghostright)
     use mpi
     use mpivars, only: mpirank, MPIRKS, MPIROOT, &
-         &mpisize, mpierr, sbuf, rbuf, lkstart, lksize
+         &mpisize, mpierr, lkstart, lksize
     use data, only: ia, sendbuf, recvbuf, nsects, nn
     implicit none
     real(rks), dimension(1:nn(1), 1:nn(2), 1:nsects), intent(IN) ::&
