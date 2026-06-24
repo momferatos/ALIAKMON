@@ -385,7 +385,7 @@ program aliakmon
      call timestep(nn,fu,dt)
      call copy(nn,u,fu)
      call fourier(nn,-1_ik,u)
-     call check_free_slip_bcs(nn,fu)
+     if(BOUNDCOND == FREESLIP) call check_free_slip_bcs(nn,fu)
 
      if(RADIATION) call integrate_qr(nn,qr,time)
 

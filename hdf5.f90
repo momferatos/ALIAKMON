@@ -510,7 +510,7 @@ contains
        h5_vector_data(l,i,j,k)=u(i,j,k,l)
     end do; end do ; end do ; end do
     !$omp end parallel do
-    ! call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
+    call write_hdf5_vector_dataset('/u',h5_vector_data,nn)
     ndatanames = ndatanames + 1
     datanames(ndatanames) = 'u'
     data_is_vector(ndatanames) = .true.
