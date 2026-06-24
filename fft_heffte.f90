@@ -115,23 +115,23 @@ contains
     lkstart = il3
     lksize = ih3 - il3 + 1
 #ifdef _CUFFT_
-       fft = heffte_fft3d_r2c_cufft(il1, il2, il3, ih1, ih2, &
-            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+       fft = heffte_fft3d_r2c_cufft(il1-1, il2-1, il3-1, ih1-1, ih2-1, &
+            &ih3-1, 0, 1, 2, ol1-1, ol2-1, ol3-1, oh1-1, oh2-1, oh3-1, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
             &.true., int(2, c_int), .true.)
 #elif defined _MKL_
-       fft = heffte_fft3d_r2c_mkl(il1, il2, il3, ih1, ih2, &
-            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+       fft = heffte_fft3d_r2c_mkl(il1-1, il2-1, il3-1, ih1-1, ih2-1, &
+            &ih3-1, 0, 1, 2, ol1-1, ol2-1, ol3-1, oh1-1, oh2-1, oh3-1, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
             &.true., int(2, c_int), .true.)
 #elif defined _FFTW_
-       fft = heffte_fft3d_r2c_fftw(il1, il2, il3, ih1, ih2, &
-            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+       fft = heffte_fft3d_r2c_fftw(il1-1, il2-1, il3-1, ih1-1, ih2-1, &
+            &ih3-1, 0, 1, 2, ol1-1, ol2-1, ol3-1, oh1-1, oh2-1, oh3-1, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
             &.true., int(2, c_int), .true.)
 #else
-       fft = heffte_fft3d_r2c_stock(il1, il2, il3, ih1, ih2, &
-            &ih3, 0, 1, 2, ol1, ol2, ol3, oh1, oh2, oh3, 0, 1, 2,&
+       fft = heffte_fft3d_r2c_stock(il1-1, il2-1, il3-1, ih1-1, ih2-1, &
+            &ih3-1, 0, 1, 2, ol1-1, ol2-1, ol3-1, oh1-1, oh2-1, oh3-1, 0, 1, 2,&
             &r2c_direction, MPI_COMM_WORLD, &
             &.true., int(2, c_int), .true.)
 #endif

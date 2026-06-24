@@ -1360,8 +1360,8 @@ contains
   end subroutine wave_vectors
 
   function tr_wv_idx(idx,n) result(tr_idx)
-    integer(ik), intent(in) :: tr_idx,n
-    integer(ik) :: idx
+    integer(ik), intent(in) :: idx,n
+    integer(ik) :: tr_idx
     
     if(idx>=0) then
        tr_idx=idx+1
