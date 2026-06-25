@@ -428,15 +428,15 @@ contains
     end do;  end do ;  end do
     !$acc end loop
 
+#ifndef _OPENACC
+    !$omp parallel do collapse(3) private(tqr1,tqr2,tqr3,tga)
+#endif
     !$acc loop independent private(tqr1,tqr2,tqr3,tga)
     do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
        tqr1=0.0
        tqr2=0.0
        tqr3=0.0
        tga=0.0
-#ifndef _OPENACC
-       !$omp parallel do reduction(+:tqr1,tqr2,tqr3,tga)
-#endif
        !$acc loop independent reduction(+:tqr1,tqr2,tqr3,tga)
        do ns=1,nsects
           !qr = sum ia * s
