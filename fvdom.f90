@@ -90,8 +90,11 @@ contains
     !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
     !$acc update device(press(1:nn(1), 1:nn(2), 1:nn(3)))
 
+    ! grid metrics (constant): face area and cell volume
+    surf = (LBOX / real(nn(1), rk)) ** 2
+    vol  = (LBOX / real(nn(1), rk)) ** 3
 
-    ! iteration loop      
+    ! iteration loop
     iterloop:do nit=1,niterdo
 
        !$acc update self(left(1:nn(1), 1:nn(2), 1:nsects), &
@@ -108,8 +111,8 @@ contains
 
        !$acc parallel copy(maxerr) &
        !$acc& private(dotprd, sumin, sumout , &
-       !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
-       !$acc& vol, y, T, p, tmp)
+       !$acc& sp, nom, denom, fac, faces_step, nface, &
+       !$acc& y, T, p, tmp)
 
 #ifndef _OPENACC
        !$omp parallel do 
@@ -159,14 +162,14 @@ contains
           ! sweep...
           !$omp parallel do &
           !$omp& private(dotprd, sumin, sumout , &
-          !$omp& sp, nom, denom, fac, surf, faces_step, nface, &
-          !$omp& vol, y, T, p, tmp)
+          !$omp& sp, nom, denom, fac, faces_step, nface, &
+          !$omp& y, T, p, tmp)
 #endif
           ! sweep...
           !$acc loop independent collapse(4) &
           !$acc& private(dotprd, sumin, sumout , &
-          !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
-          !$acc& vol, y, T, p, tmp)
+          !$acc& sp, nom, denom, fac, faces_step, nface, &
+          !$acc& y, T, p, tmp)
           do k=kstart(sd),kend(sd),kstep(sd)
              do j=jstart(sd),jend(sd),jstep(sd)
                 do i=istart(sd),iend(sd),istep(sd)
@@ -174,9 +177,6 @@ contains
                       if(is_wq(ns,sd))  then
                          ! update the cell's radiative intensity
                          ! according to the step scheme
-
-                         ! set surface area of cell faces
-                         surf = (LBOX / real(nn(1), rk)) ** 2
 
                          faces_step(1) = ia(ns,i + 1, j, k)
                          faces_step(2) = ia(ns,i - 1, j, k)
@@ -198,8 +198,6 @@ contains
                             end if
                          end do
                          !$acc end loop
-
-                         vol = (LBOX / real(nn(1), rk)) ** 3
 
                          sp = (STEFB / PI) * temp(i, j, k) ** 4
 
