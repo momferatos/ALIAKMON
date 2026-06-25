@@ -1,15 +1,17 @@
 module fvdom
   use types
+  use parameters
   implicit none
 
 contains
 
-  pure function absorb(temp)
+  pure function absorb(temp, y, p, mode)
     use types
     implicit none
     !$acc routine seq
     real(rk) :: absorb
-    real(rks), intent(IN) :: temp
+    real(rk), intent(IN) :: temp, y, p
+    integer(ik), intent(in), optional :: mode
     !     H2O, CO2, CO according to:
     !
     !     Chmielewski, Maciej, and Marian Gieras. "Planck Mean Absorption
@@ -21,35 +23,49 @@ contains
     !          
     !    https://www.sandia.gov/TNF/radiation.html
     !
-    real(rk) :: tt
-    real(rk), dimension(4) :: A_H2O, B_H2O, C_H2O
-    integer(ik) :: i
+    real(4) :: tt, yy
+    real(4), dimension(4) :: A_H2O, B_H2O, C_H2O
+    integer(ik) :: i, imode
+
+    imode=0
+    if(present(mode)) imode=mode
+
     A_H2O=(/ 63.87D0, 2.629D0,  222.9D0,  0.9910D0 /)
     B_H2O=(/ 149.5D0, 493.6D0, -2110.0D0, 1700.0D0 /)
     C_H2O=(/ 174.3D0, 111.1D0,  1592.0D0, 619.20D0 /)
 
-    tt = max(300.0_rk, min(2500.0_rk, real(temp, rk)))
+    tt = max(TEMPMIN, min(TEMPMAX, real(temp, rk)))
 
-    absorb = 0.0D0
-    do i=1,4
-       absorb=absorb + A_H2O(i) * &
-            &exp(-((tt - B_H2O(i)) / C_H2O(i)) ** 2)
-    end do
+    if(imode==0) then
+       tt=1.0D3/tt
+       absorb=-0.23093D0+tt*(-1.12390D0+tt*(9.41530D0+tt*&
+            &(-2.99880D0+tt*(0.51382D0+tt*(-1.86840D-5)))))
+    else
+       absorb = 0.0e0
+       do i=1,4
+          absorb=absorb + A_H2O(i) * &
+               &exp(-((tt - B_H2O(i)) / C_H2O(i)) ** 2)
+       end do
+    end if
+
+    absorb = (PATM + p) * y * absorb
 
     return
 
   end function absorb
 
-  subroutine calcia
+  subroutine calcia(nn, temp)
     use parameters, only: n1, nsects, niterdo, fvtol, LBOX, STEFB, PI
     use data, only: istart, iend, istep, jstart, jend, jstep, &
-         &kstart, kend, kstep, nn, ghostleft, ghostright,&
-         &temp, ia, iba, ntemp, u, sgn, s, fu, copy, left, right,&
-         &is_wq, omeg
+         &kstart, kend, kstep, ghostleft, ghostright,&
+         &ia, iba, ntemp, sgn, s, copy, left, right,&
+         &is_wq, omeg,copy,zero,ga,qr,press,dotprds
     use mpi
     use mpivars, only: MPIRK, MPI2RK, mpierr, mpirank
-    use numerics, only: fourier
     implicit none
+    integer(ik), dimension(1:4) :: nn
+    real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: temp
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: ns
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Explicit MPI method for the calculation of the radiative intensity !
@@ -62,45 +78,18 @@ contains
     integer :: nit, maxiter, maxloc, maxrank
     real(rk), dimension(1, 2) :: sbuf2, rbuf2
     integer(ik) :: maxerr_rank
+    integer(ik) :: ngangs, vlength
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(8) :: dotprd, sumin, sumout 
-    real(8) :: sourcep, nom, denom, fac
-    ! norm(nface, 1:3) unit vector normal to finite volume face
-    real(rk), dimension(1:6, 1:3), parameter :: norm = reshape(&
-         &[ 1_rk,  0_rk,  0_rk , &
-         & -1_rk,  0_rk,  0_rk , &
-         &  0_rk,  1_rk,  0_rk , &
-         &  0_rk, -1_rk,  0_rk , &
-         &  0_rk,  0_rk,  1_rk , &
-         &  0_rk,  0_rk, -1_rk ],&
-         &shape=[6, 3])
-    !$acc declare create(norm)
+    real(8) :: sp, nom, denom, fac
     real(8) :: surf ! surf(nface) finite volume face surface area
     real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
     integer(8) :: nface
-    real(8) :: vol
-    real(rk) :: absorb
-    real(rk) :: tt
-    real(rk), dimension(4), parameter :: A_H2O = &
-         &[ 63.87_rk, 2.629_rk,  222.9_rk,  0.9910_rk ]
-    real(rk), dimension(4), parameter :: B_H2O = &
-         &[ 149.5_rk, 493.6_rk, -2110.0_rk, 1700.0_rk ]
-    real(rk), dimension(4), parameter :: C_H2O =&
-         &[ 174.3_rk, 111.1_rk,  1592.0_rk, 619.20_rk ]
-    integer(ik) :: ii, jj
-    real(8) :: dx
+    real(8) :: vol, y, T, p
 
-    dx = LBOX / real(nn(1), rk)
-    surf = dx ** 2
-    vol = dx ** 3
-    ! copy temperature
-    call copy(nn, u, fu)
-    call fourier(nn, -1_ik, u, nfs=ntemp, nfe=ntemp)
-    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-       temp(i, j, k) = u(i, j, k, ntemp)
-    end do; end do ; end do
-    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)), &
-    !$acc& ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
+    !$acc update device(temp(1:nn(1), 1:nn(2), 1:nn(3)))
+    !$acc update device(press(1:nn(1), 1:nn(2), 1:nn(3)))
+
 
     ! iteration loop      
     iterloop:do nit=1,niterdo
@@ -111,153 +100,175 @@ contains
        !$acc update device(ghostleft(1:nn(1), 1:nn(2), 1:nsects),&
        !$acc& ghostright(1:nn(1), 1:nn(2), 1:nsects))
 
-       maxerr = 0.0_rk
-       err = 0.0_rk
-       !$acc parallel private(ii, faces_step(1:6), sumin, &
-       !$acc& sumout, dotprd, sourcep, tt, absorb, jj, fac, &
-       !$acc& nom, denom, err) reduction(max:maxerr) &
-       !$acc& num_gangs(nsects) vector_length(n1)
-       do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-          ia(i, j, 0_ik, ns) = ghostleft(i, j, ns)
-          ia(i, j, nn(3) + 1, ns) = ghostright(i, j, ns)
-       end do; end do ; end do 
-       !acc loop independent collapse(4)
-       do ns=1,nsects ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
-          iba(i, j, k, ns) = ia(i, j, k, ns)
+       maxerr = 0.0
+       vlength=nsects
+       ngangs=nsects
+
+       !$acc data present(nn, ia, iba, is_wq, dotprds, temp, press)
+
+       !$acc parallel copy(maxerr) &
+       !$acc& private(dotprd, sumin, sumout , &
+       !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
+       !$acc& vol, y, T, p, tmp)
+
+#ifndef _OPENACC
+       !$omp parallel do 
+#endif
+       !$acc loop independent collapse(3)
+       do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+          ia(ns, i, j, 0_ik) = ghostleft(i, j, ns)
+          ia(ns, i, j, nn(3) + 1) = ghostright(i, j, ns)
+       end do; end do ; end do
+       !$acc end loop
+
+#ifndef _OPENACC
+       !$omp parallel do 
+#endif
+       !$acc loop independent collapse(4)
+       do k=0,nn(3)+1 ; do j=0,nn(2)+1 ; do i=0,nn(1)+1 ; do ns=1,nsects
+          iba(ns, i, j, k) = ia(ns, i, j, k)
        end do; end do ; end do ; end do
        !$acc end loop
 
-       !$acc loop seq
-       do sd=1,8 ! sweep the domain in 8 directions, one from each corner
-          !$acc loop independent gang 
-          do ns=1,nsects             
-             ! sweep...
-             if(is_wq(sd, ns)) then
-                !$acc loop worker collapse(2)
-                do k=kstart(sd),kend(sd),kstep(sd)
-                   do j=jstart(sd),jend(sd),jstep(sd)
-                      !$acc loop vector private(ii, faces_step(1:6), sumin, &
-                      !$acc& sumout, dotprd, sourcep, tt, absorb, jj, fac, nom, denom)
-                      do i=istart(sd),iend(sd),istep(sd)
 
+       ! sweep the domain in 8 directions, one from each corneρ
+       !$acc loop seq
+       sweeploop: do sd=1,8
+
+#ifndef _OPENACC
+          !$omp parallel do 
+#endif
+          !$acc loop independent collapse(3)
+          do k=1,nn(3) ; do j=1,nn(2) ; do ns=1,nsects
+             ia(ns, 0, j, k) =  ia(ns, nn(1), j, k)  
+             ia(ns, nn(1)+1, j, k) = ia(ns, 1, j, k)
+          end do; end do ; end do
+          !$acc end loop
+
+#ifndef _OPENACC
+          !$omp parallel do 
+#endif
+          !$acc loop independent collapse(3)
+          do k=1,nn(3) ; do i=1,nn(1) ; do ns=1,nsects
+             ia(ns, i, 0, k) = ia(ns, i, nn(2), k) 
+             ia(ns, i, nn(2)+1, k) = ia(ns, i, 1, k)
+          end do; end do ; end do
+          !$acc end loop
+
+#ifndef _OPENACC
+          ! sweep...
+          !$omp parallel do &
+          !$omp& private(dotprd, sumin, sumout , &
+          !$omp& sp, nom, denom, fac, surf, faces_step, nface, &
+          !$omp& vol, y, T, p, tmp)
+#endif
+          ! sweep...
+          !$acc loop independent collapse(4) &
+          !$acc& private(dotprd, sumin, sumout , &
+          !$acc& sp, nom, denom, fac, surf, faces_step, nface, &
+          !$acc& vol, y, T, p, tmp)
+          do k=kstart(sd),kend(sd),kstep(sd)
+             do j=jstart(sd),jend(sd),jstep(sd)
+                do i=istart(sd),iend(sd),istep(sd)
+                   do ns=1,nsects
+                      if(is_wq(ns,sd))  then
                          ! update the cell's radiative intensity
                          ! according to the step scheme
-                         ! set normal unit vectors for each face of the spatial control volume
 
-                         ! calculate intensity on faces
-                         ii = i + 1
-                         if(ii == nn(1) + 1) then
-                            ii = 1
-                         end if
-                         faces_step(1) = ia(ii, j, k, ns)
-                         ii = i - 1
-                         if(ii == 0_ik) then
-                            ii = nn(1)
-                         end if
-                         faces_step(2) = ia(ii, j, k, ns)
-                         ii = j + 1
-                         if(ii == nn(1) + 1) then
-                            ii = 1
-                         end if
-                         faces_step(3) = ia(i, ii, k, ns)
-                         ii = j - 1
-                         if(ii == 0_ik) then
-                            ii = nn(1)
-                         end if
-                         faces_step(4) = ia(i, ii, k, ns)
+                         ! set surface area of cell faces
+                         surf = (LBOX / real(nn(1), rk)) ** 2
 
-                         faces_step(5) = ia(i, j, k + 1, ns)
-                         faces_step(6) = ia(i, j, k - 1, ns)
+                         faces_step(1) = ia(ns,i + 1, j, k)
+                         faces_step(2) = ia(ns,i - 1, j, k)
+                         faces_step(3) = ia(ns,i, j + 1, k)
+                         faces_step(4) = ia(ns,i, j - 1, k)
+                         faces_step(5) = ia(ns,i, j, k + 1)
+                         faces_step(6) = ia(ns,i, j, k - 1)
 
                          sumin = 0.0  ! sum of incoming intensities
                          sumout = 0.0 ! sum of outgoing intensities
-                         !$acc loop seq
+                         !$acc loop seq reduction(+:sumin,sumout)
                          do nface=1,6 ! loop over finite volume faces
-                            dotprd = dot_product(s(ns, :), norm(nface, :)) 
+                            dotprd = dotprds(nface,ns)
                             if(dotprd < 0.0) then ! s is incoming
-                               sumin = sumin + faces_step(nface) * (-dotprd) * surf
+                               sumin = sumin + faces_step(nface) * &
+                                    &(-dotprd) * surf
                             else ! s is outgoing
                                sumout = sumout + dotprd * surf
                             end if
                          end do
                          !$acc end loop
 
-                         sourcep = (STEFB / PI) * temp(i, j, k) ** 4
+                         vol = (LBOX / real(nn(1), rk)) ** 3
 
-                         tt = max(300.0_rk, min(2500.0_rk, real(temp(i, j, k), rk)))
+                         sp = (STEFB / PI) * temp(i, j, k) ** 4
 
-                         absorb = 0.0_rk
-                         !$acc loop seq
-                         do jj=1,4
-                            absorb=absorb + A_H2O(jj) * &
-                                 &exp(-((tt - B_H2O(jj)) / C_H2O(jj)) ** 2)
-                         end do
-                         !$acc end loop
+                         T=temp(i,j,k)
+                         y = (T - TEMPMIN) / (TEMPMAX - TEMPMIN)
+                         y = max(0.0_rk, min(1.0_rk, real(y, rk)))
+                         p = press(i,j,k)
+                         fac = absorb(T, y, p, 0_ik) * &
+                              &vol * omeg(ns) ! auxiliary factor
 
-                         fac = absorb * vol * omeg(ns) ! auxiliary factor
+                         ! numerator of eq. (17.62) in (Modest, 2013)
+                         nom = fac * sp + sumin 
 
-                         nom = fac * sourcep + sumin ! numerator of eq. (17.62) in (Modest, 2013)
+                         denom = fac + sumout ! denominator of eq. (17.62)
 
-                         denom = fac + sumout ! denominator of eq. (17.62) 
-                         ia(i, j, k, ns) =  nom / denom ! update radiative intensity
-                         !                    call cell_step_scheme(ns, i, j, k)
-                      end do
+                         ! update radiative intensity
+                         ia(ns, i, j, k) =  nom / denom 
+                         !call cell_step_scheme(ns, i, j, k)
+                      end if
                    end do
                 end do
-             end if
+             end do
           end do
-       end do
-       !$acc end loop
-       ! calculate maximum error and its position for each MPI process
-       maxerr = 0.0
-       err = 0.0
-       ierr = 0
-       jerr = 0
-       kerr = 0
-       !$acc loop independent private(err) reduction(max: maxerr)
-       do ns=1,nsects
-          !$acc loop independent
-          do k=1,nn(3)
-             !$acc loop independent
-             do j=1,nn(2)
-                !$acc loop independent
-                do i=1,nn(1)
-                   err = abs(ia(i, j, k, ns) - iba(i, j, k, ns)) /&
-                        &ia(i, j, k, ns)
-                   if(err > maxerr) then
-                      maxerr = err
-                      !ierr = i
-                      !jerr = j
-                      !kerr = k
-                      !nserr = ns
-                   end if
+          !$acc end loop
+       end do sweeploop
+
+
+       ! calculate maximum error
+#ifndef _OPENACC
+       !$omp parallel do reduction(max:maxerr)
+#endif
+       !$acc loop independent reduction(max:maxerr) collapse(4)
+       do k=1,nn(3)
+          do j=1,nn(2)
+             do i=1,nn(1)
+                do ns=1,nsects
+                   maxerr = max(maxerr, real(abs((ia(ns, i, j, k) &
+                        &- iba(ns, i, j, k)) / ia(ns, i, j, k)), rk))      
                 end do
              end do
           end do
        end do
        !$acc end loop
 
-       !$acc loop seq collapse(3)
-       do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-          left(i, j, ns) = ia(i, j, 1_ik, ns)
-          right(i, j, ns) = ia(i, j, nn(3), ns)
+       !$acc loop independent collapse(3)
+       do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+          left(i, j, ns) = ia(ns, i, j, 1_ik)
+          right(i, j, ns) = ia(ns, i, j, nn(3))
        end do; end do ; end do
+       !$acc end loop
 
        !$acc end parallel
 
-       ! global convergence condition
+       !$acc end data
 
-
+       ! reduce maximum error across processes
        call mpi_allreduce(MPI_IN_PLACE,maxerr,1_i4b,MPIRK,&
             &MPI_MAX,MPI_COMM_WORLD,mpierr)
+
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
-       if(maxerr < fvtol) then
+
+       ! comnvergence condition
+       if(maxerr < FVTOL) then
           exit iterloop  
        end if
 
     end do iterloop
 
-
+    call calcqr
 
 
     return
@@ -279,7 +290,7 @@ contains
          &dir, rank
     integer(i4b), parameter :: L2R = 0, R2L = 1
     integer(ik) :: i, j, ns
-
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     rank = mpirank
 
@@ -347,14 +358,14 @@ contains
 
       if(dir == R2L) then
          !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            sendbuf(i, j, ns) = ia(i, j, 1, ns)
+         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+            sendbuf(i, j, ns) = ia(ns, i, j, 1)
          end do; end do; end do
          !$omp end parallel do
       else
          !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            sendbuf(i, j, ns) = ia(i, j, nn(3), ns)
+         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
+            sendbuf(i, j, ns) = ia(ns, i, j, nn(3))
          end do; end do; end do
          !$omp end parallel do
       end if
@@ -400,150 +411,55 @@ contains
     ! calculates radiative heat flux and incindent radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
-    real(rk) :: maxga
+    real(rk) :: maxga, tqr1, tqr2, tqr3, tga
 
-    !$acc update self(ia(1:nn(1), 1:nn(2), 0:nn(3) + 1, 1:nsects))
-    !radiative heat flux and incindent radiation at the interior of the domain
-    !$omp parallel do 
-    do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
+    !$acc data present(ia, ga, qr)
+
+    !$acc parallel
+#ifndef _OPENACC
+    !$omp parallel do collapse(3)
+#endif
+    !$acc loop independent collapse(3)
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
        ga(i, j, k) = 0.0
-       qr(i, j, k, 1:3) = 0.0 
+       qr(i, j, k, 1:3) = 0.0
+    end do;  end do ;  end do
+    !$acc end loop
+
+    !$acc loop independent private(tqr1,tqr2,tqr3,tga)
+    do k=1,nn(3); do j=1,nn(2); do i=1,nn(1)
+       tqr1=0.0
+       tqr2=0.0
+       tqr3=0.0
+       tga=0.0
+#ifndef _OPENACC
+       !$omp parallel do reduction(+:tqr1,tqr2,tqr3,tga)
+#endif
+       !$acc loop independent reduction(+:tqr1,tqr2,tqr3,tga)
        do ns=1,nsects
           !qr = sum ia * s
-          qr(i, j, k, 1:3) = qr(i, j, k, 1:3) + (ia(i, j, k, ns) * s(ns, 1:3)) ! add contribution of direction s
+          ! add contribution of direction s
+          tqr1 = tqr1 + (ia(ns, i, j, k) * s(ns,1))
+          tqr2 = tqr2 + (ia(ns, i, j, k) * s(ns,2))
+          tqr3 = tqr3 + (ia(ns, i, j, k) * s(ns,3))
           !G = sum ia * omega
-          ga(i, j, k) = ga(i, j, k) + (ia(i, j, k, ns) * omeg(ns)) ! same for the incindent radiation
+          ! same for the incindent radiation
+          tga = tga + (ia(ns, i, j, k) * omeg(ns))
        end do
+       !$acc end do
+       qr(i, j, k, 1) = tqr1
+       qr(i, j, k, 2) = tqr2
+       qr(i, j, k, 3) = tqr3
+       ga(i, j, k) = tga 
     end do; end do; end do
-    !$omp end parallel do
+    !$acc end do
 
-    maxga = maxval(ga)
-    call mpi_allreduce(MPI_IN_PLACE,maxga,1_i4b,MPIRK,&
-         &MPI_MAX,MPI_COMM_WORLD,mpierr)
-    if(mpirank == 0) print '(a,e15.5)', 'max(G) = ', maxga
+    !$acc end parallel
+
+    !$acc end data
+
     return
 
   end subroutine calcqr
-  
-  subroutine cell_step_scheme(ns, i, j, k)
-    use data, only: nn, ia, s, omeg, temp
-    use parameters, only: PI, STEFB, LBOX
-    implicit none
-    !$acc routine seq
-    integer(ik), intent(IN) :: ns ! number of direction
-    integer(ik), intent(IN) :: i, j, k  ! number of cell
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Update the radiative intensity at the center of the cell according to the step scheme      !
-    ! see: Modest, Michael F. Radiative heat transfer. Academic press, 2013., eq. (17.62) p. 568 !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(8) :: dotprd, sumin, sumout 
-    real(8) :: sp, nom, denom, fac
-    real(8), dimension(6, 3) :: norm ! norm(nface, 1:3) unit vector normal to finite volume face
-    real(8), dimension(6) :: surf ! surf(nface) finite volume face surface area
-    real(8), dimension(6) :: faces_step ! radiative intensity on the finite volume face
-    integer(8) :: nface
-    real(8) :: vol
-
-    ! set normal unit vectors for each face of the spatial control volume
-    norm(1, 1:3) = (/  1.0,  0.0,  0.0 /)
-    norm(2, 1:3) = (/ -1.0,  0.0,  0.0 /)
-    norm(3, 1:3) = (/  0.0,  1.0,  0.0 /)
-    norm(4, 1:3) = (/  0.0, -1.0,  0.0 /)
-    norm(5, 1:3) = (/  0.0,  0.0,  1.0 /)
-    norm(6, 1:3) = (/  0.0,  0.0, -1.0 /)
-
-    ! initialize fluxes to zero
-    faces_step(:) = 0.0
-
-    ! initialize face areas to zero
-    surf(:) = 0.0
-
-    ! calculate intensity on faces and face surface area
-    call faces_step_scheme(ns, i, j, k, faces_step, surf) 
-
-    sumin = 0.0  ! sum of incoming intensities
-    sumout = 0.0 ! sum of outgoing intensities
-    !$acc loop seq
-    do nface=1,6 ! loop over finite volume faces
-       dotprd = dot_product(s(ns, :), norm(nface, :)) 
-       if(dotprd < 0.0) then ! s is incoming
-          sumin = sumin + faces_step(nface) * (-dotprd) * surf(nface)
-       else ! s is outgoing
-          sumout = sumout + dotprd * surf(nface)
-       end if
-    end do
-    !$acc end loop
-
-    vol = (LBOX / real(nn(1), rk)) ** 3
-    
-    sp = (STEFB / PI) * temp(i, j, k) ** 4
-
-    fac = absorb(temp(i, j, k)) * vol * omeg(ns) ! auxiliary factor
-
-    nom = fac * sp + sumin ! numerator of eq. (17.62) in (Modest, 2013)
-    
-    denom = fac + sumout ! denominator of eq. (17.62) 
-    ia(i, j, k, ns) =  nom / denom ! update radiative intensity
-
-    return
-
-  end subroutine cell_step_scheme
-
-  pure subroutine faces_step_scheme(ns, i, j, k, faces_step, surf)
-    use data, only: nn, ia
-    use parameters, only: PI, LBOX
-    implicit none
-    !$acc routine seq
-    integer(ik), intent(IN) :: ns ! number of direction
-    integer(ik), intent(IN) :: i, j, k  ! number of cell
-    real(ik), dimension(6), intent(OUT) :: faces_step ! intensities at the faces of the cell
-    real(ik), dimension(6), intent(OUT) :: surf ! surface area of the faces of the cell
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Calculates intensity at the faces of the cell according for the step scheme: !
-    ! the intensity at the face is equal to the neighbouring intensity             !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(rk) :: tmp
-    integer(ik) :: ii, jj, kk
-    faces_step(:) = 0.0
-    surf(:) = 0.0
-
-    tmp = (LBOX / real(nn(1), rk)) ** 2
-    ! set surface area of cell faces
-    surf(1:6) = tmp
-
-    faces_step(1) = ia(per(i + 1), j, k, ns)
-    faces_step(2) = ia(per(i - 1), j, k, ns)
-    faces_step(3) = ia(i, per(j + 1), k, ns)
-    faces_step(4) = ia(i, per(j - 1), k, ns)
-    faces_step(5) = ia(i, j, k + 1, ns)
-    faces_step(6) = ia(i, j, k - 1, ns)
-
-    return
-
-  end subroutine faces_step_scheme
-
-  pure function per(i)
-    use data, only: nn
-    use types
-    use parameters, only: PI
-    implicit none
-    !$acc routine seq
-    integer(ik) :: per
-    integer(ik), intent(in) :: i
-
-    
-    if(i == 0_ik) then
-       per = nn(1)
-    else if(i == nn(1) + 1) then
-       per = 1
-    else
-       per = i
-    end if
-        
-    return
-
-  end function per
 
 end module fvdom
-
-

@@ -449,7 +449,7 @@ contains
 
   subroutine write_hdf5_compute_file(nn,u,time,nfile)
     use data, only: ga, qr
-    use numerics, only: calcia
+    use fvdom, only: calcia
     implicit none
     integer(ik), intent(IN), dimension(1:4)                  :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3), 1:nn(4)), intent(IN) :: u
@@ -587,7 +587,7 @@ contains
 
   subroutine write_hdf5_slice_file(nn,nfields,slice,datanames,time,nfile)
     use data, only: ga
-    use numerics, only: calcqr
+    use fvdom, only: calcqr
     implicit none
     integer(ik), intent(IN), dimension(1:4)                :: nn
     integer(ik), intent(IN)                                :: nfields

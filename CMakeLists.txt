@@ -57,6 +57,7 @@ set(ALIAKMON_FSOURCES
   parameters.f90
   data.f90
   fft_heffte.f90
+  fvdom.f90
   numerics.f90
   hdf5.f90
   validation.f90

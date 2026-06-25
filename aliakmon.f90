@@ -13,6 +13,7 @@ program aliakmon
   use data
   use initial_conditions 
   use numerics
+  use fvdom, only: calcia
   use input_output
   use validation
   use mpivars
@@ -506,7 +507,7 @@ contains
 
   subroutine output_files(num)
     use hdf5_aliakmon
-    use numerics, only: calcqr
+    use fvdom, only: calcqr
     implicit none
     integer(ik), intent(IN) :: num
     !Output fields in files

@@ -119,7 +119,8 @@ contains
     !use lagrangian, only: lset_initial_conditions
     use data, only:temp,press
     use mpivars
-    use numerics, only: calcia, check_free_slip_bcs, apply_free_slip_bcs
+    use numerics, only: check_free_slip_bcs, apply_free_slip_bcs
+    use fvdom, only: calcia
     implicit none
     integer(ik), dimension(1:4), intent(in)                   :: nn
     real(rks), dimension(1:dim1(nn(1)),1:nn(2),1:nn(3),1:nn(4)), intent(OUT) :: u
