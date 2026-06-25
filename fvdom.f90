@@ -236,8 +236,12 @@ contains
           do j=1,nn(2)
              do i=1,nn(1)
                 do ns=1,nsects
-                   maxerr = max(maxerr, real(abs((ia(ns, i, j, k) &
-                        &- iba(ns, i, j, k)) / ia(ns, i, j, k)), rk))      
+                   ! relative change; skip cells with zero intensity to
+                   ! avoid a divide-by-zero poisoning the max reduction
+                   if(ia(ns, i, j, k) /= 0.0_rk) then
+                      maxerr = max(maxerr, real(abs((ia(ns, i, j, k) &
+                           &- iba(ns, i, j, k)) / ia(ns, i, j, k)), rk))
+                   end if
                 end do
              end do
           end do
