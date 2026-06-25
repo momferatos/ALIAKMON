@@ -446,13 +446,13 @@ contains
           ! same for the incindent radiation
           tga = tga + (ia(ns, i, j, k) * omeg(ns))
        end do
-       !$acc end do
+       !$acc end loop
        qr(i, j, k, 1) = tqr1
        qr(i, j, k, 2) = tqr2
        qr(i, j, k, 3) = tqr3
-       ga(i, j, k) = tga 
+       ga(i, j, k) = tga
     end do; end do; end do
-    !$acc end do
+    !$acc end loop
 
     !$acc end parallel
 
