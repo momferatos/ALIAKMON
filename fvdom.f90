@@ -55,13 +55,12 @@ contains
   end function absorb
 
   subroutine calcia(nn, temp)
-    use parameters, only: n1, nsects, niterdo, fvtol, LBOX, STEFB, PI
+    use parameters, only: nsects, niterdo, fvtol, LBOX, STEFB, PI
     use data, only: istart, iend, istep, jstart, jend, jstep, &
          &kstart, kend, kstep, ghostleft, ghostright,&
-         &ia, iba, ntemp, sgn, s, copy, left, right,&
-         &is_wq, omeg,copy,zero,ga,qr,press,dotprds
+         &ia, iba, left, right, is_wq, omeg, press, dotprds
     use mpi
-    use mpivars, only: MPIRK, MPI2RK, mpierr, mpirank
+    use mpivars, only: MPIRK, mpierr, mpirank
     implicit none
     integer(ik), dimension(1:4) :: nn
     real(rks), dimension(1:nn(1),1:nn(2),1:nn(3)), intent(IN) :: temp
@@ -70,15 +69,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Explicit MPI method for the calculation of the radiative intensity !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    real(rk) :: err, tmperr, maxerr, gmaxerr ! maximum difference of radiative intensity between iterations
-    real(rk) :: diff, tmp, val, maxga
-    integer(ik) :: i, j, k, m, sd, mp ! loop counters
-    real(rk), dimension(3) :: shat ! unit vector correponding to s (vector of direction cosines) 
-    integer :: ierr, jerr, kerr, nserr
-    integer :: nit, maxiter, maxloc, maxrank
-    real(rk), dimension(1, 2) :: sbuf2, rbuf2
-    integer(ik) :: maxerr_rank
-    integer(ik) :: ngangs, vlength
+    real(rk) :: maxerr ! max relative change in intensity between iterations
+    integer(ik) :: i, j, k, sd ! loop counters
+    integer :: nit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     real(8) :: dotprd, sumin, sumout 
     real(8) :: sp, nom, denom, fac
@@ -104,15 +97,13 @@ contains
        !$acc& ghostright(1:nn(1), 1:nn(2), 1:nsects))
 
        maxerr = 0.0
-       vlength=nsects
-       ngangs=nsects
 
        !$acc data present(nn, ia, iba, is_wq, dotprds, temp, press)
 
        !$acc parallel copy(maxerr) &
        !$acc& private(dotprd, sumin, sumout , &
        !$acc& sp, nom, denom, fac, faces_step, nface, &
-       !$acc& y, T, p, tmp)
+       !$acc& y, T, p)
 
 #ifndef _OPENACC
        !$omp parallel do 
@@ -163,13 +154,13 @@ contains
           !$omp parallel do &
           !$omp& private(dotprd, sumin, sumout , &
           !$omp& sp, nom, denom, fac, faces_step, nface, &
-          !$omp& y, T, p, tmp)
+          !$omp& y, T, p)
 #endif
           ! sweep...
           !$acc loop independent collapse(4) &
           !$acc& private(dotprd, sumin, sumout , &
           !$acc& sp, nom, denom, fac, faces_step, nface, &
-          !$acc& y, T, p, tmp)
+          !$acc& y, T, p)
           do k=kstart(sd),kend(sd),kstep(sd)
              do j=jstart(sd),jend(sd),jstep(sd)
                 do i=istart(sd),iend(sd),istep(sd)
@@ -279,17 +270,15 @@ contains
 
   subroutine ghost_nodes(left, right, ghostleft, ghostright)
     use mpi
-    use mpivars, only: mpirank, MPIRKS, MPIROOT, &
-         &mpisize, mpierr, lkstart, lksize
-    use data, only: ia, sendbuf, recvbuf, nsects, nn
+    use mpivars, only: mpirank, MPIRKS, mpisize, mpierr
+    use data, only: sendbuf, recvbuf, nsects, nn
     implicit none
     real(rks), dimension(1:nn(1), 1:nn(2), 1:nsects), intent(IN) ::&
          & left, right
     real(rks), dimension(1:nn(1), 1:nn(2), 1:nsects), intent(OUT) ::&
          & ghostleft, ghostright
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    integer(i4b) :: leftrank, rightrank, status(MPI_STATUS_SIZE), count, &
-         &dir, rank
+    integer(i4b) :: leftrank, rightrank, status(MPI_STATUS_SIZE), count, rank
     integer(i4b), parameter :: L2R = 0, R2L = 1
     integer(ik) :: i, j, ns
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -350,55 +339,6 @@ contains
     
     return
 
-  contains
-
-    subroutine copy_sendbuf(dir)
-      use types
-      implicit none
-      integer(i4b) :: dir
-      
-
-      if(dir == R2L) then
-         !$omp parallel do
-         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
-            sendbuf(i, j, ns) = ia(ns, i, j, 1)
-         end do; end do; end do
-         !$omp end parallel do
-      else
-         !$omp parallel do
-         do j=1,nn(2) ; do i=1,nn(1) ; do ns=1,nsects
-            sendbuf(i, j, ns) = ia(ns, i, j, nn(3))
-         end do; end do; end do
-         !$omp end parallel do
-      end if
-
-      return
-      
-    end subroutine copy_sendbuf
-
-    subroutine copy_recvbuf(dir)
-      use types
-      implicit none
-      integer(i4b) :: dir
-
-      if(dir == R2L) then
-         !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            ghostright(i, j, ns) = recvbuf(i, j, ns)
-         end do; end do; end do
-         !$omp end parallel do
-      else
-         !$omp parallel do
-         do ns=1,nsects ; do j=1,nn(2) ; do i=1,nn(1)
-            ghostleft(i, j, ns) = recvbuf(i, j, ns)
-         end do; end do; end do 
-         !$omp end parallel do
-      end if
-
-      return
-      
-    end subroutine copy_recvbuf
-
   end subroutine ghost_nodes
   
   
@@ -406,14 +346,12 @@ contains
     use types
     use parameters, only: nsects
     use data, only: nn, qr, ga, ia, s, omeg
-    use mpi
-    use mpivars
     implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! calculates radiative heat flux and incindent radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
-    real(rk) :: maxga, tqr1, tqr2, tqr3, tga
+    real(rk) :: tqr1, tqr2, tqr3, tga
 
     !$acc data present(ia, ga, qr)
 
