@@ -23,8 +23,8 @@ contains
     !          
     !    https://www.sandia.gov/TNF/radiation.html
     !
-    real(4) :: tt, yy
-    real(4), dimension(4) :: A_H2O, B_H2O, C_H2O
+    real(rk) :: tt
+    real(rk), dimension(4) :: A_H2O, B_H2O, C_H2O
     integer(ik) :: i, imode
 
     imode=0
@@ -125,7 +125,7 @@ contains
        !$acc end loop
 
 
-       ! sweep the domain in 8 directions, one from each corneρ
+       ! sweep the domain in 8 directions, one from each corner
        !$acc loop seq
        sweeploop: do sd=1,8
 
@@ -254,7 +254,7 @@ contains
 
        if(mpirank == 0) print '(i5,e15.5)', nit, maxerr
 
-       ! comnvergence condition
+       ! convergence condition
        if(maxerr < FVTOL) then
           exit iterloop  
        end if
@@ -348,7 +348,7 @@ contains
     use data, only: nn, qr, ga, ia, s, omeg
     implicit none
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! calculates radiative heat flux and incindent radiation !
+    ! calculates radiative heat flux and incident radiation !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(ik) :: i, j, k, ns
     real(rk) :: tqr1, tqr2, tqr3, tga
@@ -383,7 +383,7 @@ contains
           tqr2 = tqr2 + (ia(ns, i, j, k) * s(ns,2))
           tqr3 = tqr3 + (ia(ns, i, j, k) * s(ns,3))
           !G = sum ia * omega
-          ! same for the incindent radiation
+          ! same for the incident radiation
           tga = tga + (ia(ns, i, j, k) * omeg(ns))
        end do
        !$acc end loop
