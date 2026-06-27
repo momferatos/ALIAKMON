@@ -2454,6 +2454,56 @@ contains
 
   end subroutine scalar_spectrum
 
+  subroutine radiation_spectra(nn,nfilespec,nespec)
+    use data, only: ga, qr
+    implicit none
+    integer(ik), dimension(1:4), intent(in)                   :: nn
+    integer(ik), intent(IN)                                   :: nfilespec
+    integer(ik), intent(IN)                                   :: nespec
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !Energy spectra of the radiative flux q (vector) and the incident
+    !radiation G (scalar). Both live in physical space, so transform a
+    !local copy to Fourier space and reuse the generic spectrum routines.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(ik)                                :: i,j,k,l
+    integer(ik), dimension(1:4)                :: nnn
+    real(rks), dimension(:,:,:,:), allocatable :: fwork
+    character(256)                             :: fname
+
+    !radiative heat flux q : vector spectrum
+    nnn = nn
+    nnn(4) = 3_ik
+    allocate(fwork(1:dim1(nn(1)),1:nn(2),1:nn(3),1:3))
+    fwork = 0.0_rks
+    !$omp parallel do
+    do l=1,3 ; do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       fwork(i,j,k,l) = qr(i,j,k,l)
+    end do; end do ; end do ; end do
+    !$omp end parallel do
+    call fourier(nnn,1_ik,fwork,nfs=1_ik,nfe=3_ik)
+    write(fname,'(a,i0.5,a)') 'qrspec.', nfilespec, '.dat'
+    call vector_spectrum(nnn,fwork,1_ik,fname,nespec)
+    deallocate(fwork)
+
+    !incident radiation G : scalar spectrum
+    nnn = nn
+    nnn(4) = 1_ik
+    allocate(fwork(1:dim1(nn(1)),1:nn(2),1:nn(3),1:1))
+    fwork = 0.0_rks
+    !$omp parallel do
+    do k=1,nn(3) ; do j=1,nn(2) ; do i=1,nn(1)
+       fwork(i,j,k,1) = ga(i,j,k)
+    end do; end do ; end do
+    !$omp end parallel do
+    call fourier(nnn,1_ik,fwork,nfs=1_ik,nfe=1_ik)
+    write(fname,'(a,i0.5,a)') 'gspec.', nfilespec, '.dat'
+    call scalar_spectrum(nnn,fwork,1_ik,fname,nespec)
+    deallocate(fwork)
+
+    return
+
+  end subroutine radiation_spectra
+
 
 
   function incompressibility(nn,fu,nf) result(meandivv)

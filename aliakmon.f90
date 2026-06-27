@@ -499,6 +499,9 @@ contains
        write(outfile,'(a,i0.5,a)') 'bespec.', nfilespec,'.dat'
        call vector_spectrum(nn,fu,nb1,outfile,nespec)
     end if
+    if(RADIATION) then
+       call radiation_spectra(nn,nfilespec,nespec)
+    end if
 
     return
 
