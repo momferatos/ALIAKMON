@@ -23,7 +23,7 @@ TMAX=10.0,	! maximum time limit
 CFL=0.8,	! Courant-Friedrichs-Lewy number
 RE=0,		! Taylor microscale Reynolds number, use KMAXETA if zero
 KMAXETA=2.0,	! Target maximum wavenumber times Kolmogorov microscale
-STOP_AT_DISSPEAK=.false. ! Stop at the dissipation peak?
+STOP_AT_DISSPEAK=.true. ! Stop at the dissipation peak?
 &end
 
 !
@@ -33,7 +33,7 @@ STOP_AT_DISSPEAK=.false. ! Stop at the dissipation peak?
 &hydro
 VISCOUS=.true.,! Include the viscous terms?
 BURGERS=.false.,! Include the pressure term?
-BOUSSINESQ=.true.,
+BOUSSINESQ=.false.,
 &end
 
 !
@@ -51,7 +51,7 @@ KFORCING=2.5,			! Maximum forced wavenumber
 !
 
 &passivescalar
-PASSIVE_SCALAR=.true.,		! Include the passive scalar equation?
+PASSIVE_SCALAR=.false.,		! Include the passive scalar equation?
 DIFFUSIVE=.true.,		! Include the diffusive term?
 PR=1.0,				! Prandtl number
 HEATING=.false.,		! Include the heating source term?
@@ -65,7 +65,7 @@ NUMSCLS=1,			! Number of passive scalar fields
 !
 
 &rad
-RADIATION=.true.,		! Turn on thermal radiation calculations
+RADIATION=.false.,		! Turn on thermal radiation calculations
 RADIATION_COUPLING=.false.	! Activate two-way temperature/radiation
 				! coupling 
 EQSECTS=1,			! Angular subdivision method:
@@ -134,7 +134,7 @@ INITCOND=4,		! Choose initial conditions: 0: Zero fields, 1: Stochastic with fla
 			! spectrum, 3: Orszag-Tang vortex variation, 4: Arnold-Beltrami-Childress flow, 5: Taylor-Green vortex\
 KINITCOND=2.5,		! Exponential cutoff wavenumber for the initial conditions
 SEEDRANDOM=.false.,	! Seed the random number generator?
-BOUNDCOND=1,
+BOUNDCOND=0,
 &end
 
 !
