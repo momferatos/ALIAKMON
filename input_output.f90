@@ -68,6 +68,21 @@ contains
     if(.not.DIFFUSIVE) FORCED_PASSIVE_SCALAR=.false.
     if(.not.VISCOUS.or..not.DIFFUSIVE) CRANK_NICHOLSON=.false.
 
+    ! The temperature field is stored as the first passive scalar
+    ! (ntemp = nsclf, set only when PASSIVE_SCALAR is on). The Boussinesq
+    ! buoyancy term and two-way radiation coupling both read u(:,:,:,ntemp);
+    ! without PASSIVE_SCALAR that index is never initialised, so they would
+    ! inject uninitialised memory into the momentum equation every RHS
+    ! evaluation -- a broadband spurious force that shows up as a wiggly
+    ! velocity field and a high-wavenumber pile-up in the energy spectrum.
+    if((BOUSSINESQ.or.(RADIATION.and.RADIATION_COUPLING))&
+         &.and..not.PASSIVE_SCALAR) then
+       print *, 'read_namelist_file:: BOUSSINESQ and two-way RADIATION_COUPLING&
+            & require PASSIVE_SCALAR=.true. (temperature is the first passive&
+            & scalar).'
+       stop
+    end if
+
     close(aliakmon_nml, status='keep')
 
     return
