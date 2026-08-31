@@ -73,7 +73,8 @@ add_executable(aliakmon ${ALIAKMON_FSOURCES} ${ALIAKMON_CXXSOURCES})
 set_target_properties(aliakmon PROPERTIES
   OUTPUT_NAME "aliakmon.${ALIAKMON_BACKEND}"
   SUFFIX ".exe")
-
+set_target_properties(aliakmon PROPERTIES LINKER_LANGUAGE Fortran)
+target_link_options(aliakmon PRIVATE -c++libs)
 # Use DT_RPATH (old dtags) instead of DT_RUNPATH so the executable's RPATH also
 # resolves the TRANSITIVE dependencies of the libraries it links (e.g. heFFTe's
 # own dependency on MKL) — RUNPATH only covers direct dependencies.
