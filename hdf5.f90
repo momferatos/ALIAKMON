@@ -64,65 +64,104 @@ contains
     integer(ik), intent(IN) :: nfile
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     integer(hid_t) :: hdf5_file
-    character(len = 256) :: dsetname
-    integer :: trank
-    integer(hid_t) :: dset_id, dcpl
     integer        :: error
-    integer(hsize_t), dimension(1) :: data_dims
-    real(8), dimension(1) :: time_arr
-    integer, dimension(1) :: nfile_arr
+    real(8)        :: nu_val, fscale_val
 
-    time_arr(1) = time
-    nfile_arr(1) = nfile
-    
-    ! set dataset rank                                                          
-    trank = 1
-    ! Set dataset dimensions for data                                           
-    data_dims(1) = 1
+    ! viscosity and forcing scale of the velocity field; they are set up
+    ! after the arrays are allocated, so guard against an early call
+    nu_val = 0.0_8
+    if(allocated(visc)) nu_val = visc(nu1)
+    fscale_val = 0.0_8
+    if(allocated(fscale)) fscale_val = fscale(nu1)
 
-    dsetname = 'time'
-    
     call h5fopen_f(trim(filename), H5F_ACC_RDWR_F, hdf5_file, error)
 
-    ! Create the data space for the  dataset.                                   
-    call h5screate_simple_f(trank, data_dims, filespace, error)
-    ! Create the dataset                                                        
-    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_DOUBLE, filespace, &
-         &dset_id, error)
-
-    ! write the dataset                                                         
-
-    call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, time_arr, data_dims, error)
-
-    ! cleanup
-
-    call h5sclose_f(filespace, error)
-
-    call h5dclose_f(dset_id, error)
-
-
-    dsetname = 'nfile'
-    ! Create the data space for the  dataset.                                   
-    call h5screate_simple_f(trank, data_dims, filespace, error)
-    ! Create the dataset                                                        
-    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_INTEGER, filespace, &
-         &dset_id, error)
-
-    ! write the dataset                                                         
-
-    call h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, nfile_arr, data_dims, error)
-
-    ! cleanup
-
-    call h5sclose_f(filespace, error)
-
-    call h5dclose_f(dset_id, error)
+    call write_hdf5_real_metadata(hdf5_file, 'time', real(time,8))
+    call write_hdf5_integer_metadata(hdf5_file, 'nfile', int(nfile))
+    call write_hdf5_real_metadata(hdf5_file, 'nu', nu_val)
+    call write_hdf5_real_metadata(hdf5_file, 'fscale', fscale_val)
 
     call h5fclose_f(hdf5_file, error)
 
     return
 
   end subroutine add_timestamp
+
+  subroutine write_hdf5_real_metadata(hdf5_file, dsetname, value)
+    implicit none
+    integer(hid_t), intent(IN)   :: hdf5_file
+    character(len=*), intent(IN) :: dsetname
+    real(8), intent(IN)          :: value
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Writes a single real value as a rank 1, size 1 dataset !!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(hid_t) :: dset_id, dspace_id
+    integer        :: error
+    integer(hsize_t), dimension(1) :: data_dims
+    real(8), dimension(1) :: value_arr
+
+    value_arr(1) = value
+
+    ! Set dataset dimensions for data
+    data_dims(1) = 1
+
+    ! Create the data space for the  dataset.
+    call h5screate_simple_f(1, data_dims, dspace_id, error)
+    ! Create the dataset
+    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_DOUBLE, dspace_id, &
+         &dset_id, error)
+
+    ! write the dataset
+
+    call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, value_arr, data_dims, error)
+
+    ! cleanup
+
+    call h5sclose_f(dspace_id, error)
+
+    call h5dclose_f(dset_id, error)
+
+    return
+
+  end subroutine write_hdf5_real_metadata
+
+  subroutine write_hdf5_integer_metadata(hdf5_file, dsetname, value)
+    implicit none
+    integer(hid_t), intent(IN)   :: hdf5_file
+    character(len=*), intent(IN) :: dsetname
+    integer, intent(IN)          :: value
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Writes a single integer value as a rank 1, size 1 dataset !!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    integer(hid_t) :: dset_id, dspace_id
+    integer        :: error
+    integer(hsize_t), dimension(1) :: data_dims
+    integer, dimension(1) :: value_arr
+
+    value_arr(1) = value
+
+    ! Set dataset dimensions for data
+    data_dims(1) = 1
+
+    ! Create the data space for the  dataset.
+    call h5screate_simple_f(1, data_dims, dspace_id, error)
+    ! Create the dataset
+    call h5dcreate_f(hdf5_file, trim(dsetname), H5T_NATIVE_INTEGER, dspace_id, &
+         &dset_id, error)
+
+    ! write the dataset
+
+    call h5dwrite_f(dset_id, H5T_NATIVE_INTEGER, value_arr, data_dims, error)
+
+    ! cleanup
+
+    call h5sclose_f(dspace_id, error)
+
+    call h5dclose_f(dset_id, error)
+
+    return
+
+  end subroutine write_hdf5_integer_metadata
   
   
   subroutine write_hdf5_vector_dataset(dataset_name, dataset, nn)

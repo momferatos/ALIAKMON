@@ -33,9 +33,10 @@ for ipath,path in enumerate(paths):
             (print('Calculating maxima/minima: # '
                    + f'{ih5file+1:d}/{nh5files:d}', end='\r'))
             ih5file += 1
-            fieldkeys = h5file.keys() 
+            fieldkeys = h5file.keys()
+            # skip the scalar metadata datasets (time, nfile, nu, fscale)
             fieldkeys = ([fieldkey for fieldkey in fieldkeys
-                          if fieldkey != 'time'])
+                          if h5file[fieldkey].ndim > 1])
             for fieldkey in fieldkeys:
                 field = np.array(h5file[fieldkey])
                 min_value = np.finfo(field.dtype).min
