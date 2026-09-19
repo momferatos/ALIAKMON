@@ -12,3 +12,30 @@ old/
 test_case/
 backup/
 aliakmon.diag
+
+# CMake build trees and in-source configure leftovers
+build/
+build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Run directories
+32/
+64/
+64-sph/
+128/
+128-rad/
+test/
+
+# Output of a run inside the source directory
+*.h5
+*.xmf
+*.dat
+*.pt
+*.stdout
+fort.*
+png/
+
+# Local Claude Code settings
+.claude/settings.local.json
